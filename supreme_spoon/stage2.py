@@ -567,16 +567,16 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
 
     # Get locations of all hot pixels.
     hot_pix = utils.get_dq_flag_metrics(dq_cube[0], ['DO_NOT_USE', 'HOT',
-                                                     'WARM', 'NO_GAIN_VALUE'])
+                                                     'WARM'])
 
     hotpix = np.zeros_like(deepframe_itl)
-    nanpix = np.zeros_like(deepframe_itl)
     otherpix = np.zeros_like(deepframe_itl)
-    nan, hot, other = 0, 0, 0
+    hot, other = 0, 0
     nint, dimy, dimx = np.shape(newdata)
 
-    # Set all negatives to zero.
+    # Set all nans/negatives to zero.
     newdata[newdata < 0] = 0
+    newdata[np.isnan(newdata)] = 0
 
     # Loop over whole deepstack and flag deviant pixels.
     for i in tqdm(range(4, dimx - 4)):
@@ -600,20 +600,16 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
                                                     i, j, start=4, end=dimx-4)
                 med, std = box_prop[0], box_prop[1]
 
-                # If central pixel is too deviant (or nan) flag it.
-                if np.isnan(deepframe_itl[j, i]):
-                    nanpix[j, i] = 1
-                    nan += 1
-                elif np.abs(deepframe_itl[j, i] - med) >= (space_thresh * std):
+                # If central pixel is too deviant flag it.
+                if np.abs(deepframe_itl[j, i] - med) >= (space_thresh * std):
                     otherpix[j, i] = 1
                     other += 1
 
     # Combine all flagged pixel maps.
-    badpix = hotpix.astype(bool) | nanpix.astype(bool) | otherpix.astype(bool)
+    badpix = hotpix.astype(bool) | otherpix.astype(bool)
     badpix = badpix.astype(int)
 
-    fancyprint('{0} hot, {1} nan, and {2} deviant pixels '
-               'identified.'.format(hot, nan, other))
+    fancyprint('{0} hot and {1} deviant pixels identified.'.format(hot, other))
     # Replace the flagged pixels in each integration.
     fancyprint('Doing pixel replacement...')
     for i in tqdm(range(nint)):
@@ -636,7 +632,7 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     scale = np.abs(newdata - cube_filt) / std_dev
     # Filter out some noise.
     # TODO: swap to 50 for NIRSpec
-    ii = np.where((scale > time_thresh) & (newdata > np.nanpercentile(newdata, 25)))
+    ii = np.where((scale > time_thresh) & (cube_filt > np.nanpercentile(newdata, 25)))
     fancyprint('{} outliers detected.'.format(len(ii[0])))
     # Replace the flagged pixels in each integration.
     fancyprint('Doing pixel replacement...')
@@ -692,9 +688,8 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
         else:
             outfile = None
         hotpix = np.where(hotpix != 0)
-        nanpix = np.where(nanpix != 0)
         otherpix = np.where(otherpix != 0)
-        plotting.make_badpix_plot(deepframe_itl, hotpix, nanpix, otherpix,
+        plotting.make_badpix_plot(deepframe_itl, hotpix, otherpix,
                                   outfile=outfile, show_plot=show_plot)
 
     return results, deepframe_fnl

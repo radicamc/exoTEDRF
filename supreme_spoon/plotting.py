@@ -33,8 +33,7 @@ def make_background_plot(results, outfile=None, show_plot=True):
                           **kwargs)
 
 
-def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None,
-                     show_plot=True):
+def make_badpix_plot(deep, hotpix, otherpix, outfile=None, show_plot=True):
     """Show locations of interpolated pixels.
     """
 
@@ -54,19 +53,6 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None,
             first_time = False
         else:
             marker = Ellipse((xpos, ypos), 21, 3, color='red',
-                             fill=False)
-            ax.add_patch(marker)
-
-    # Show negative locations.
-    first_time = True
-    for ypos, xpos in zip(nanpix[0], nanpix[1]):
-        if first_time is True:
-            marker = Ellipse((xpos, ypos), 21, 3, color='blue',
-                             fill=False, label='Negative')
-            ax.add_patch(marker)
-            first_time = False
-        else:
-            marker = Ellipse((xpos, ypos), 21, 3, color='blue',
                              fill=False)
             ax.add_patch(marker)
 
