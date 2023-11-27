@@ -479,14 +479,23 @@ def make_oneoverf_plot(results, baseline_ints, timeseries=None,
     if timeseries is None:
         timeseries = np.ones(np.shape(cube[0]))
 
-    nint, ngroup, dimy, dimx = np.shape(cube)
-    ints = np.random.randint(0, nint, 9)
-    grps = np.random.randint(0, ngroup, 9)
-    to_plot, to_write = [], []
-    kwargs = {'vmin': -50, 'vmax': 50}
-    for i, g in zip(ints, grps):
-        to_plot.append(cube[i, g] - deep[g] * timeseries[i])
-        to_write.append('({0}, {1})'.format(i, g))
+    if np.ndim(cube) == 4:
+        nint, ngroup, dimy, dimx = np.shape(cube)
+        ints = np.random.randint(0, nint, 9)
+        grps = np.random.randint(0, ngroup, 9)
+        to_plot, to_write = [], []
+        kwargs = {'vmin': -50, 'vmax': 50}
+        for i, g in zip(ints, grps):
+            to_plot.append(cube[i, g] - deep[g] * timeseries[i])
+            to_write.append('({0}, {1})'.format(i, g))
+    else:
+        nint, dimy, dimx = np.shape(cube)
+        ints = np.random.randint(0, nint, 9)
+        to_plot, to_write = [], []
+        kwargs = {'vmin': -50, 'vmax': 50}
+        for i in ints:
+            to_plot.append(cube[i] - deep * timeseries[i])
+            to_write.append('({0})'.format(i))
     nine_panel_plot(to_plot, to_write, outfile=outfile, show_plot=show_plot,
                     **kwargs)
     if outfile is not None:
@@ -527,7 +536,10 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
     else:
         mask_cube = None
 
-    nints, ngroups, dimy, dimx = np.shape(cube)
+    if np.ndim(cube) == 4:
+        nints, ngroups, dimy, dimx = np.shape(cube)
+    else:
+        nints, dimy, dimx = np.shape(cube)
     baseline_ints = utils.format_out_frames(baseline_ints)
     old_deep = bn.nanmedian(old_cube[baseline_ints], axis=0)
     deep = bn.nanmedian(cube[baseline_ints], axis=0)
@@ -560,11 +572,18 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
     # Select nsample random frames and compare PSDs before and after 1/f
     # removal.
     for s in tqdm(range(nsample)):
-        # Get random groups and ints
-        i, g = np.random.randint(nints), np.random.randint(ngroups)
-        # Get difference images before and after 1/f removal.
-        diff_old = (old_cube[i, g] - old_deep[g] * timeseries[i]).flatten('F')[::-1]
-        diff = (cube[i, g] - deep[g] * timeseries[i]).flatten('F')[::-1]
+        if np.ndim(cube) == 4:
+            # Get random groups and ints.
+            i, g = np.random.randint(nints), np.random.randint(ngroups)
+            # Get difference images before and after 1/f removal.
+            diff_old = (old_cube[i, g] - old_deep[g] * timeseries[i]).flatten('F')[::-1]
+            diff = (cube[i, g] - deep[g] * timeseries[i]).flatten('F')[::-1]
+        else:
+            # Get random ints.
+            i = np.random.randint(nints)
+            # Get difference images before and after 1/f removal.
+            diff_old = (old_cube[i] - old_deep * timeseries[i]).flatten('F')[::-1]
+            diff = (cube[i] - deep * timeseries[i]).flatten('F')[::-1]
         # Mask pixels which are not part of the background
         if mask_cube is None:
             # If no pixel/trace mask, discount pixels above a threshold.

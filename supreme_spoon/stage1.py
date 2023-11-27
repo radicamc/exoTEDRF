@@ -294,12 +294,17 @@ class OneOverFStep:
                                             baseline_ints=self.baseline_ints,
                                             outfile=plot_file1,
                                             show_plot=show_plot)
+                # Get the correct frame times for the psd.
+                if self.instrument == 'NIRSPEC':
+                    tframe = 0.902
+                else:
+                    tframe = 5.494
                 plotting.make_oneoverf_psd(results, self.datafiles,
                                            timeseries=self.smoothed_wlc,
                                            baseline_ints=self.baseline_ints,
                                            pixel_masks=self.pixel_masks,
                                            outfile=plot_file2,
-                                           show_plot=show_plot)
+                                           show_plot=show_plot, tframe=tframe)
 
         return results
 
