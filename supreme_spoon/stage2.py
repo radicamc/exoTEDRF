@@ -566,7 +566,8 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     deepframe_itl = utils.make_deepstack(newdata[baseline_ints])
 
     # Get locations of all hot pixels.
-    hot_pix = utils.get_dq_flag_metrics(dq_cube[0], ['HOT', 'WARM'])
+    hot_pix = utils.get_dq_flag_metrics(dq_cube[0], ['DO_NOT_USE', 'HOT',
+                                                     'WARM', 'NO_GAIN_VALUE'])
 
     hotpix = np.zeros_like(deepframe_itl)
     nanpix = np.zeros_like(deepframe_itl)
@@ -579,6 +580,7 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
 
     # Loop over whole deepstack and flag deviant pixels.
     for i in tqdm(range(4, dimx - 4)):
+        # TODO: Set to dimy for NIRSpec
         for j in range(dimy - 4):
             # If the pixel is known to be hot, add it to list to interpolate.
             if hot_pix[j, i]:
@@ -589,13 +591,13 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
             else:
                 box_size_i = box_size
                 box_prop = utils.get_interp_box(deepframe_itl, box_size_i,
-                                                i, j, dimx)
+                                                i, j, start=4, end=dimx-4)
                 # Ensure that the median and std dev extracted are good.
                 # If not, increase the box size until they are.
                 while np.any(np.isnan(box_prop)):
                     box_size_i += 1
                     box_prop = utils.get_interp_box(deepframe_itl, box_size_i,
-                                                    i, j, dimx)
+                                                    i, j, start=4, end=dimx-4)
                 med, std = box_prop[0], box_prop[1]
 
                 # If central pixel is too deviant (or nan) flag it.
@@ -617,7 +619,8 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     for i in tqdm(range(nint)):
         newdata[i], thisdq = utils.do_replacement(newdata[i], badpix,
                                                   dq=np.ones_like(newdata[i]),
-                                                  box_size=box_size)
+                                                  box_size=box_size, start=4,
+                                                  end=dimx-4)
         # Set DQ flags for these pixels to zero (use the pixel).
         thisdq = ~thisdq.astype(bool)
         newdq[:, thisdq] = 0

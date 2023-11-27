@@ -444,7 +444,12 @@ def make_linearity_plot(results, old_results, outfile=None, show_plot=True):
     labels = []
     for i in range(ngroup-1):
         labels.append('{0}-{1}'.format(i+2, i+1))
-    plt.xticks(locs, labels, rotation=45)
+    if 25 < len(locs) < 50:
+        plt.xticks(locs[::2], labels[::2], rotation=45)
+    elif len(locs) > 50:
+        plt.xticks(locs[::3], labels[::3], rotation=45)
+    else:
+        plt.xticks(locs, labels, rotation=45)
     plt.ylabel('Differences [DN]', fontsize=12)
     plt.ylim(1.1*np.min(old_med - np.mean(old_med)),
              1.1*np.max(old_med - np.mean(old_med)))
@@ -507,6 +512,7 @@ def make_oneoverf_plot(results, baseline_ints, timeseries=None,
         fancyprint('Plot saved to {}'.format(outfile))
 
 
+# TODO: frame time = 0.902 for NIRSpec
 def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
                       nsample=25,  pixel_masks=None, tframe=5.494, tpix=1e-5,
                       tgap=1.2e-4, outfile=None, show_plot=True):
@@ -523,12 +529,14 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
                 cube = datamodel.data
             else:
                 cube = np.concatenate([cube, datamodel.data])
+    cube = np.where(np.isnan(cube), np.nanmedian(cube), cube)
     for i, file in enumerate(old_results):
         with utils.open_filetype(file) as datamodel:
             if i == 0:
                 old_cube = datamodel.data
             else:
                 old_cube = np.concatenate([old_cube, datamodel.data])
+    old_cube = np.where(np.isnan(old_cube), np.nanmedian(old_cube), old_cube)
     if pixel_masks is not None:
         for i, file in enumerate(pixel_masks):
             if i == 0:
@@ -550,6 +558,7 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
         except (ValueError, FileNotFoundError):
             timeseries = None
     # If no lightcurve is provided, estimate it from the current data.
+    # TODO: Need to change for NIRSpec
     if timeseries is None:
         postage = cube[:, -1, 20:60, 1500:1550]
         timeseries = np.nansum(postage, axis=(1, 2))
@@ -564,7 +573,7 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
     for p in range(dimy * dimx):
         ti = time1 + tpix
         # If column is done, add gap time.
-        if p % 256 == 0 and p != 0:
+        if p % dimy == 0 and p != 0:
             ti += tgap
         pixel_ts.append(ti)
         time1 = ti
@@ -587,7 +596,7 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
             bad = np.where(np.abs(diff) > 100)
         else:
             # Mask flagged pixels.
-            bad = np.where(mask_cube[i, g] != 0)
+            bad = np.where(mask_cube[i] != 0)
         diff, diff_old = np.delete(diff, bad), np.delete(diff_old, bad)
         this_t = np.delete(pixel_ts, bad)
         # Calculate PSDs
@@ -602,15 +611,15 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
         plt.plot(freqs[:-1], pwr[i, :-1], c='royalblue', alpha=0.1)
     # Median trends.
     # Aprox white noise level
-    plt.plot(freqs[:-1], np.median(pwr_old, axis=0)[:-1], c='red', lw=2,
+    plt.plot(freqs[:-1], np.nanmedian(pwr_old, axis=0)[:-1], c='red', lw=2,
              label='Before Correction')
-    plt.plot(freqs[:-1], np.median(pwr, axis=0)[:-1], c='blue', lw=2,
+    plt.plot(freqs[:-1], np.nanmedian(pwr, axis=0)[:-1], c='blue', lw=2,
              label='After Correction')
 
     plt.xscale('log')
     plt.xlabel('Frequency [Hz]', fontsize=12)
     plt.yscale('log')
-    plt.ylim(np.percentile(pwr, 0.1), np.max(pwr_old))
+    plt.ylim(np.nanpercentile(pwr, 0.1), np.nanmax(pwr_old))
     plt.ylabel('PSD', fontsize=12)
     plt.legend(loc=1)
 

@@ -24,7 +24,7 @@ from applesoss.edgetrigger_centroids import get_soss_centroids
 from jwst import datamodels
 
 
-def do_replacement(frame, badpix_map, dq=None, box_size=5):
+def do_replacement(frame, badpix_map, dq=None, box_size=5, start=0, end=None):
     """Replace flagged pixels with the median of a surrounding box.
 
     Parameters
@@ -37,6 +37,10 @@ def do_replacement(frame, badpix_map, dq=None, box_size=5):
         Data quality flags.
     box_size : int
         Size of box to consider.
+    start : int
+        Starting point of x-axis.
+    end : int, None
+        Ending point of x-axis.
 
     Returns
     -------
@@ -61,7 +65,7 @@ def do_replacement(frame, badpix_map, dq=None, box_size=5):
                 continue
             # If pixel is flagged, replace it with the box median.
             else:
-                med = get_interp_box(frame, box_size, i, j, dimx)[0]
+                med = get_interp_box(frame, box_size, i, j, start, end)[0]
                 frame_out[j, i] = med
                 # Set dq flag of inerpolated pixel to zero (use the pixel).
                 dq_out[j, i] = 0
@@ -349,7 +353,7 @@ def get_filename_root_noseg(fileroots):
     return fileroot_noseg
 
 
-def get_interp_box(data, box_size, i, j, dimx):
+def get_interp_box(data, box_size, i, j, start=0, end=None):
     """Get median and standard deviation of a box centered on a specified
     pixel.
 
@@ -363,8 +367,10 @@ def get_interp_box(data, box_size, i, j, dimx):
         X pixel.
     j : int
         Y pixel.
-    dimx : int
-        Size of x dimension.
+    start : int
+        Starting point on x-axis.
+    end : int, None
+        Ending point on x-axis.
 
     Returns
     -------
@@ -373,8 +379,10 @@ def get_interp_box(data, box_size, i, j, dimx):
     """
 
     # Get the box limits.
-    low_x = np.max([i - box_size, 0])
-    up_x = np.min([i + box_size, dimx - 1])
+    low_x = np.max([i - box_size, start])
+    if end is None:
+        end = np.shape(data)[1]
+    up_x = np.min([i + box_size, end - 1])
 
     # Calculate median and std deviation of box - excluding central pixel.
     box = np.concatenate([data[j, low_x:i], data[j, (i+1):up_x]])
