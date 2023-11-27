@@ -223,7 +223,7 @@ class OneOverFStep:
     """Wrapper around custom 1/f Correction Step.
     """
 
-    def __init__(self, input_data, baseline_ints, output_dir,
+    def __init__(self, input_data, output_dir, baseline_ints=None,
                  smoothed_wlc=None, pixel_masks=None, background=None):
         """Step initializer.
         """
@@ -236,6 +236,7 @@ class OneOverFStep:
         self.background = background
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, do_plot=False,
             show_plot=False, **kwargs):
@@ -258,15 +259,23 @@ class OneOverFStep:
             fancyprint('Skipping 1/f Correction Step.')
         # If no output files are detected, run the step.
         else:
-            results = oneoverfstep(self.datafiles,
-                                   baseline_ints=self.baseline_ints,
-                                   background=self.background,
-                                   smoothed_wlc=self.smoothed_wlc,
-                                   output_dir=self.output_dir,
-                                   save_results=save_results,
-                                   pixel_masks=self.pixel_masks,
-                                   fileroots=self.fileroots,
-                                   **kwargs)
+            if self.instrument == 'NIRISS':
+                results = oneoverfstep_soss(self.datafiles,
+                                            baseline_ints=self.baseline_ints,
+                                            background=self.background,
+                                            smoothed_wlc=self.smoothed_wlc,
+                                            output_dir=self.output_dir,
+                                            save_results=save_results,
+                                            pixel_masks=self.pixel_masks,
+                                            fileroots=self.fileroots,
+                                            **kwargs)
+            else:
+                results = oneoverfstep_nirspec(self.datafiles,
+                                               output_dir=self.output_dir,
+                                               save_results=save_results,
+                                               pixel_masks=self.pixel_masks,
+                                               fileroots=self.fileroots,
+                                               **kwargs)
             # Do step plots if requested.
             if do_plot is True:
                 if save_results is True:
@@ -274,6 +283,10 @@ class OneOverFStep:
                                                                     '_1.pdf')
                     plot_file2 = self.output_dir + self.tag.replace('.fits',
                                                                     '_2.pdf')
+                    if self.instrument == 'NIRSPEC':
+                        det = utils.get_detector_name(self.datafiles[0])
+                        plot_file1 = plot_file1.replace('_1.pdf', '_1_{}.pdf'.format(det))
+                        plot_file2 = plot_file2.replace('_1.pdf', '_2_{}.pdf'.format(det))
                 else:
                     plot_file1, plot_file2 = None, None
                 plotting.make_oneoverf_plot(results,
@@ -694,9 +707,9 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
     return datafile
 
 
-def oneoverfstep(datafiles, baseline_ints, even_odd_rows=True,
-                 background=None, smoothed_wlc=None, output_dir=None,
-                 save_results=True, pixel_masks=None, fileroots=None):
+def oneoverfstep_soss(datafiles, baseline_ints, even_odd_rows=True,
+                      background=None, smoothed_wlc=None, output_dir=None,
+                      save_results=True, pixel_masks=None, fileroots=None):
     """Custom 1/f correction routine to be applied at the group level. A
     median stack is constructed using all out-of-transit integrations and
     subtracted from each individual integration. The column-wise median of
@@ -873,6 +886,133 @@ def oneoverfstep(datafiles, baseline_ints, even_odd_rows=True,
         # Add back the zodi background.
         if background is not None:
             corr_data += background
+
+        # Store results.
+        newfile = currentfile.copy()
+        currentfile.close()
+        newfile.data = corr_data
+        corrected_rampmodels.append(newfile)
+
+        # Save the results if requested.
+        if save_results is True:
+            suffix = 'oneoverfstep.fits'
+            newfile.write(output_dir + fileroots[n] + suffix)
+
+    return corrected_rampmodels
+
+
+def oneoverfstep_nirspec(datafiles, even_odd_rows=True, output_dir=None,
+                         save_results=True, pixel_masks=None, fileroots=None):
+    """Custom 1/f correction routine to be applied at the group level. The
+    median level of each detector column is subtracted off while masking
+    outlier pixels and the target trace.
+
+    Parameters
+    ----------
+    datafiles : array-like[str], array-like[RampModel], array-like[CubeModel]
+        List of paths to data files, or datamodels themselves for each segment
+        of the TSO. Should be 4D ramps, but 3D rate files are also accepted.
+    even_odd_rows : bool
+        If True, calculate 1/f noise seperately for even and odd numbered rows.
+    output_dir : str, None
+        Directory to which to save results. Only necessary if saving results.
+    save_results : bool
+        If True, save results to disk.
+    pixel_masks : array-like[str], None
+        List of paths to maps of pixels to mask for each data segment. Can be
+        3D (nints, dimy, dimx), or 2D (dimy, dimx).
+    fileroots : array-like[str], None
+        Root names for output files. Only necessary if saving results.
+
+    Returns
+    -------
+    corrected_rampmodels : array-like[CubeModel]
+        RampModels for each segment, corrected for 1/f noise.
+    """
+
+    fancyprint('Starting 1/f correction step.')
+
+    # If saving results, ensure output directory and fileroots are provided.
+    if save_results is True:
+        assert output_dir is not None
+        assert fileroots is not None
+        # Output directory formatting.
+        if output_dir[-1] != '/':
+            output_dir += '/'
+
+    datafiles = np.atleast_1d(datafiles)
+    # If outlier maps are passed, ensure that there is one for each segment.
+    if pixel_masks is not None:
+        pixel_masks = np.atleast_1d(pixel_masks)
+        if len(pixel_masks) == 1:
+            pixel_masks = [pixel_masks[0] for d in datafiles]
+
+    # Individually treat each segment.
+    corrected_rampmodels = []
+    for n, currentfile in enumerate(datafiles):
+        currentfile = datamodels.open(currentfile)
+        fancyprint('Starting segment {} of {}.'.format(n+1, len(datafiles)))
+
+        # Define the readout setup - can be 4D (recommended) or 3D.
+        if np.ndim(currentfile.data) == 4:
+            nint, ngroup, dimy, dimx = np.shape(currentfile.data)
+        else:
+            nint, dimy, dimx = np.shape(currentfile.data)
+
+        # Read in the outlier map - a (nints, dimy, dimx) 3D cube
+        if pixel_masks is None:
+            fancyprint('No outlier maps passed, ignoring outliers.')
+            outliers = np.zeros((nint, dimy, dimx))
+        else:
+            fancyprint('Using outlier map {}'.format(pixel_masks[n]))
+            outliers = fits.getdata(pixel_masks[n])
+            # If the outlier map is 2D (dimy, dimx) extend to int dimension.
+            if np.ndim(outliers) == 2:
+                outliers = np.repeat(outliers, nint)
+                outliers = outliers.reshape((dimy, dimx, nint))
+                outliers = outliers.transpose(2, 0, 1)
+        # The outlier map is 0 where good and >0 otherwise. As this will be
+        # applied multiplicatively, replace 0s with 1s and others with NaNs.
+        outliers = np.where(outliers == 0, 1, np.nan)
+
+        # Initialize output storage arrays.
+        corr_data = np.copy(currentfile.data)
+        # Loop over all integrations to determine the 1/f noise level and
+        # correct it.
+
+        diff_im = np.abs(np.diff(currentfile.data, axis=0))
+        for i in tqdm(range(nint)):
+            # For group-level corrections.
+            if np.ndim(currentfile.data) == 4:
+                for g in range(ngroup):
+                    this_outlier = np.copy(outliers[i])
+                    # Also mask pixels which are very deviant from surrounding
+                    # pixels in time.
+                    j = np.min([i, nint-2])
+                    ii = np.where(diff_im[j, g] > np.nanpercentile(diff_im[j, g], 90))
+                    this_outlier[ii] = np.nan
+                    # Apply mask.
+                    masked = currentfile.data[i, g] * this_outlier
+                    # Find and subtract the 1/f level.
+                    if even_odd_rows is True:
+                        corr_data[i, g, :, ::2] -= bn.nanmedian(masked[:, ::2], axis=0)
+                        corr_data[i, g, :, 1::2] -= bn.nanmedian(masked[:, 1::2], axis=0)
+                    else:
+                        corr_data[i, g] -= bn.nanmedian(masked, axis=0)
+            else:
+                # Also mask pixels which are very deviant from surrounding
+                # pixels in time.
+                j = np.min([i, nint - 2])
+                ii = np.where(diff_im[j] > np.nanpercentile(diff_im[j], 90))
+                outliers[i][ii] = np.nan
+                # Apply mask.
+                masked = currentfile.data[i] * outliers[i]
+                # Find and subtract the 1/f level.
+                if even_odd_rows is True:
+                    corr_data[i, :, ::2] -= bn.nanmedian(masked[:, ::2], axis=0)
+                    corr_data[i, :, 1::2] -= bn.nanmedian(masked[:, 1::2], axis=0)
+                else:
+                    corr_data[i] -= bn.nanmedian(masked, axis=0)
 
         # Store results.
         newfile = currentfile.copy()

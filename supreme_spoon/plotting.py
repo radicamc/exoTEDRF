@@ -475,14 +475,9 @@ def make_oneoverf_plot(results, baseline_ints, timeseries=None,
             timeseries = np.load(timeseries)
         except (ValueError, FileNotFoundError):
             timeseries = None
-    # If no lightcurve is provided, estimate it from the current data.
+    # If no lightcurve is provided, use array of ones.
     if timeseries is None:
-        postage = cube[:, -1, 20:60, 1500:1550]
-        timeseries = np.nansum(postage, axis=(1, 2))
-        timeseries = timeseries / np.nanmedian(timeseries[baseline_ints])
-        # Smooth the time series on a timescale of roughly 2%.
-        timeseries = median_filter(timeseries,
-                                   int(0.02 * np.shape(cube)[0]))
+        timeseries = np.ones(np.shape(cube[0]))
 
     nint, ngroup, dimy, dimx = np.shape(cube)
     ints = np.random.randint(0, nint, 9)
@@ -543,15 +538,9 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
             timeseries = np.load(timeseries)
         except (ValueError, FileNotFoundError):
             timeseries = None
-    # If no lightcurve is provided, estimate it from the current data.
-    # TODO: Need to change for NIRSpec
+    # If no lightcurve is provided, use array of ones.
     if timeseries is None:
-        postage = cube[:, -1, 20:60, 1500:1550]
-        timeseries = np.nansum(postage, axis=(1, 2))
-        timeseries = timeseries / np.nanmedian(timeseries[baseline_ints])
-        # Smooth the time series on a timescale of roughly 2%.
-        timeseries = median_filter(timeseries,
-                                   int(0.02 * np.shape(cube)[0]))
+        timeseries = np.ones(np.shape(cube[0]))
 
     # Generate array of timestamps for each pixel
     pixel_ts = []
