@@ -59,3 +59,7 @@ Lastly, you should cite the libraries upon which this code is built, namely:
 [scipy](https://ui.adsabs.harvard.edu/abs/2020NatMe..17..261V/abstract),
 [astropy](https://ui.adsabs.harvard.edu/abs/2013A%26A...558A..33A/abstract), and of course
 [jwst](https://zenodo.org/record/7038885/export/hx).
+
+<p align="center">
+  <img width = "600" src="./figures/logo.png"/>
+</p>
