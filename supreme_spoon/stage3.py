@@ -85,8 +85,9 @@ class Extract1DStep:
             self.target_name = datamodel.meta.target.catalog_name
         self.pl_name = self.target_name + ' ' + planet_letter
         self.stellar_params = [st_teff, st_logg, st_met]
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, soss_width=25, specprofile=None, centroids=None,
+    def run(self, extract_width=25, specprofile=None, centroids=None,
             save_results=True, force_redo=False, do_plot=False,
             show_plot=False):
         """Method to run the step.
@@ -106,6 +107,12 @@ class Extract1DStep:
             spectra = expected_file
         # If no output file is detected, run the step.
         else:
+            # Swap to box if someone wants to use ATOCA for NIRSpec.
+            if self.extract_method == 'atoca' and self.instrument != 'NIRISS':
+                fancyprint('ATOCA extraction is only available for SOSS '
+                           'observations. Switching to box method.',
+                           msg_type='WARNING')
+                self.extract_method = 'box'
             # Option 1: ATOCA extraction.
             if self.extract_method == 'atoca':
                 if specprofile is None:
@@ -122,7 +129,7 @@ class Extract1DStep:
                                     soss_transform=[0, 0, 0],
                                     subtract_background=False,
                                     soss_bad_pix='model',
-                                    soss_width=soss_width,
+                                    soss_width=extract_width,
                                     soss_modelname=soss_modelname,
                                     override_specprofile=specprofile)
 
@@ -145,8 +152,12 @@ class Extract1DStep:
                     except FileNotFoundError:
                         raise ValueError('Centroids must be provided for box '
                                          'extraction')
-                results = box_extract_soss(self.datafiles, centroids,
-                                           soss_width)
+                if self.instrument == 'NIRISS':
+                    results = box_extract_soss(self.datafiles, centroids,
+                                               extract_width)
+                else:
+                    results = box_extract_nirspec(self.datafiles, centroids,
+                                                  extract_width)
             else:
                 raise ValueError('Invalid extraction method')
 
@@ -165,7 +176,7 @@ class Extract1DStep:
                                                    show_plot=show_plot)
 
             # Save the final extraction parameters.
-            extract_params = {'soss_width': soss_width,
+            extract_params = {'extract_width': extract_width,
                               'method': self.extract_method}
             # Get timestamps and pupil wheel position.
             for i, datafile in enumerate(self.datafiles):
@@ -173,22 +184,37 @@ class Extract1DStep:
                     this_time = file.int_times['int_mid_BJD_TDB']
                 if i == 0:
                     times = this_time
-                    pwcpos = file.meta.instrument.pupil_position
+                    if self.instrument == 'NIRISS':
+                        pwcpos = file.meta.instrument.pupil_position
+                    else:
+                        pwcpos = None
                 else:
                     times = np.concatenate([times, this_time])
 
             # Get throughput data.
-            step = calwebb_spec2.extract_1d_step.Extract1dStep()
-            thpt = step.get_reference_file(self.datafiles[0], 'spectrace')
+            if self.instrument == 'NIRISS':
+                step = calwebb_spec2.extract_1d_step.Extract1dStep()
+                thpt = step.get_reference_file(self.datafiles[0], 'spectrace')
+            else:
+                thpt = None
 
             # Clip outliers and format extracted spectra.
             st_teff, st_logg, st_met = self.stellar_params
-            spectra = format_extracted_spectra(results, times, extract_params,
-                                               self.pl_name, st_teff, st_logg,
-                                               st_met, throughput=thpt,
-                                               pwcpos=pwcpos,
-                                               output_dir=self.output_dir,
-                                               save_results=save_results)
+            if self.instrument == 'NIRISS':
+                spectra = format_soss_spectra(results, times, extract_params,
+                                              self.pl_name, st_teff, st_logg,
+                                              st_met, throughput=thpt,
+                                              pwcpos=pwcpos,
+                                              output_dir=self.output_dir,
+                                              save_results=save_results)
+            else:
+                det = utils.get_detector_name(self.datafiles[0])
+                spectra = format_nirspec_spectra(results, times,
+                                                 extract_params, self.pl_name,
+                                                 det, st_teff, st_logg, st_met,
+                                                 throughput=thpt,
+                                                 output_dir=self.output_dir,
+                                                 save_results=save_results)
 
         return spectra
 
@@ -259,6 +285,64 @@ def specprofilestep(datafiles, empirical=True, output_dir='./'):
     return filename
 
 
+def box_extract_nirspec(datafiles, centroids, width):
+    """
+
+    Parameters
+    ----------
+    datafiles : array-like[str], array-like[jwst.RampModel]
+        Input datamodels or paths to datamodels for each segment.
+    centroids : dict
+        Dictionary of trace centroid positions.
+    width : int
+        Width of extraction box.
+
+    Returns
+    -------
+    wave : array_like[float]
+        2D wavelength solution.
+    flux : array_like[float]
+        2D extracted flux.
+    ferr: array_like[float]
+        2D flux errors.
+    """
+
+    datafiles = np.atleast_1d(datafiles)
+    # Get flux and errors to extract.
+    for i, file in enumerate(datafiles):
+        with utils.open_filetype(file) as datamodel:
+            if i == 0:
+                cube = datamodel.data
+                ecube = datamodel.err
+            else:
+                cube = np.concatenate([cube, datamodel.data])
+                ecube = np.concatenate([ecube, datamodel.err])
+
+    # Get centroid positions
+    x1, y1 = centroids['xpos'].values, centroids['ypos'].values
+
+    fancyprint('Performing simple aperture extraction.')
+    det = utils.get_detector_name(datafiles[0])
+    if det == 'nrs1':
+        xstart = 500
+    else:
+        xstart = 0
+    flux, ferr = do_box_extraction(cube, ecube, y1, width=width,
+                                   extract_start=xstart)
+
+    # Get initial 2D wavelength solution.
+    with datamodels.open(datafiles[0]) as d:
+        wave2d = d.wavelength
+    # Get 1D wavelengths at the locations of the trace centroids.
+    wave1d = np.ones(cube.shape[2])*np.nan
+    for x, y in zip(x1, y1):
+        wave1d[int(x)] = wave2d[int(y), int(x)]
+
+    wave = np.repeat(wave1d[np.newaxis, :], np.shape(cube)[0], axis=0)
+
+    return wave, flux, ferr
+
+
 def box_extract_soss(datafiles, centroids, soss_width):
     """Perform a simple box aperture extraction on SOSS orders 1 and 2.
 
@@ -299,10 +383,9 @@ def box_extract_soss(datafiles, centroids, soss_width):
                 ecube = np.concatenate([ecube, datamodel.err])
 
     # Get centroid positions
-    x1 = centroids['xpos'].values
     y1, y2 = centroids['ypos o1'].values, centroids['ypos o2'].values
     ii = np.where(np.isfinite(y2))
-    x2, y2 = x1[ii], y2[ii]
+    y2 = y2[ii]
 
     fancyprint('Performing simple aperture extraction.')
     fancyprint('Extracting Order 1')
@@ -447,10 +530,131 @@ def do_ccf(wave, flux, err, mod_flux, nsteps=1000):
     return shift
 
 
-def format_extracted_spectra(datafiles, times, extract_params, target_name,
-                             st_teff=None, st_logg=None, st_met=None,
-                             throughput=None, pwcpos=None, output_dir='./',
-                             save_results=True):
+def format_nirspec_spectra(datafiles, times, extract_params, target_name,
+                           detector, st_teff=None, st_logg=None, st_met=None,
+                           throughput=None, output_dir='./',
+                           save_results=True):
+    """Unpack the outputs of the 1D extraction and format them into
+    lightcurves at the native detector resolution.
+
+    Parameters
+    ----------
+    datafiles : array-like[str], array-like[MultiSpecModel], tuple
+        Input extract1d data files.
+    times : array-like[float]
+        Time stamps corresponding to each integration.
+    output_dir : str
+        Directory to which to save outputs.
+    save_results : bool
+        If True, save outputs to file.
+    extract_params : dict
+        Dictonary of parameters used for the 1D extraction.
+    target_name : str
+        Name of the target.
+    detector : str
+        Detector name.
+    st_teff : float, None
+        Stellar effective temperature.
+    st_logg : float, None
+        Stellar log surface gravity.
+    st_met : float, None
+        Stellar metallicity as [Fe/H].
+    throughput : str
+        Path to JWST spectrace reference file.
+
+    Returns
+    -------
+    spectra : dict
+        1D stellar spectra at the native detector resolution.
+    """
+
+    fancyprint('Formatting extracted 1d spectra.')
+    # Box extract outputs will just be a tuple of arrays.
+    wave1d = datafiles[0][0]
+    flux = datafiles[1]
+    ferr = datafiles[2]
+
+    # Now cross-correlate with stellar model.
+    # If one or more of the stellar parameters are not provided, use the
+    # wavelength solution from pastasoss.
+    if None in [st_teff, st_logg, st_met]:
+        fancyprint('Stellar parameters not provided. '
+                   'Using default wavelength solution.', msg_type='WARNING')
+    else:
+        fancyprint('Refining the wavelength calibration.')
+        # Create a grid of stellar parameters, and download PHOENIX spectra
+        # for each grid point.
+        thisout = output_dir + 'phoenix_models'
+        utils.verify_path(thisout)
+        res = utils.download_stellar_spectra(st_teff, st_logg, st_met,
+                                             outdir=thisout)
+        wave_file, flux_files = res
+        # Interpolate model grid to correct stellar parameters.
+        mod_flux = utils.interpolate_stellar_model_grid(flux_files, st_teff,
+                                                        st_logg, st_met)
+        mod_wave = fits.getdata(wave_file)/1e4
+
+        # Convolve model to lower resolution and interpolate to data
+        # wavelengths.
+        gauss = Gaussian1DKernel(stddev=500)
+        mod_flux = convolve(mod_flux, gauss)
+        mod_flux = np.interp(wave1d, mod_wave, mod_flux)
+        # Add throuput effects to model.
+        thpt = fits.open(throughput)
+        twave = thpt[1].data['WAVELENGTH']
+        thpt = thpt[1].data['THROUGHPUT']
+        thpt = np.interp(wave1d, twave, thpt)
+        mod_flux *= thpt
+
+        # Cross-correlate extracted spectrum with model to refine wavelength
+        # calibration.
+        x1d_flux = np.nansum(flux, axis=0)
+        x1d_err = np.sqrt(np.nansum(ferr**2, axis=0))
+        wave_shift = do_ccf(wave1d, x1d_flux, x1d_err, mod_flux)
+        fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
+        wave1d += wave_shift
+
+    # # Restrict NRS1 to wavelengths >3µm.
+    # if detector == 'nrs1':
+    #     ii = np.where((wave1d_o2 >= 0.6) & (wave1d_o2 < 0.85))[0]
+    #     wave1d_o2 = wave1d_o2[ii]
+    #     flux_o2 = flux_o2[:, ii]
+    #     ferr_o2 = ferr_o2[:, ii]
+
+
+    # Clip remaining 3-sigma outliers.
+    flux_clip = utils.sigma_clip_lightcurves(flux, ferr)
+
+    # Pack the lightcurves into the output format.
+    # Put 1D extraction parameters in the output file header.
+    filename = output_dir + target_name[:-2] + '_' + detector + '_' + \
+        extract_params['method'] + '_spectra_fullres.fits'
+    header_dict, header_comments = utils.get_default_header()
+    header_dict['Target'] = target_name[:-2]
+    header_dict['Contents'] = 'Full resolution stellar spectra'
+    header_dict['Method'] = extract_params['method']
+    header_dict['Width'] = extract_params['extract_width']
+    # Calculate the limits of each wavelength bin.
+    nint = np.shape(flux_clip)[0]
+    wl, wu = utils.get_wavebin_limits(wave1d)
+    wl = np.repeat(wl[np.newaxis, :], nint, axis=0)
+    wu = np.repeat(wu[np.newaxis, :], nint, axis=0)
+
+    # Pack the stellar spectra and save to file if requested.
+    data = [wl, wu, flux_clip, ferr, times]
+    names = ['Wave Low', 'Wave Up', 'Flux', 'Flux Err', 'Time']
+    units = ['Micron', 'Micron', 'DN/s', 'DN/s', 'BJD']
+    spectra = utils.save_extracted_spectra(filename, data, names, units,
+                                           header_dict, header_comments,
+                                           save_results=save_results)
+
+    return spectra
+
+
+def format_soss_spectra(datafiles, times, extract_params, target_name,
+                        st_teff=None, st_logg=None, st_met=None,
+                        throughput=None, pwcpos=None, output_dir='./',
+                        save_results=True):
     """Unpack the outputs of the 1D extraction and format them into
     lightcurves at the native detector resolution.
 
@@ -584,7 +788,7 @@ def format_extracted_spectra(datafiles, times, extract_params, target_name,
     header_dict['Target'] = target_name[:-2]
     header_dict['Contents'] = 'Full resolution stellar spectra'
     header_dict['Method'] = extract_params['method']
-    header_dict['Width'] = extract_params['soss_width']
+    header_dict['Width'] = extract_params['extract_width']
     # Calculate the limits of each wavelength bin.
     nint = np.shape(flux_o1_clip)[0]
     wl1, wu1 = utils.get_wavebin_limits(wave1d_o1)
@@ -595,10 +799,14 @@ def format_extracted_spectra(datafiles, times, extract_params, target_name,
     wu2 = np.repeat(wu2[np.newaxis, :], nint, axis=0)
 
     # Pack the stellar spectra and save to file if requested.
-    spectra = utils.save_extracted_spectra(filename, wl1, wu1, flux_o1_clip,
-                                           ferr_o1, wl2, wu2, flux_o2_clip,
-                                           ferr_o2, times, header_dict,
-                                           header_comments,
+    data = [wl1, wu1, flux_o1_clip, ferr_o1,
+            wl2, wu2, flux_o2_clip, ferr_o2, times]
+    names = ['Wave Low O1', 'Wave Up O1', 'Flux O1', 'Flux Err O1',
+             'Wave Low O2', 'Wave Up O2', 'Flux O2', 'Flux Err O2', 'Time']
+    units = ['Micron', 'Micron', 'DN/s', 'DN/s',
+             'Micron', 'Micron', 'DN/s', 'DN/s', 'BJD']
+    spectra = utils.save_extracted_spectra(filename, data, names, units,
+                                           header_dict, header_comments,
                                            save_results=save_results)
 
     return spectra
@@ -678,7 +886,7 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
     step = Extract1DStep(results, extract_method=extract_method,
                          st_teff=st_teff, st_logg=st_logg, st_met=st_met,
                          planet_letter=planet_letter,  output_dir=outdir)
-    spectra = step.run(soss_width=soss_width, specprofile=specprofile,
+    spectra = step.run(extract_width=soss_width, specprofile=specprofile,
                        centroids=centroids, save_results=save_results,
                        force_redo=force_redo, do_plot=do_plot,
                        show_plot=show_plot)
