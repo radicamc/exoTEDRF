@@ -178,6 +178,7 @@ class SuperBiasStep:
         self.output_dir = output_dir
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, do_plot=False,
             show_plot=False, **kwargs):
@@ -211,6 +212,10 @@ class SuperBiasStep:
         if do_plot is True:
             if save_results is True:
                 plot_file = self.output_dir + self.tag.replace('fits', 'pdf')
+                if self.instrument == 'NIRSPEC':
+                    det = utils.get_detector_name(self.datafiles[0])
+                    plot_file = plot_file.replace('.pdf',
+                                                  '_{}.pdf'.format(det))
             else:
                 plot_file = None
             plotting.make_superbias_plot(results, outfile=plot_file,
@@ -321,6 +326,7 @@ class LinearityStep:
         self.output_dir = output_dir
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, do_plot=False,
             show_plot=False, **kwargs):
@@ -355,6 +361,10 @@ class LinearityStep:
             if save_results is True:
                 plot_file = self.output_dir + self.tag.replace('fits',
                                                                'pdf')
+                if self.instrument == 'NIRSPEC':
+                    det = utils.get_detector_name(self.datafiles[0])
+                    plot_file = plot_file.replace('.pdf',
+                                                  '_{}.pdf'.format(det))
             else:
                 plot_file = None
             plotting.make_linearity_plot(results, self.datafiles,
@@ -377,6 +387,7 @@ class JumpStep:
         self.output_dir = output_dir
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, rejection_threshold=15,
             flag_in_time=False, time_rejection_threshold=10, time_window=10,
@@ -434,6 +445,10 @@ class JumpStep:
             if save_results is True:
                 plot_file = self.output_dir + self.tag.replace('fits',
                                                                'pdf')
+                if self.instrument == 'NIRSPEC':
+                    det = utils.get_detector_name(self.datafiles[0])
+                    plot_file = plot_file.replace('.pdf',
+                                                  '_{}.pdf'.format(det))
             else:
                 plot_file = None
             plotting.make_jump_location_plot(results, outfile=plot_file,

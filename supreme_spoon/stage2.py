@@ -668,6 +668,9 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
                 cube = currentfile.data
                 err_cube = currentfile.err
                 dq_cube = currentfile.dq
+                # Also get instrument and detector info.
+                instrument = currentfile.meta.instrument_name
+                detector = currentfile.meta.instrument.detector.lower()
             else:
                 cube = np.concatenate([cube, currentfile.data])
                 err_cube = np.concatenate([err_cube, currentfile.err])
@@ -697,8 +700,11 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
 
     # Loop over whole deepstack and flag deviant pixels.
     for i in tqdm(range(4, dimx - 4)):
-        # TODO: Set to dimy for NIRSpec
-        for j in range(dimy - 4):
+        if instrument == 'NIRISS':
+            maxj = dimy - 4
+        else:
+            maxj = dimy
+        for j in range(maxj):
             # If the pixel is known to be hot, add it to list to interpolate.
             if hot_pix[j, i]:
                 hotpix[j, i] = 1
@@ -748,8 +754,11 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     std_dev = np.where(std_dev == 0, np.inf, std_dev)
     scale = np.abs(newdata - cube_filt) / std_dev
     # Filter out some noise.
-    # TODO: swap to 50 for NIRSpec
-    ii = np.where((scale > time_thresh) & (cube_filt > np.nanpercentile(newdata, 25)))
+    if instrument == 'NIRISS':
+        bright_thresh = 25
+    else:
+        bright_thresh = 50
+    ii = np.where((scale > time_thresh) & (cube_filt > np.nanpercentile(newdata, bright_thresh)))
     fancyprint('{} outliers detected.'.format(len(ii[0])))
     # Replace the flagged pixels in each integration.
     fancyprint('Doing pixel replacement...')
@@ -801,7 +810,10 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
 
     if do_plot is True:
         if save_results is True:
-            outfile = output_dir + 'badpixstep.pdf'
+            if instrument == 'NIRSPEC':
+                outfile = output_dir + 'badpixstep_{}.pdf'.format(detector)
+            else:
+                outfile = output_dir + 'badpixstep.pdf'
         else:
             outfile = None
         hotpix = np.where(hotpix != 0)
@@ -943,7 +955,7 @@ def tracingstep_nirspec(datafiles, deepframe=None, calculate_stability=True,
                     hdu.writeto(flag_file, overwrite=True)
             else:
                 hdu = fits.PrimaryHDU(tracemask.astype(int))
-                suffix = 'tracemask_width{}.fits'.format(mask_width)
+                suffix = 'tracemask_width{0}_{1}.fits'.format(mask_width, det)
                 outfile = output_dir + fileroot_noseg + suffix
                 hdu.writeto(outfile, overwrite=True)
                 fancyprint('Trace mask saved to {}'.format(outfile))
@@ -958,7 +970,7 @@ def tracingstep_nirspec(datafiles, deepframe=None, calculate_stability=True,
                                      'calculate_stability.'
 
         # Calculate the trace stability using PCA.
-        outfile = output_dir + '{}_stability_pca.pdf'.format(det)
+        outfile = output_dir + 'stability_pca_{}.pdf'.format(det)
         pcs, var = soss_stability_pca(cube, n_components=pca_components,
                                       outfile=outfile, do_plot=do_plot,
                                       show_plot=show_plot)

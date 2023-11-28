@@ -502,7 +502,6 @@ def make_oneoverf_plot(results, baseline_ints, timeseries=None,
         fancyprint('Plot saved to {}'.format(outfile))
 
 
-# TODO: frame time = 0.902 for NIRSpec
 def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
                       nsample=25,  pixel_masks=None, tframe=5.494, tpix=1e-5,
                       tgap=1.2e-4, outfile=None, show_plot=True):
