@@ -10,6 +10,7 @@ Custom JWST DMS pipeline steps for Stage 2 (Spectroscopic processing).
 
 from astropy.io import fits
 import bottleneck as bn
+from functools import partial
 import glob
 import more_itertools as mit
 import numpy as np
@@ -22,7 +23,7 @@ from tqdm import tqdm
 import warnings
 
 from jwst import datamodels
-from jwst.extract_1d.soss_extract import soss_boxextract
+import jwst.assign_wcs.nirspec
 from jwst.pipeline import calwebb_spec2
 
 from supreme_spoon import utils, plotting
@@ -42,6 +43,7 @@ class AssignWCSStep:
         self.output_dir = output_dir
         self.datafiles = np.atleast_1d(datafiles)
         self.fileroots = utils.get_filename_root(self.datafiles)
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
@@ -58,7 +60,57 @@ class AssignWCSStep:
                 res = expected_file
             # If no output files are detected, run the step.
             else:
+                if self.instrument == 'NIRSPEC':
+                    # Edit slit parameters so wavelength solution can be
+                    # correctly calculated.
+                    jwst.assign_wcs.nirspec.nrs_wcs_set_input = \
+                        partial(jwst.assign_wcs.nirspec.nrs_wcs_set_input,
+                                wavelength_range=[2.3e-06, 5.3e-06],
+                                slit_y_low=-1, slit_y_high=50)
                 step = calwebb_spec2.assign_wcs_step.AssignWcsStep()
+                res = step.call(segment, output_dir=self.output_dir,
+                                save_results=save_results, **kwargs)
+                # Verify that filename is correct.
+                if save_results is True:
+                    current_name = self.output_dir + res.meta.filename
+                    if expected_file != current_name:
+                        res.close()
+                        os.rename(current_name, expected_file)
+                        res = datamodels.open(expected_file)
+            results.append(res)
+
+        return results
+
+
+class Extract2DStep:
+    """Wrapper around default calwebb_spec2 2D Extraction step.
+    """
+
+    def __init__(self, datafiles, output_dir='./'):
+        """Step initializer.
+        """
+
+        self.tag = 'extract2dstep.fits'
+        self.output_dir = output_dir
+        self.datafiles = np.atleast_1d(datafiles)
+        self.fileroots = utils.get_filename_root(self.datafiles)
+
+    def run(self, save_results=True, force_redo=False, **kwargs):
+        """Method to run the step.
+        """
+
+        results = []
+        all_files = glob.glob(self.output_dir + '*')
+        for i, segment in enumerate(self.datafiles):
+            # If an output file for this segment already exists, skip the step.
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            if expected_file in all_files and force_redo is False:
+                fancyprint('File {} already exists.'.format(expected_file))
+                fancyprint('Skipping 2D Extraction Step.')
+                res = expected_file
+            # If no output files are detected, run the step.
+            else:
+                step = calwebb_spec2.extract_2d_step.Extract2dStep()
                 res = step.call(segment, output_dir=self.output_dir,
                                 save_results=save_results, **kwargs)
                 # Verify that filename is correct.
@@ -102,6 +154,49 @@ class SourceTypeStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_spec2.srctype_step.SourceTypeStep()
+                res = step.call(segment, output_dir=self.output_dir,
+                                save_results=save_results, **kwargs)
+                # Verify that filename is correct.
+                if save_results is True:
+                    current_name = self.output_dir + res.meta.filename
+                    if expected_file != current_name:
+                        res.close()
+                        os.rename(current_name, expected_file)
+                        res = datamodels.open(expected_file)
+            results.append(res)
+
+        return results
+
+
+class WaveCorrStep:
+    """Wrapper around default calwebb_spec2 Wavelength Correction step.
+    """
+
+    def __init__(self, datafiles, output_dir='./'):
+        """Step initializer.
+        """
+
+        self.tag = 'wavecorr.fits'
+        self.output_dir = output_dir
+        self.datafiles = np.atleast_1d(datafiles)
+        self.fileroots = utils.get_filename_root(self.datafiles)
+
+    def run(self, save_results=True, force_redo=False, **kwargs):
+        """Method to run the step.
+        """
+
+        results = []
+        all_files = glob.glob(self.output_dir + '*')
+        for i, segment in enumerate(self.datafiles):
+            # If an output file for this segment already exists, skip the step.
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            if expected_file in all_files and force_redo is False:
+                fancyprint('File {} already exists.'.format(expected_file))
+                fancyprint('Skipping Wavelength Correction Step.')
+                res = expected_file
+            # If no output files are detected, run the step.
+            else:
+                step = calwebb_spec2.wavecorr_step.WavecorrStep()
                 res = step.call(segment, output_dir=self.output_dir,
                                 save_results=save_results, **kwargs)
                 # Verify that filename is correct.
