@@ -27,6 +27,7 @@ from jwst.pipeline import calwebb_spec2
 
 from supreme_spoon import utils, plotting
 from supreme_spoon.utils import fancyprint
+from supreme_spoon.stage3 import do_box_extraction
 
 
 class AssignWCSStep:
@@ -293,6 +294,7 @@ class TracingStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
         self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, generate_tracemask=True, mask_width=45, pixel_flags=None,
             generate_order0_mask=True, f277w=None,
@@ -329,21 +331,41 @@ class TracingStep:
                 if len(new_pixel_flags) > 0:
                     pixel_flags = new_pixel_flags
 
-            step_results = tracingstep(self.datafiles, self.deepframe,
-                                       calculate_stability=calculate_stability,
-                                       pca_components=pca_components,
-                                       generate_tracemask=generate_tracemask,
-                                       mask_width=mask_width,
-                                       pixel_flags=pixel_flags,
-                                       generate_order0_mask=generate_order0_mask,
-                                       f277w=f277w, generate_lc=generate_lc,
-                                       baseline_ints=baseline_ints,
-                                       smoothing_scale=smoothing_scale,
-                                       output_dir=self.output_dir,
-                                       save_results=save_results,
-                                       fileroot_noseg=self.fileroot_noseg,
-                                       do_plot=do_plot, show_plot=show_plot)
-            centroids, tracemask, order0mask, smoothed_lc = step_results
+            if self.instrument == 'NIRISS':
+                step_res = tracingstep_soss(self.datafiles, self.deepframe,
+                                            calculate_stability=calculate_stability,
+                                            pca_components=pca_components,
+                                            generate_tracemask=generate_tracemask,
+                                            mask_width=mask_width,
+                                            pixel_flags=pixel_flags,
+                                            generate_order0_mask=generate_order0_mask,
+                                            f277w=f277w,
+                                            generate_lc=generate_lc,
+                                            baseline_ints=baseline_ints,
+                                            smoothing_scale=smoothing_scale,
+                                            output_dir=self.output_dir,
+                                            save_results=save_results,
+                                            fileroot_noseg=self.fileroot_noseg,
+                                            do_plot=do_plot,
+                                            show_plot=show_plot)
+                centroids, tracemask, order0mask, smoothed_lc = step_res
+            else:
+                step_res = tracingstep_nirspec(self.datafiles, self.deepframe,
+                                               calculate_stability=calculate_stability,
+                                               pca_components=pca_components,
+                                               generate_tracemask=generate_tracemask,
+                                               mask_width=mask_width,
+                                               pixel_flags=pixel_flags,
+                                               generate_lc=generate_lc,
+                                               baseline_ints=baseline_ints,
+                                               smoothing_scale=smoothing_scale,
+                                               output_dir=self.output_dir,
+                                               save_results=save_results,
+                                               fileroot_noseg=self.fileroot_noseg,
+                                               do_plot=do_plot,
+                                               show_plot=show_plot)
+                centroids, tracemask, smoothed_lc = step_res
+                order0mask = None
 
         return centroids, tracemask, order0mask, smoothed_lc
 
@@ -695,12 +717,207 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     return results, deepframe_fnl
 
 
-def tracingstep(datafiles, deepframe=None, calculate_stability=True,
-                pca_components=10, generate_tracemask=True, mask_width=45,
-                pixel_flags=None, generate_order0_mask=False, f277w=None,
-                generate_lc=True, baseline_ints=None, smoothing_scale=None,
-                output_dir='./', save_results=True, fileroot_noseg='',
-                do_plot=False, show_plot=False):
+def tracingstep_nirspec(datafiles, deepframe=None, calculate_stability=True,
+                        pca_components=10, generate_tracemask=True,
+                        mask_width=20, pixel_flags=None, generate_lc=True,
+                        baseline_ints=None, smoothing_scale=None,
+                        output_dir='./', save_results=True, fileroot_noseg='',
+                        do_plot=False, show_plot=False):
+    """A multipurpose step to perform some initial analysis of the 2D
+    dataframes and produce products which can be useful in further reduction
+    iterations. The four functionalities are detailed below:
+    1. Locate the centroids of the trace via the edgetrigger algorithm.
+    2. (optional) Generate a mask of the target trace.
+    3. (optional) Calculate the stability of the trace over the course of
+    the TSO.
+    4. (optional) Create a smoothed estimate of the white light curve.
+
+    Parameters
+    ----------
+    datafiles : array-like[str], array-like[RampModel]
+        List of paths to datafiles for each segment, or the datamodels
+        themselves.
+    deepframe : str, array-like[float], None
+        Path to median stack file, or the median stack itself. Should be 2D
+        (dimy, dimx). If None is passed, one will be generated.
+    calculate_stability : bool
+        If True, calculate the stabilty of the SOSS trace over the TSO using a
+        PCA method.
+    pca_components : int
+        Number of PCA stability components to calcaulte.
+    generate_tracemask : bool
+        If True, generate a mask of the target diffraction orders.
+    mask_width : int
+        Mask width, in pixels, around the trace centroids. Only necesssary if
+        generate_tracemask is True.
+    pixel_flags: None, str, array-like[str]
+        Paths to files containing existing pixel flags to which the trace mask
+        should be added. Only necesssary if generate_tracemask is True.
+    generate_lc : bool
+        If True, also produce a smoothed order 1 white light curve.
+    baseline_ints : array-like[int]
+        Integrations of ingress and egress. Only necessary if generate_lc=True.
+    smoothing_scale : int, None
+        Timescale on which to smooth the lightcurve. Only necessary if
+        generate_lc=True.
+    output_dir : str
+        Directory to which to save outputs.
+    save_results : bool
+        If Tre, save results to file.
+    fileroot_noseg : str
+        Root file name with no segment information.
+    do_plot : bool
+        If True, do the step diagnostic plot.
+    show_plot : bool
+        If True, show the step diagnostic plot instead of/in addition to
+        saving it to file.
+
+    Returns
+    -------
+    centroids : array-like[float]
+        Trace centroids for all three orders.
+    tracemask : array-like[bool], None
+        If requested, the trace mask.
+    smoothed_lc : array-like[float], None
+        If requested, the smoothed order 1 white light curve.
+    """
+
+    fancyprint('Starting Tracing Step.')
+
+    datafiles = np.atleast_1d(datafiles)
+    # If no deepframe is passed, construct one. Also generate a datacube for
+    # later white light curve or stability calculations.
+    if deepframe is None or np.any([generate_lc, calculate_stability]) == True:
+        # Construct datacube from the data files.
+        for i, file in enumerate(datafiles):
+            if isinstance(file, str):
+                this_data = fits.getdata(file, 1)
+            else:
+                this_data = file.data
+            if i == 0:
+                cube = this_data
+            else:
+                cube = np.concatenate([cube, this_data], axis=0)
+        deepframe = utils.make_deepstack(cube)
+    elif isinstance(deepframe, str):
+        deepframe = fits.getdata(deepframe)
+    # Get the subarray dimensions.
+    dimy, dimx = np.shape(deepframe)
+
+    # ===== PART 1: Get trace centroids =====
+    fancyprint('Finding trace centroids.')
+    # Get centroids via the edgetrigger method.
+    save_filename = output_dir + fileroot_noseg
+    # Determine which detector.
+    det = utils.get_detector_name(datafiles[0])
+    if det == 'nrs1':
+        xstart = 500
+    else:
+        xstart = 0
+    centroids = utils.get_centroids(deepframe, xstart=xstart,
+                                    save_results=save_results,
+                                    save_filename=save_filename)
+    x1, y1 = centroids[0], centroids[1]
+
+    # ===== PART 2: Create a trace mask =====
+    # If requested, create a trace mask.
+    tracemask = None
+    if generate_tracemask is True:
+        fancyprint('Generating trace masks.')
+        tracemask = np.zeros_like(deepframe).astype(bool)
+        for x, y in zip(x1, y1):
+            edge_up = np.ceil(np.min([y + mask_width/2, dimy], axis=0)).astype(int)
+            edge_low = np.floor(np.max([y - mask_width/2, 0], axis=0)).astype(int)
+            tracemask[edge_low:edge_up, int(x)] = True
+
+        # Save the trace mask to file if requested.
+        if save_results is True:
+            # If we are to combine the trace mask with existing pixel mask.
+            if pixel_flags is not None:
+                pixel_flags = np.atleast_1d(pixel_flags)
+                # Ensure there is one pixel flag file per data file
+                assert len(pixel_flags) == len(datafiles)
+                # Combine tracemask with existing flags and overwrite old file.
+                parts = pixel_flags[0].split('seg')
+                outfile = parts[0] + 'seg' + 'XXX' + parts[1][3:]
+                fancyprint('Trace mask added to {}'.format(outfile))
+                for flag_file in pixel_flags:
+                    old_flags = fits.getdata(flag_file)
+                    new_flags = old_flags.astype(bool) | tracemask
+                    hdu = fits.PrimaryHDU(new_flags.astype(int))
+                    hdu.writeto(flag_file, overwrite=True)
+            else:
+                hdu = fits.PrimaryHDU(tracemask.astype(int))
+                suffix = 'tracemask_width{}.fits'.format(mask_width)
+                outfile = output_dir + fileroot_noseg + suffix
+                hdu.writeto(outfile, overwrite=True)
+                fancyprint('Trace mask saved to {}'.format(outfile))
+
+    # ===== PART 3: Calculate the trace stability =====
+    # If requested, calculate the stability of the trace over the course
+    # of the TSO using PCA.
+    if calculate_stability is True:
+        fancyprint('Calculating trace stability using the PCA method...'
+                   ' This might take a while.')
+        assert save_results is True, 'save_results must be True to run ' \
+                                     'calculate_stability.'
+
+        # Calculate the trace stability using PCA.
+        outfile = output_dir + '{}_stability_pca.pdf'.format(det)
+        pcs, var = soss_stability_pca(cube, n_components=pca_components,
+                                      outfile=outfile, do_plot=do_plot,
+                                      show_plot=show_plot)
+        stability_results = {}
+        for i, pc in enumerate(pcs):
+            stability_results['Component {}'.format(i+1)] = pc
+        # Save stability results.
+        suffix = 'soss_stability.csv'
+        if os.path.exists(output_dir + fileroot_noseg + suffix):
+            old_data = pd.read_csv(output_dir + fileroot_noseg + suffix,
+                                   comment='#')
+            for key in stability_results.keys():
+                old_data[key] = stability_results[key]
+            os.remove(output_dir + fileroot_noseg + suffix)
+            old_data.to_csv(output_dir + fileroot_noseg + suffix, index=False)
+        else:
+            df = pd.DataFrame(data=stability_results)
+            df.to_csv(output_dir + fileroot_noseg + suffix, index=False)
+
+    # ===== PART 4: Calculate a smoothed light curve =====
+    # If requested, generate a smoothed estimate of the white light curve.
+    smoothed_lc = None
+    if generate_lc is True:
+        fancyprint('Generating a smoothed light curve')
+        # Format the baseline frames.
+        assert baseline_ints is not None
+        baseline_ints = utils.format_out_frames(baseline_ints)
+
+        # Do quick and dirty extraction.
+        flux = do_box_extraction(cube, np.ones_like(cube), ypos=y1, width=5,
+                                 extract_start=xstart)[0]
+        timeseries = np.nansum(flux, axis=1)
+        # Normalize by the baseline flux level.
+        timeseries = timeseries / np.nanmedian(timeseries[baseline_ints])
+        # If not smoothing scale is provided, smooth the time series on a
+        # timescale of roughly 2% of the total length.
+        if smoothing_scale is None:
+            smoothing_scale = int(0.02 * np.shape(cube)[0])
+        smoothed_lc = median_filter(timeseries, smoothing_scale)
+
+        if save_results is True:
+            outfile = output_dir + fileroot_noseg + 'lcestimate.npy'
+            fancyprint('Smoothed light curve saved to {}'.format(outfile))
+            np.save(outfile, smoothed_lc)
+
+    return centroids, tracemask, smoothed_lc
+
+
+def tracingstep_soss(datafiles, deepframe=None, calculate_stability=True,
+                     pca_components=10, generate_tracemask=True, mask_width=45,
+                     pixel_flags=None, generate_order0_mask=False, f277w=None,
+                     generate_lc=True, baseline_ints=None,
+                     smoothing_scale=None, output_dir='./', save_results=True,
+                     fileroot_noseg='', do_plot=False, show_plot=False):
     """A multipurpose step to perform some initial analysis of the 2D
     dataframes and produce products which can be useful in further reduction
     iterations. The five functionalities are detailed below:
@@ -806,9 +1023,9 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
     tracetable = step.get_reference_file(datafiles[0], 'spectrace')
     # Get centroids via the edgetrigger method.
     save_filename = output_dir + fileroot_noseg
-    centroids = utils.get_trace_centroids(deepframe, tracetable, subarray,
-                                          save_results=save_results,
-                                          save_filename=save_filename)
+    centroids = utils.get_soss_centroids(deepframe, tracetable, subarray,
+                                         save_results=save_results,
+                                         save_filename=save_filename)
     x1, y1 = centroids[0][0], centroids[0][1]
     x2, y2 = centroids[1][0], centroids[1][1]
     x3, y3 = centroids[2][0], centroids[2][1]
@@ -818,27 +1035,16 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
     tracemask = None
     if generate_tracemask is True:
         fancyprint('Generating trace masks.')
-        weights1 = soss_boxextract.get_box_weights(y1, mask_width,
-                                                   (dimy, dimx),
-                                                   cols=x1.astype(int))
-        weights1 = np.where(weights1 == 0, 0, 1)
-        # Make masks for other 2 orders for SUBSTRIP256.
+        tracemask = np.zeros_like(deepframe).astype(bool)
         if subarray != 'SUBSTRIP96':
-            weights2 = soss_boxextract.get_box_weights(y2, mask_width,
-                                                       (dimy, dimx),
-                                                       cols=x2.astype(int))
-            weights2 = np.where(weights2 == 0, 0, 1)
-            weights3 = soss_boxextract.get_box_weights(y3, mask_width,
-                                                       (dimy, dimx),
-                                                       cols=x3.astype(int))
-            weights3 = np.where(weights3 == 0, 0, 1)
+            xcens, ycens = [x1, x2, x3], [y1, y2, y3]
         else:
-            weights2 = np.zeros_like(weights1)
-            weights3 = np.zeros_like(weights1)
-
-        # Combine the masks for each order.
-        tracemask = weights1.astype(bool) | weights2.astype(bool) | \
-            weights3.astype(bool)
+            xcens, ycens = [x1], [y1]
+        for order in range(len(xcens)):
+            for x, y in zip(xcens[order], ycens[order]):
+                edge_up = np.ceil(np.min([y + mask_width/2, dimy], axis=0)).astype(int)
+                edge_low = np.floor(np.max([y - mask_width/2, 0], axis=0)).astype(int)
+                tracemask[edge_low:edge_up, x] = True
 
         # Save the trace mask to file if requested.
         if save_results is True:
