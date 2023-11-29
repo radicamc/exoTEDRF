@@ -218,7 +218,8 @@ def get_centroids(deepframe, xstart=0, xend=None, save_results=True,
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
         cens = apl.get_centroids_edgetrigger(deepframe[:, xstart:xend],
-                                             mode='mean', poly_order=2)
+                                             mode='mean', poly_order=2,
+                                             halfwidth=3)
 
     x1, y1 = cens[0]+xstart, cens[1]
     ii = np.where((x1 >= xstart) & (x1 <= xend - 1))

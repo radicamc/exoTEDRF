@@ -176,7 +176,7 @@ class WaveCorrStep:
         """Step initializer.
         """
 
-        self.tag = 'wavecorr.fits'
+        self.tag = 'wavecorrstep.fits'
         self.output_dir = output_dir
         self.datafiles = np.atleast_1d(datafiles)
         self.fileroots = utils.get_filename_root(self.datafiles)
@@ -669,7 +669,7 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
                 err_cube = currentfile.err
                 dq_cube = currentfile.dq
                 # Also get instrument and detector info.
-                instrument = currentfile.meta.instrument_name
+                instrument = currentfile.meta.instrument.name
                 detector = currentfile.meta.instrument.detector.lower()
             else:
                 cube = np.concatenate([cube, currentfile.data])
@@ -772,6 +772,8 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     err_cube[ii] = np.nanmedian(err_cube)
     # And replace any negatives with zeros.
     newdata[newdata < 0] = 0
+    newdata[np.isnan(newdata)] = 0
+    deepframe_itl[np.isnan(deepframe_itl)] = 0
 
     # Make a final, corrected deepframe for the baseline intergations.
     deepframe_fnl = utils.make_deepstack(newdata[baseline_ints])
@@ -978,7 +980,7 @@ def tracingstep_nirspec(datafiles, deepframe=None, calculate_stability=True,
         for i, pc in enumerate(pcs):
             stability_results['Component {}'.format(i+1)] = pc
         # Save stability results.
-        suffix = 'soss_stability.csv'
+        suffix = 'stability.csv'
         if os.path.exists(output_dir + fileroot_noseg + suffix):
             old_data = pd.read_csv(output_dir + fileroot_noseg + suffix,
                                    comment='#')
