@@ -17,7 +17,6 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Ellipse
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.ndimage import median_filter
 from tqdm import tqdm
 import warnings
 

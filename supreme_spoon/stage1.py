@@ -601,13 +601,13 @@ def flag_hot_pixels(result, deepframe, box_size=10, thresh=15, hot_pix=None):
             for j in range(dimy):
                 box_size_i = box_size
                 box_prop = utils.get_interp_box(deepframe, box_size_i, i, j,
-                                                dimx)
+                                                start=4, end=2040)
                 # Ensure that the median and std dev extracted are good.
                 # If not, increase the box size until they are.
                 while np.any(np.isnan(box_prop)):
                     box_size_i += 1
                     box_prop = utils.get_interp_box(deepframe, box_size_i, i,
-                                                    j, dimx)
+                                                    j, start=4, end=2040)
                 med, std = box_prop[0], box_prop[1]
 
                 # If central pixel is too deviant...
