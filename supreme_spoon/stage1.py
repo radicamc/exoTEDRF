@@ -291,7 +291,7 @@ class OneOverFStep:
                     if self.instrument == 'NIRSPEC':
                         det = utils.get_detector_name(self.datafiles[0])
                         plot_file1 = plot_file1.replace('_1.pdf', '_1_{}.pdf'.format(det))
-                        plot_file2 = plot_file2.replace('_1.pdf', '_2_{}.pdf'.format(det))
+                        plot_file2 = plot_file2.replace('_2.pdf', '_2_{}.pdf'.format(det))
                 else:
                     plot_file1, plot_file2 = None, None
                 plotting.make_oneoverf_plot(results,
