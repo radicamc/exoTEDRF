@@ -1589,7 +1589,7 @@ def run_stage1(results, background_model, baseline_ints=None,
                skip_steps=None, do_plot=False, show_plot=False,
                inner_mask_width=40, outer_mask_width=70, centroids=None,
                **kwargs):
-    """Run the supreme-SPOON Stage 1 pipeline: detector level processing,
+    """Run the exoTEDRF Stage 1 pipeline: detector level processing,
     using a combination of official STScI DMS and custom steps. Documentation
     for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_detector1.html
@@ -1659,7 +1659,7 @@ def run_stage1(results, background_model, baseline_ints=None,
 
     # ============== DMS Stage 1 ==============
     # Detector level processing.
-    fancyprint('**Starting supreme-SPOON Stage 1**')
+    fancyprint('**Starting exoTEDRF Stage 1**')
     fancyprint('Detector level processing')
 
     if output_tag != '':

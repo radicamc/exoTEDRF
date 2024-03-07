@@ -758,13 +758,13 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
                soss_width=40, st_teff=None, st_logg=None, st_met=None,
                planet_letter='b', output_tag='', do_plot=False,
                show_plot=False, **kwargs):
-    """Run the supreme-SPOON Stage 3 pipeline: 1D spectral extraction, using
+    """Run the exoTEDRF Stage 3 pipeline: 1D spectral extraction, using
     a combination of the official STScI DMS and custom steps.
 
     Parameters
     ----------
     results : array-like[str], array-like[CubeModel]
-        supreme-SPOON Stage 2 outputs for each segment.
+        exoTEDRF Stage 2 outputs for each segment.
     save_results : bool
         If True, save the results of each step to file.
     root_dir : str
@@ -804,7 +804,7 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
 
     # ============== DMS Stage 3 ==============
     # 1D spectral extraction.
-    fancyprint('**Starting supreme-SPOON Stage 3**')
+    fancyprint('**Starting exoTEDRF Stage 3**')
     fancyprint('1D spectral extraction...')
 
     if output_tag != '':

@@ -575,7 +575,7 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
     f = open(outdir + filename, 'w')
     f.write('# Target: {}\n'.format(target))
     f.write('# Instrument: NIRISS/SOSS\n')
-    f.write('# Pipeline: supreme-SPOON\n')
+    f.write('# Pipeline: exoTEDRF\n')
     f.write('# 1D Extraction: {}\n'.format(extraction_type))
     f.write('# Spectral Resoluton: {}\n'.format(resolution))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
