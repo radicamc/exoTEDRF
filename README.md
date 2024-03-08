@@ -1,5 +1,5 @@
 <p align="center">
-  <img width = "600" src="./figures/logo.png"/>
+  <img width = "600" src="./docs/figures/logo.png"/>
 </p>
 
 **Exo**planet **T**ransit and **E**clipse **D**ata **R**eduction **F**ramework
