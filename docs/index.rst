@@ -1,28 +1,19 @@
-Documentation
+exoTEDRF's Documentation
 ==================================
 
-Bears! Penguins! Hootables!
+exoTEDRF: the EXOplanet Transit and Eclipse Data Reduction Framework!
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
+**exoTEDRF** (formerly supreme-SPOON) is an end-to-end pipeline for JWST exoplanet time series observations.
 
-   content/installation
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   content/usage
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   content/citations
+Currently supported instruments/modes are: **NIRISS/SOSS**, **NIRSpec/BOTS** (coming soon), **MIRI/LRS** (in development).
 
 .. toctree::
    :maxdepth: 2
-   :hidden:
+   :caption: Contents:
 
+   content/installation
+   content/usage
+   content/citations
    autoapi/index
+
+*Happy Analyzing!*
