@@ -11,7 +11,7 @@ Bears! Penguins! Hootables!
 
 .. toctree::
    :maxdepth: 1
-   :caption: Usage Guide:
+   :hideen:
 
    content/usage
 
@@ -23,6 +23,6 @@ Bears! Penguins! Hootables!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Code Documentation:
+   :hideen: 
 
    autoapi/index
