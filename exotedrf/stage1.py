@@ -25,9 +25,9 @@ from jwst import datamodels
 from jwst.pipeline import calwebb_detector1
 from jwst.pipeline import calwebb_spec2
 
-import supreme_spoon.stage2 as stage2
-from supreme_spoon import utils, plotting
-from supreme_spoon.utils import fancyprint
+import exotedrf.stage2 as stage2
+from exotedrf import utils, plotting
+from exotedrf.utils import fancyprint
 
 
 class DQInitStep:

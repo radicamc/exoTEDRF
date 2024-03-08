@@ -18,7 +18,7 @@ import ray
 from tqdm import tqdm
 
 from jwst import datamodels
-from supreme_spoon.utils import fancyprint
+from exotedrf.utils import fancyprint
 
 
 def bin_at_pixel(flux, error, wave, npix):

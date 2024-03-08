@@ -25,9 +25,9 @@ import warnings
 from jwst import datamodels
 from jwst.pipeline import calwebb_spec2
 
-import supreme_spoon.stage1 as stage1
-from supreme_spoon import utils, plotting
-from supreme_spoon.utils import fancyprint
+import exotedrf.stage1 as stage1
+from exotedrf import utils, plotting
+from exotedrf.utils import fancyprint
 
 
 class AssignWCSStep:

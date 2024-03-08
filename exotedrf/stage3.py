@@ -24,8 +24,8 @@ from applesoss import applesoss
 from jwst import datamodels
 from jwst.pipeline import calwebb_spec2
 
-from supreme_spoon import utils, plotting
-from supreme_spoon.utils import fancyprint
+from exotedrf import utils, plotting
+from exotedrf.utils import fancyprint
 
 
 class SpecProfileStep:
