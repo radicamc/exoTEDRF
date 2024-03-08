@@ -16,28 +16,6 @@ The pipeline is divided into four stages:
  - Stage 3: 1D Spectral Extraction
  - Stage 4: Light Curve Fitting (optional)
 
-## Installation Instructions
-The latest release of **exoTEDRF** can be downloaded from PyPI by running:
-
-    pip install exotedrf
-
-Depending on the operating system, the package jmespath may fail to install. In this case, run ```pip install jmespath```, and then proceed with the **exoTEDRF** installation.
-
-The default pip installation only includes Stages 1 to 3. Stage 4 can be included via specifying the following option during installation:
-
-    pip install exotedrf[stage4]
-
-Note that the radvel package may fail to build during the installation of Stage4. If so, simply run ```pip install cython```, and then proceed with the **exoTEDRF** installation as before.
-
-The latest development version can be grabbed from GitHub (inlcludes all pipeline stages):
-
-    git clone https://github.com/radicamc/exotedrf
-    cd exotedrf
-    python setup.py install
-
-Note that **exoTEDRF** is currently compatible with python 3.10.4 and v1.12.5 of the STScI JWST DMS. If you wish to run a 
-different version of jwst, certain functionalities of **exoTEDRF** may not work.
-
 ## Usage Instructions
 The **exoTEDRF** pipeline can be run in a similar fashion to the JWST DMS, by individually calling each step.
 Alternatively, Stages 1 to 3 can be run at once via the ```run_DMS.py``` script.
