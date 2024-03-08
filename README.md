@@ -16,6 +16,9 @@ The pipeline is divided into four stages:
  - Stage 3: 1D Spectral Extraction
  - Stage 4: Light Curve Fitting (optional)
 
+## Documentation
+An installation guide, code documentation, and tutorials are included in the [exoTEDRF documentation](https://exotedrf.readthedocs.io/en/latest/index.html).
+
 ## Usage Instructions
 The **exoTEDRF** pipeline can be run in a similar fashion to the JWST DMS, by individually calling each step.
 Alternatively, Stages 1 to 3 can be run at once via the ```run_DMS.py``` script.

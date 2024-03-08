@@ -11,6 +11,12 @@ Bears!
 
 .. toctree::
    :maxdepth: 2
+   :caption: Usage Guide:
+
+   content/tutorials
+
+.. toctree::
+   :maxdepth: 2
    :caption: Code Documentation:
 
    autoapi/index
