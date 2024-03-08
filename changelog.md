@@ -1,6 +1,23 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [1.4.0] -- 2024-03-08
+#### Added
+- Package name changed to exoTEDRF.
+
+### [1.3.2] -- 2024-03-08
+#### Added
+- Allow the trace mask width to be specified directly during 1/f correction.
+- More support for SUBSTRIP96, particularly in plotting routines. 
+- Add possibility for flux offset in background correction.
+- Best-fitting models are now automatically saved in Stage 4. 
+- Patch of ATOCA implementation to circumvent occasional error in estimation of wavelength grid.
+- supreme-SPOON end-of-life notices.
+- Misc. bug fixes. 
+
+#### Removed
+- Trace masking functionality in TracingStep.
+
 ### [1.3.1] -- 2024-01-19
 #### Added
 - Fixed implementation of STScI up-the-ramp JumpStep which would not run consistently.
