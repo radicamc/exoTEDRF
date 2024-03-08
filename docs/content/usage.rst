@@ -13,10 +13,10 @@ The pipeline is divided into four stages, which closely mirror the STScI pipelin
 Below are several tutorials that will walk you through the basics of JWST data analysis using exoTEDRF.
 
 .. toctree::
-   :maxdepth: 1
-   :hidden:
+   :maxdepth: 2
 
-   content/tutorials
+   notebooks/tutorial_niriss-soss
+   notebooks/tutorial_light-curve-fitting
 
 Alternatively, exoTEDRF can be run in script form. This is not recommended for a first pass, or deep dive into a
 particular dataset, but it can be useful for a quick look or to easily test the impact of tweaking aspects
