@@ -8,10 +8,6 @@ Created on Thurs Jul 21 17:33 2022
 Custom JWST DMS pipeline steps for Stage 3 (1D spectral extraction).
 """
 
-from supreme_spoon.utils import fancyprint
-fancyprint('Future versions of this package will be under the name exoTEDRF. '
-           'Please update your installations accordingly.', msg_type='WARNING')
-
 from astropy.convolution import Gaussian1DKernel, convolve
 from astropy.io import fits
 import glob

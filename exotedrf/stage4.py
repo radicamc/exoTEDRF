@@ -8,10 +8,6 @@ Created on Thurs Jul 21 18:07 2022
 Custom JWST DMS pipeline steps for Stage 4 (lightcurve fitting).
 """
 
-from supreme_spoon.utils import fancyprint
-fancyprint('Future versions of this package will be under the name exoTEDRF. '
-           'Please update your installations accordingly.', msg_type='WARNING')
-
 from datetime import datetime
 from exotic_ld import StellarLimbDarkening
 import juliet
