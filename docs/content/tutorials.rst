@@ -1,7 +1,7 @@
-Useful tutorials
+Tutorial Notebooks
 ================
 
-These may be useful!
+Some potentially useful notebooks outlining exoTEDRF's base functionalities.
 
 .. toctree::
    :maxdepth: 2

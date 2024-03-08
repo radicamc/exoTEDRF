@@ -1,7 +1,7 @@
 Documentation
 ==================================
 
-Bears! Penguins!
+Bears! Penguins! Hootables!
 
 .. toctree::
    :maxdepth: 1
@@ -10,10 +10,16 @@ Bears! Penguins!
    content/installation
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Usage Guide:
 
-   content/tutorials
+   content/usage
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   content/citations
 
 .. toctree::
    :maxdepth: 2
