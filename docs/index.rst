@@ -1,7 +1,7 @@
 Documentation
 ==================================
 
-Bears!
+Bears! Penguins!
 
 .. toctree::
    :maxdepth: 1
