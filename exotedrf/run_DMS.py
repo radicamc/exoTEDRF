@@ -14,10 +14,10 @@ import os
 import shutil
 import sys
 
-from supreme_spoon.stage1 import run_stage1
-from supreme_spoon.stage2 import run_stage2
-from supreme_spoon.stage3 import run_stage3
-from supreme_spoon.utils import fancyprint, parse_config, unpack_input_dir, \
+from exotedrf.stage1 import run_stage1
+from exotedrf.stage2 import run_stage2
+from exotedrf.stage3 import run_stage3
+from exotedrf.utils import fancyprint, parse_config, unpack_input_dir, \
     verify_path
 
 # ===== Setup =====

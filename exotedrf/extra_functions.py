@@ -16,8 +16,8 @@ import os
 from scipy.signal import medfilt
 import shutil
 
-from supreme_spoon import utils
-from supreme_spoon.utils import fancyprint
+from exotedrf import utils
+from exotedrf.utils import fancyprint
 
 
 def download_observations(proposal_id, instrument_name=None, objectname=None,

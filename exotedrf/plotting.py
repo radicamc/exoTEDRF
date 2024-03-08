@@ -21,7 +21,8 @@ from scipy.ndimage import median_filter
 from tqdm import tqdm
 import warnings
 
-from supreme_spoon import utils
+from exotedrf import utils
+from exotedrf.utils import fancyprint
 
 
 def make_background_plot(results, outfile=None, show_plot=True):
@@ -759,9 +760,6 @@ def make_oneoverf_chromatic_plot(m_e, m_o, b_e, b_o, ngroup, outfile=None,
         plt.close()
     else:
         plt.show()
-
-
-from supreme_spoon.utils import fancyprint
 
 
 def make_oneoverf_plot(results, baseline_ints, timeseries=None,

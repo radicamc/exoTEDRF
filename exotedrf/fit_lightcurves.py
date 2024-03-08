@@ -20,9 +20,9 @@ import pandas as pd
 import shutil
 import sys
 
-from supreme_spoon import stage4
-from supreme_spoon import plotting, utils
-from supreme_spoon.utils import fancyprint, verify_path
+from exotedrf import stage4
+from exotedrf import plotting, utils
+from exotedrf.utils import fancyprint, verify_path
 
 # Read config file.
 try:

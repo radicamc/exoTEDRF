@@ -149,7 +149,7 @@ def fancyprint(message, msg_type='INFO'):
     """
 
     time = datetime.now().isoformat(sep=' ', timespec='milliseconds')
-    print('{} - supreme-SPOON - {} - {}'.format(time, msg_type, message))
+    print('{} - exoTEDRF - {} - {}'.format(time, msg_type, message))
 
 
 def format_out_frames(out_frames):
@@ -200,7 +200,7 @@ def get_default_header():
     header_dict = {'Target': None,
                    'Inst': 'NIRISS/SOSS',
                    'Date': datetime.utcnow().replace(microsecond=0).isoformat(),
-                   'Pipeline': 'Supreme-SPOON',
+                   'Pipeline': 'exoTEDRF',
                    'Author': 'MCR',
                    'Contents': None,
                    'Method': 'Box Extraction',

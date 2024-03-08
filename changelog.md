@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [1.4.0] -- 2024-03-08
+#### Added
+- Package name changed to exoTEDRF.
+
 ### [1.3.2] -- 2024-03-08
 #### Added
 - Allow the trace mask width to be specified directly during 1/f correction.

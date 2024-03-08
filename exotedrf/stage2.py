@@ -29,9 +29,9 @@ import warnings
 from jwst import datamodels
 from jwst.pipeline import calwebb_spec2
 
-import supreme_spoon.stage1 as stage1
-from supreme_spoon import utils, plotting
-from supreme_spoon.utils import fancyprint
+import exotedrf.stage1 as stage1
+from exotedrf import utils, plotting
+from exotedrf.utils import fancyprint
 
 
 class AssignWCSStep:
@@ -1074,7 +1074,7 @@ def run_stage2(results, background_model, baseline_ints, save_results=True,
                outer_mask_width=70, pixel_masks=None,
                generate_order0_mask=True, f277w=None, do_plot=False,
                show_plot=False, centroids=None, **kwargs):
-    """Run the supreme-SPOON Stage 2 pipeline: spectroscopic processing,
+    """Run the exoTEDRF Stage 2 pipeline: spectroscopic processing,
     using a combination of official STScI DMS and custom steps. Documentation
     for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_spec2.html
@@ -1082,7 +1082,7 @@ def run_stage2(results, background_model, baseline_ints, save_results=True,
     Parameters
     ----------
     results : array-like[str], array-like[CubeModel]
-        supreme-SPOON Stage 1 output files.
+        exoTEDRF Stage 1 output files.
     background_model : array-like[float]
         SOSS background model.
     baseline_ints : array-like[int]
@@ -1147,7 +1147,7 @@ def run_stage2(results, background_model, baseline_ints, save_results=True,
 
     # ============== DMS Stage 2 ==============
     # Spectroscopic processing.
-    fancyprint('**Starting supreme-SPOON Stage 2**')
+    fancyprint('**Starting exoTEDRF Stage 2**')
     fancyprint('Spectroscopic processing')
 
     if output_tag != '':
