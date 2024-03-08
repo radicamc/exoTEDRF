@@ -8,6 +8,10 @@ Created on Thurs Jul 21 17:33 2022
 Custom JWST DMS pipeline steps for Stage 3 (1D spectral extraction).
 """
 
+from supreme_spoon.utils import fancyprint
+fancyprint('Future versions of this package will be under the name exoTEDRF. '
+           'Please update your installations accordingly.', msg_type='WARNING')
+
 from astropy.convolution import Gaussian1DKernel, convolve
 from astropy.io import fits
 import glob
@@ -214,7 +218,7 @@ class Extract1DStep:
             if do_plot is True and self.extract_method == 'atoca':
                 if save_results is True:
                     plot_file = self.output_dir + self.tag.replace('.fits',
-                                                                   '.pdf')
+                                                                   '.png')
                 else:
                     plot_file = None
                 models = []
@@ -398,7 +402,7 @@ def box_extract_soss(datafiles, centroids, soss_width, do_plot=False,
         # Do diagnostic plot if requested.
         if do_plot is True:
             if save_results is True:
-                outfile = output_dir + 'aperture_optimization.pdf'
+                outfile = output_dir + 'aperture_optimization.png'
             else:
                 outfile = None
             plotting.make_soss_width_plot(scatter, ii, outfile=outfile,

@@ -8,6 +8,10 @@ Created on Thurs Jul 21 18:07 2022
 Custom JWST DMS pipeline steps for Stage 4 (lightcurve fitting).
 """
 
+from supreme_spoon.utils import fancyprint
+fancyprint('Future versions of this package will be under the name exoTEDRF. '
+           'Please update your installations accordingly.', msg_type='WARNING')
+
 from datetime import datetime
 from exotic_ld import StellarLimbDarkening
 import juliet
@@ -559,6 +563,10 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
     occultation_type : str
         Type of occultation; either 'transit' or 'eclipse'.
     """
+
+    # Hack to fix weird end bin errors.
+    ii = np.where(wave_err < 0)
+    wave_err[ii] = np.median(wave_err)
 
     # Pack the quantities into a dictionary.
     dd = {'wave': wave,
