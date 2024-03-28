@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>exoTEDRF.exotedrf.stage1 &mdash; exoTEDRF 2024 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=eafc0fe6" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=bbec6902"></script>
+        <script src="../../../../_static/documentation_options.js?v=6fefd858"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            exoTEDRF
+              <img src="../../../../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/usage.html">exoTEDRF Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">exoTEDRF</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><code class="xref py py-mod docutils literal notranslate"><span class="pre">exoTEDRF.exotedrf.stage1</span></code></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/autoapi/exoTEDRF/exotedrf/stage1/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="module-exoTEDRF.exotedrf.stage1">
+<span id="exotedrf-exotedrf-stage1"></span><h1><a class="reference internal" href="#module-exoTEDRF.exotedrf.stage1" title="exoTEDRF.exotedrf.stage1"><code class="xref py py-mod docutils literal notranslate"><span class="pre">exoTEDRF.exotedrf.stage1</span></code></a><a class="headerlink" href="#module-exoTEDRF.exotedrf.stage1" title="Link to this heading"></a></h1>
+<p>Created on Thurs Jul 21 17:30 2022</p>
+<p>&#64;author: MCR</p>
+<p>Custom JWST DMS pipeline steps for Stage 1 (detector level processing).</p>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<section id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.DQInitStep" title="exoTEDRF.exotedrf.stage1.DQInitStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DQInitStep</span></code></a></p></td>
+<td><p>Wrapper around default calwebb_detector1 Data Quality Initialization</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.SaturationStep" title="exoTEDRF.exotedrf.stage1.SaturationStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SaturationStep</span></code></a></p></td>
+<td><p>Wrapper around default calwebb_detector1 Saturation Detection step.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.SuperBiasStep" title="exoTEDRF.exotedrf.stage1.SuperBiasStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SuperBiasStep</span></code></a></p></td>
+<td><p>Wrapper around default calwebb_detector1 Super Bias Subtraction step.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.RefPixStep" title="exoTEDRF.exotedrf.stage1.RefPixStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RefPixStep</span></code></a></p></td>
+<td><p>Wrapper around default calwebb_detector1 Reference Pixel Correction</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.DarkCurrentStep" title="exoTEDRF.exotedrf.stage1.DarkCurrentStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DarkCurrentStep</span></code></a></p></td>
+<td><p>Wrapper around default calwebb_detector1 Dark Current Subtraction step.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.OneOverFStep" title="exoTEDRF.exotedrf.stage1.OneOverFStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">OneOverFStep</span></code></a></p></td>
+<td><p>Wrapper around custom 1/f Correction Step.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.LinearityStep" title="exoTEDRF.exotedrf.stage1.LinearityStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LinearityStep</span></code></a></p></td>
+<td><p>Wrapper around default calwebb_detector1 Linearity Correction step.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.JumpStep" title="exoTEDRF.exotedrf.stage1.JumpStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">JumpStep</span></code></a></p></td>
+<td><p>Wrapper around default calwebb_detector1 Jump Detection step with some</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.RampFitStep" title="exoTEDRF.exotedrf.stage1.RampFitStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RampFitStep</span></code></a></p></td>
+<td><p>Wrapper around default calwebb_detector1 Ramp Fit step.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.GainScaleStep" title="exoTEDRF.exotedrf.stage1.GainScaleStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GainScaleStep</span></code></a></p></td>
+<td><p>Wrapper around default calwebb_detector1 Gain Scale Correction step.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.flag_hot_pixels" title="exoTEDRF.exotedrf.stage1.flag_hot_pixels"><code class="xref py py-obj docutils literal notranslate"><span class="pre">flag_hot_pixels</span></code></a>(result, deepframe[, box_size, thresh, ...])</p></td>
+<td><p>Identify and flag additional hot pixels in a SOSS TSO which are not</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.jumpstep_in_time" title="exoTEDRF.exotedrf.stage1.jumpstep_in_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">jumpstep_in_time</span></code></a>(datafile[, window, thresh, fileroot, ...])</p></td>
+<td><p>Jump detection step in the temporal domain. This algorithm is based off</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.oneoverfstep_scale" title="exoTEDRF.exotedrf.stage1.oneoverfstep_scale"><code class="xref py py-obj docutils literal notranslate"><span class="pre">oneoverfstep_scale</span></code></a>(datafiles, baseline_ints[, ...])</p></td>
+<td><p>Custom 1/f correction routine to be applied at the group or</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.oneoverfstep_solve" title="exoTEDRF.exotedrf.stage1.oneoverfstep_solve"><code class="xref py py-obj docutils literal notranslate"><span class="pre">oneoverfstep_solve</span></code></a>(datafiles, baseline_ints[, ...])</p></td>
+<td><p>Custom 1/f correction routine to be applied at the group or</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage1.run_stage1" title="exoTEDRF.exotedrf.stage1.run_stage1"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_stage1</span></code></a>(results, background_model[, baseline_ints, ...])</p></td>
+<td><p>Run the exoTEDRF Stage 1 pipeline: detector level processing,</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.DQInitStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">DQInitStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deepframe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.DQInitStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around default calwebb_detector1 Data Quality Initialization
+step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.DQInitStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.DQInitStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.SaturationStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">SaturationStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.SaturationStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around default calwebb_detector1 Saturation Detection step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.SaturationStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.SaturationStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.SuperBiasStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">SuperBiasStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.SuperBiasStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around default calwebb_detector1 Super Bias Subtraction step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.SuperBiasStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.SuperBiasStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.RefPixStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">RefPixStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.RefPixStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around default calwebb_detector1 Reference Pixel Correction
+step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.RefPixStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.RefPixStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.DarkCurrentStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">DarkCurrentStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.DarkCurrentStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around default calwebb_detector1 Dark Current Subtraction step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.DarkCurrentStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.DarkCurrentStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.OneOverFStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">OneOverFStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">baseline_ints</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'scale-achromatic'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_o2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel_masks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">background</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centroids</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.OneOverFStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around custom 1/f Correction Step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.OneOverFStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inner_mask_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">40</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outer_mask_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">70</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.OneOverFStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.LinearityStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">LinearityStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.LinearityStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around default calwebb_detector1 Linearity Correction step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.LinearityStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.LinearityStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.JumpStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">JumpStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.JumpStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around default calwebb_detector1 Jump Detection step with some
+custom modifications.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.JumpStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag_up_ramp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rejection_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag_in_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_rejection_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.JumpStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.RampFitStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">RampFitStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.RampFitStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around default calwebb_detector1 Ramp Fit step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.RampFitStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.RampFitStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.GainScaleStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">GainScaleStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.GainScaleStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around default calwebb_detector1 Gain Scale Correction step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.GainScaleStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.GainScaleStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.flag_hot_pixels">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">flag_hot_pixels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">result</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deepframe</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">box_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hot_pix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.flag_hot_pixels" title="Link to this definition"></a></dt>
+<dd><p>Identify and flag additional hot pixels in a SOSS TSO which are not
+already in the default pipeline flags.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>result</strong> (<em>jwst.datamodel</em><em>, </em><em>str</em>) – Input datamodel, or path to.</p></li>
+<li><p><strong>deepframe</strong> (<em>array-like</em><em>(</em><em>float</em><em>)</em><em>, </em><em>str</em>) – Deep stack of the time series, or path to.</p></li>
+<li><p><strong>box_size</strong> (<em>int</em>) – Size of box around each pixel to consider.</p></li>
+<li><p><strong>thresh</strong> (<em>int</em>) – Sigma threshhold above which a pixel will be flagged.</p></li>
+<li><p><strong>hot_pix</strong> (<em>array-like</em><em>(</em><em>bool</em><em>)</em><em>, </em><em>None</em>) – Map of pixels to flag.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>result</strong> (<em>jwst.datamodel</em>) – Input datamodel with newly flagged pixels added to pixeldq extension.</p></li>
+<li><p><strong>hot_pix</strong> (<em>np.array(bool)</em>) – Map of new flagged pixels.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.jumpstep_in_time">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">jumpstep_in_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileroot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.jumpstep_in_time" title="Link to this definition"></a></dt>
+<dd><p>Jump detection step in the temporal domain. This algorithm is based off
+of Nikolov+ (2014) and identifies cosmic ray hits in the temporal domain.
+All jumps for ngroup&lt;=2 are replaced with the median of surrounding
+integrations, whereas jumps for ngroup&gt;3 are flagged.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datafile</strong> (<em>str</em><em>, </em><em>RampModel</em>) – Path to data file, or RampModel itself for a segment of the TSO.
+Should be 4D ramp.</p></li>
+<li><p><strong>window</strong> (<em>int</em>) – Number of integrations to use for cosmic ray flagging. Must be odd.</p></li>
+<li><p><strong>thresh</strong> (<em>int</em>) – Sigma threshold for a pixel to be flagged.</p></li>
+<li><p><strong>output_dir</strong> (<em>str</em>) – Directory to which to save results.</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If True, save results to disk.</p></li>
+<li><p><strong>fileroot</strong> (<em>str</em><em>, </em><em>None</em>) – Root name for output file.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>datafile</strong> – Data file corrected for cosmic ray hits.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>RampModel</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.oneoverfstep_scale">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">oneoverfstep_scale</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafiles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">baseline_ints</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner_mask_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">40</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outer_mask_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">70</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">even_odd_rows</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">background</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_o2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel_masks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileroots</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'achromatic'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centroids</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.oneoverfstep_scale" title="Link to this definition"></a></dt>
+<dd><p>Custom 1/f correction routine to be applied at the group or
+integration level. A median stack is constructed using all out-of-transit
+integrations and subtracted from each individual integration. The
+column-wise median of this difference image is then subtracted from the
+original frame to correct 1/f noise. Outlier pixels, background
+contaminants, and the target trace itself can (should) be masked to
+improve the estimation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datafiles</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>array-like</em><em>[</em><em>RampModel</em><em>]</em><em>, </em><em>array-like</em><em>[</em><em>CubeModel</em><em>]</em>) – List of paths to data files, or datamodels themselves for each segment
+of the TSO. Should be 4D ramps, but 3D rate files are also accepted.</p></li>
+<li><p><strong>baseline_ints</strong> (<em>array-like</em><em>[</em><em>int</em><em>]</em>) – Integration numbers of ingress and egress.</p></li>
+<li><p><strong>inner_mask_width</strong> (<em>int</em>) – Width around the trace to mask. For windowed methods, defines the
+inner window edge.</p></li>
+<li><p><strong>outer_mask_width</strong> (<em>int</em>) – For windowed methods, the outer edge of the window.</p></li>
+<li><p><strong>even_odd_rows</strong> (<em>bool</em>) – If True, calculate 1/f noise seperately for even and odd numbered rows.</p></li>
+<li><p><strong>background</strong> (<em>str</em><em>, </em><em>array-like</em><em>[</em><em>float</em><em>]</em><em>, </em><em>None</em>) – Model of background flux.</p></li>
+<li><p><strong>timeseries</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em><em>, </em><em>str</em><em>, </em><em>None</em>) – Estimate of normalized light curve(s), or path to file.</p></li>
+<li><p><strong>timeseries_o2</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em><em>, </em><em>str</em><em>, </em><em>None</em>) – Estimate of normalized light curve(s) for order 2, or path to file.
+Only necessary if method is chromatic.</p></li>
+<li><p><strong>output_dir</strong> (<em>str</em><em>, </em><em>None</em>) – Directory to which to save results. Only necessary if saving results.</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If True, save results to disk.</p></li>
+<li><p><strong>pixel_masks</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>None</em>) – List of paths to maps of pixels to mask for each data segment. Should
+be 3D (nints, dimy, dimx).</p></li>
+<li><p><strong>fileroots</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>None</em>) – Root names for output files. Only necessary if saving results.</p></li>
+<li><p><strong>method</strong> (<em>str</em>) – Options are “chromatic”, “achromatic”, or “achromatic-window”.</p></li>
+<li><p><strong>centroids</strong> (<em>str</em><em>, </em><em>None</em>) – File containing trace positions for each order.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>results</strong> – RampModels for each segment, corrected for 1/f noise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like[CubeModel]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.oneoverfstep_solve">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">oneoverfstep_solve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafiles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">baseline_ints</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trace_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">70</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">background</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel_masks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fileroots</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centroids</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.oneoverfstep_solve" title="Link to this definition"></a></dt>
+<dd><p>Custom 1/f correction routine to be applied at the group or
+integration level. 1/f noise level and median frame scaling is calculated
+independently for each pixel column. Outlier pixels and background
+contaminants can (should) be masked to improve the estimation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datafiles</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>array-like</em><em>[</em><em>RampModel</em><em>]</em><em>, </em><em>array-like</em><em>[</em><em>CubeModel</em><em>]</em>) – List of paths to data files, or datamodels themselves for each segment
+of the TSO. Should be 4D ramps, but 3D rate files are also accepted.</p></li>
+<li><p><strong>baseline_ints</strong> (<em>array-like</em><em>[</em><em>int</em><em>]</em>) – Integration numbers of ingress and egress.</p></li>
+<li><p><strong>trace_width</strong> (<em>int</em>) – Defines the width around the trace to consider for MLE solving.</p></li>
+<li><p><strong>background</strong> (<em>str</em><em>, </em><em>array-like</em><em>[</em><em>float</em><em>]</em><em>, </em><em>None</em>) – Model of background flux.</p></li>
+<li><p><strong>output_dir</strong> (<em>str</em><em>, </em><em>None</em>) – Directory to which to save results. Only necessary if saving results.</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If True, save results to disk.</p></li>
+<li><p><strong>pixel_masks</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>None</em>) – List of paths to maps of pixels to mask for each data segment. Can be
+3D (nints, dimy, dimx), or 2D (dimy, dimx).</p></li>
+<li><p><strong>fileroots</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>None</em>) – Root names for output files. Only necessary if saving results.</p></li>
+<li><p><strong>do_plot</strong> (<em>bool</em>) – If True, do the step diagnostic plot.</p></li>
+<li><p><strong>show_plot</strong> (<em>bool</em>) – If True, show the step diagnostic plot instead of/in addition to
+saving it to file.</p></li>
+<li><p><strong>centroids</strong> (<em>str</em><em>, </em><em>None</em>) – Path to file containing trace positions for each order.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>corrected_rampmodels</strong> – RampModels for each segment, corrected for 1/f noise.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like[CubeModel]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage1.run_stage1">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage1.</span></span><span class="sig-name descname"><span class="pre">run_stage1</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">background_model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">baseline_ints</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">oof_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'scale-achromatic'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_o2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel_masks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deepframe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag_up_ramp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rejection_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flag_in_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_rejection_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_tag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inner_mask_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">40</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outer_mask_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">70</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centroids</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage1.run_stage1" title="Link to this definition"></a></dt>
+<dd><p>Run the exoTEDRF Stage 1 pipeline: detector level processing,
+using a combination of official STScI DMS and custom steps. Documentation
+for the official DMS steps can be found here:
+<a class="reference external" href="https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_detector1.html">https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_detector1.html</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>results</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em>) – List of paths to input uncalibrated datafiles for all segments in an
+exposure.</p></li>
+<li><p><strong>background_model</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – SOSS background model.</p></li>
+<li><p><strong>baseline_ints</strong> (<em>array-like</em><em>[</em><em>int</em><em>]</em>) – Integration numbers for transit ingress and egress.</p></li>
+<li><p><strong>oof_method</strong> (<em>str</em>) – 1/f correction method. Options are “scale-chromatic”,
+“scale-achromatic”, “scale-achromatic-window”, or “solve”.</p></li>
+<li><p><strong>timeseries</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em><em>, </em><em>None</em>) – Estimate of the normalized light curve, either 1D or 2D.</p></li>
+<li><p><strong>timeseries_o2</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em><em>, </em><em>None</em>) – Estimate of the normalized light curve for order 2, either 1D or 2D.</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If True, save results of each step to file.</p></li>
+<li><p><strong>pixel_masks</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>None</em>) – For improved 1/f noise corecton. List of paths to outlier maps for each
+data segment. Can be 3D (nints, dimy, dimx), or 2D (dimy, dimx) files.</p></li>
+<li><p><strong>force_redo</strong> (<em>bool</em>) – If True, redo steps even if outputs files are already present.</p></li>
+<li><p><strong>deepframe</strong> (<em>str</em><em>, </em><em>None</em>) – Path to deep stack, such as one produced by BadPixStep.</p></li>
+<li><p><strong>flag_up_ramp</strong> (<em>bool</em>) – Whether to flag jumps up the ramp. This is the default flagging in the
+STScI pipeline. Note that this is broken as of jwst v1.12.5.</p></li>
+<li><p><strong>rejection_threshold</strong> (<em>int</em>) – For jump detection; sigma threshold for a pixel to be considered an
+outlier.</p></li>
+<li><p><strong>flag_in_time</strong> (<em>bool</em>) – If True, flag cosmic rays temporally in addition to the default
+up-the-ramp jump detection.</p></li>
+<li><p><strong>time_rejection_threshold</strong> (<em>int</em>) – Sigma threshold to flag outliers in temporal flagging.</p></li>
+<li><p><strong>root_dir</strong> (<em>str</em>) – Directory from which all relative paths are defined.</p></li>
+<li><p><strong>output_tag</strong> (<em>str</em>) – Name tag to append to pipeline outputs directory.</p></li>
+<li><p><strong>skip_steps</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>None</em>) – Step names to skip (if any).</p></li>
+<li><p><strong>do_plot</strong> (<em>bool</em>) – If True, make step diagnostic plots.</p></li>
+<li><p><strong>show_plot</strong> (<em>bool</em>) – Only necessary if do_plot is True. Show the diagnostic plots in
+addition to/instead of saving to file.</p></li>
+<li><p><strong>inner_mask_width</strong> (<em>int</em>) – For 1/f correction. For scale-achromatic, defines the width around the
+trace to mask. For windowed methods, defines the inner edge of the
+window.</p></li>
+<li><p><strong>outer_mask_width</strong> (<em>int</em>) – For 1/f correction. For windowed methods, defines the outer edge of the
+window. For solve, defines the width around the trace to use.</p></li>
+<li><p><strong>centroids</strong> (<em>str</em><em>, </em><em>None</em>) – Path to file containing trace positions for each order.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>results</strong> – Datafiles for each segment processed through Stage 1.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like[RampModel]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Michael Radica.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

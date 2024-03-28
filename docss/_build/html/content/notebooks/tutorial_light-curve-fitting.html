@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Light Curve Fitting with exoTEDRF &mdash; exoTEDRF 2024 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=eafc0fe6" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=bbec6902"></script>
+        <script src="../../_static/documentation_options.js?v=6fefd858"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Citations" href="../citations.html" />
+    <link rel="prev" title="NIRISS/SOSS Reduction" href="tutorial_niriss-soss.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            exoTEDRF
+              <img src="../../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../usage.html">exoTEDRF Usage Guide</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../usage.html#tutorial-notebooks">Tutorial Notebooks</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="tutorial_niriss-soss.html">NIRISS/SOSS Reduction</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Light Curve Fitting with exoTEDRF</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage.html#scripting">Scripting</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../autoapi/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">exoTEDRF</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../usage.html">exoTEDRF Usage Guide</a></li>
+      <li class="breadcrumb-item active">Light Curve Fitting with exoTEDRF</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/content/notebooks/tutorial_light-curve-fitting.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt .copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+.jp-RenderedHTMLCommon table,
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+.jp-RenderedHTMLCommon thead,
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+.jp-RenderedHTMLCommon tr,
+.jp-RenderedHTMLCommon th,
+.jp-RenderedHTMLCommon td,
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+.jp-RenderedHTMLCommon th,
+div.rendered_html th {
+  font-weight: bold;
+}
+.jp-RenderedHTMLCommon tbody tr:nth-child(odd),
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+.jp-RenderedHTMLCommon tbody tr:hover,
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference external" href="https://github.com/radicamc/exoTEDRF/tree/main/docs/content/notebooks/tutorial_light-curve-fitting.ipynb">Download full notebook here</a></p>
+</div>
+<section id="Light-Curve-Fitting-with-exoTEDRF">
+<h1>Light Curve Fitting with exoTEDRF<a class="headerlink" href="#Light-Curve-Fitting-with-exoTEDRF" title="Link to this heading"></a></h1>
+<p>There are many wonderful light curve fitting tutorials elsewhere, so this notebook will provide a really quick overview of how one might choose to fit their extracted light curves.</p>
+<p>Let’s start off by defining some input and output directory paths.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">outdir_s3</span> <span class="o">=</span> <span class="s1">&#39;pipeline_outputs_directory/Stage3/&#39;</span>
+<span class="n">outdir_s4</span> <span class="o">=</span> <span class="s1">&#39;pipeline_outputs_directory/Stage4/&#39;</span>
+</pre></div>
+</div>
+</div>
+<p>Now we’re going to do is open the WASP-39b spectra we extracted in the previous tutorial.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">astropy.io</span> <span class="kn">import</span> <span class="n">fits</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># Open the extracted spectrum file and get the relevant quantities.</span>
+
+<span class="k">with</span> <span class="n">fits</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">outdir_s3</span> <span class="o">+</span> <span class="s1">&#39;WASP-39_box_spectra_fullres.fits&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">spec</span><span class="p">:</span>
+
+    <span class="n">wave1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">spec</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">spec</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># Order 1 wavelengths</span>
+    <span class="n">wave2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">spec</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">spec</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># Order 2 wavelengths</span>
+
+    <span class="n">order1</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>  <span class="c1"># Order 1 spectra</span>
+    <span class="n">order2</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>  <span class="c1"># Order 2 spectra</span>
+
+    <span class="n">t</span> <span class="o">=</span> <span class="n">spec</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>  <span class="c1"># Time stamps for each integration</span>
+
+<span class="n">base</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">150</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span><span class="o">-</span><span class="mi">100</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span> <span class="c1"># Baseline ints</span>
+
+<span class="c1"># Normalize the extracted spectra.</span>
+
+<span class="n">order1_norm</span> <span class="o">=</span> <span class="n">order1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">order1</span><span class="p">[</span><span class="n">base</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">order2_norm</span> <span class="o">=</span> <span class="n">order2</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">order2</span><span class="p">[</span><span class="n">base</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+/tmp/ipykernel_2673514/3379126671.py:20: RuntimeWarning: invalid value encountered in divide
+  order1_norm = order1 / np.nanmedian(order1[base], axis=0)
+/tmp/ipykernel_2673514/3379126671.py:21: RuntimeWarning: invalid value encountered in divide
+  order2_norm = order2 / np.nanmedian(order2[base], axis=0)
+</pre></div></div>
+</div>
+<p>We already did this, but let’s look at the 2D light curves again because they’re just so amazing!!</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">exotedrf.plotting</span> <span class="kn">import</span> <span class="n">make_2d_lightcurve_plot</span>
+
+<span class="c1"># For order 2, only the wavelengths from 0.6 -- 0.85µm are useable.</span>
+
+<span class="n">ii</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">wave2</span> <span class="o">&gt;=</span> <span class="mf">0.6</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">wave2</span> <span class="o">&lt;</span> <span class="mf">0.85</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="c1"># Display the light curves.</span>
+
+<span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;vmin&#39;</span><span class="p">:</span> <span class="mf">0.9725</span><span class="p">,</span> <span class="s1">&#39;vmax&#39;</span><span class="p">:</span> <span class="mf">1.01</span><span class="p">}</span>
+<span class="n">make_2d_lightcurve_plot</span><span class="p">(</span><span class="n">wave1</span><span class="p">,</span> <span class="n">order1_norm</span><span class="p">,</span> <span class="n">wave2</span><span class="p">[</span><span class="n">ii</span><span class="p">],</span> <span class="n">order2_norm</span><span class="p">[:,</span> <span class="n">ii</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/content_notebooks_tutorial_light-curve-fitting_7_0.png" src="../../_images/content_notebooks_tutorial_light-curve-fitting_7_0.png" />
+</div>
+</div>
+<p>Now let’s get the white light curves. Generally, people have made sepearte white light curves for the first and second order, and then jointly fitted the two light curves. Though, of course, there’s nothing stopping you from simply summing all flux from both orders into one single white light curve.</p>
+<p>To keep things simple, in this case, we’re simply going to concern ourselves with order 1.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Sum along the wavelength axis to get the order 1 white light curve</span>
+
+<span class="n">wlc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nansum</span><span class="p">(</span><span class="n">order1</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">wlc</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">wlc</span><span class="p">[</span><span class="n">base</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># Normalize by the baseline flux.</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="c1"># Display the white light curve.</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">wlc</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">mec</span><span class="o">=</span><span class="s1">&#39;royalblue&#39;</span><span class="p">,</span> <span class="n">mfc</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">,</span> <span class="n">ms</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;Relative Flux&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Time [MJD]&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/content_notebooks_tutorial_light-curve-fitting_10_0.png" src="../../_images/content_notebooks_tutorial_light-curve-fitting_10_0.png" />
+</div>
+</div>
+<p>Very nice!</p>
+<p>You may notice a small settling ramp and a couple of outliers at the beginning and end of each time series. This is common across instruments. Generally, discluding the first and last 10 integrations or so is a good way to deal with these effects.</p>
+<p>Now let’s fit the white light curve. We’re going to use the brilliant juliet package, whose documentation can be found <a class="reference external" href="https://juliet.readthedocs.io/en/latest/">here</a>.</p>
+<p>The first thing to do is to set up the priors. We’re going to do a very basic fit, like what was done for this dataset in <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2023Natur.614..670F/abstract">Feinstein &amp; Radica et al. (2023)</a>; this includes a simple linear trend systematics model in addition to the transit model. For more precise fits, you may consider using the principal components we derived during Stage 2, or a Gaussian Process.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">juliet</span>
+
+<span class="c1"># Define the priors.</span>
+
+<span class="n">params</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;P_p1&#39;</span><span class="p">,</span> <span class="s1">&#39;t0_p1&#39;</span><span class="p">,</span> <span class="s1">&#39;p_p1_SOSS1&#39;</span><span class="p">,</span> <span class="s1">&#39;b_p1&#39;</span><span class="p">,</span> <span class="s1">&#39;ecc_p1&#39;</span><span class="p">,</span> <span class="s1">&#39;omega_p1&#39;</span><span class="p">,</span> <span class="s1">&#39;a_p1&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;q1_SOSS&#39;</span><span class="p">,</span> <span class="s1">&#39;q2_SOSS&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;mdilution_SOSS&#39;</span><span class="p">,</span> <span class="s1">&#39;mflux_SOSS&#39;</span><span class="p">,</span> <span class="s1">&#39;sigma_w_SOSS&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;theta0_SOSS&#39;</span><span class="p">,</span> <span class="s1">&#39;theta1_SOSS&#39;</span><span class="p">]</span>
+
+<span class="n">dists</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;fixed&#39;</span><span class="p">,</span> <span class="s1">&#39;uniform&#39;</span><span class="p">,</span> <span class="s1">&#39;uniform&#39;</span><span class="p">,</span> <span class="s1">&#39;uniform&#39;</span><span class="p">,</span> <span class="s1">&#39;fixed&#39;</span><span class="p">,</span> <span class="s1">&#39;fixed&#39;</span><span class="p">,</span> <span class="s1">&#39;uniform&#39;</span><span class="p">,</span>
+         <span class="s1">&#39;uniform&#39;</span><span class="p">,</span> <span class="s1">&#39;uniform&#39;</span><span class="p">,</span>
+         <span class="s1">&#39;fixed&#39;</span><span class="p">,</span> <span class="s1">&#39;fixed&#39;</span><span class="p">,</span> <span class="s1">&#39;loguniform&#39;</span><span class="p">,</span>
+         <span class="s1">&#39;uniform&#39;</span><span class="p">,</span> <span class="s1">&#39;uniform&#39;</span><span class="p">]</span>
+
+<span class="n">hyperps</span> <span class="o">=</span> <span class="p">[</span><span class="mf">4.055259</span><span class="p">,</span> <span class="p">[</span><span class="mf">59787.0</span><span class="p">,</span> <span class="mf">59787.15</span><span class="p">],</span> <span class="p">[</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">],</span> <span class="p">[</span><span class="mf">1e-2</span><span class="p">,</span> <span class="mf">0.99</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">90</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">30</span><span class="p">],</span>
+           <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+           <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">[</span><span class="mf">1e-1</span><span class="p">,</span> <span class="mf">1e5</span><span class="p">],</span>
+           <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Warning: no zeus installation found. Will not be able to sample using sampler = &#39;zeus&#39;.
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Populate the priors dictionary.</span>
+
+<span class="n">priors</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">param</span><span class="p">,</span> <span class="n">dist</span><span class="p">,</span> <span class="n">hyperp</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">dists</span><span class="p">,</span> <span class="n">hyperps</span><span class="p">):</span>
+    <span class="n">priors</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">priors</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="s1">&#39;distribution&#39;</span><span class="p">],</span> <span class="n">priors</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="s1">&#39;hyperparameters&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dist</span><span class="p">,</span> <span class="n">hyperp</span>
+
+<span class="c1"># Format the regressor for the systematics model.</span>
+
+<span class="n">tt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="mi">2</span><span class="p">))</span>
+<span class="n">tt</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="n">tt</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">t</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">t</span><span class="p">))</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">t</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Ready the juliet dataset.</span>
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">juliet</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">priors</span><span class="o">=</span><span class="n">priors</span><span class="p">,</span> <span class="n">t_lc</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;SOSS&#39;</span><span class="p">:</span> <span class="n">t</span><span class="p">[</span><span class="mi">10</span><span class="p">:</span><span class="o">-</span><span class="mi">10</span><span class="p">]},</span>
+                      <span class="n">y_lc</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;SOSS&#39;</span><span class="p">:</span> <span class="n">wlc</span><span class="p">[</span><span class="mi">10</span><span class="p">:</span><span class="o">-</span><span class="mi">10</span><span class="p">]},</span>
+                      <span class="n">yerr_lc</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;SOSS&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="o">*</span><span class="n">wlc</span><span class="p">[</span><span class="mi">10</span><span class="p">:</span><span class="o">-</span><span class="mi">10</span><span class="p">]},</span>  <span class="c1"># We&#39;re going to fit for the error bar.</span>
+                      <span class="n">linear_regressors_lc</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;SOSS&#39;</span><span class="p">:</span> <span class="n">tt</span><span class="p">[</span><span class="mi">10</span><span class="p">:</span><span class="o">-</span><span class="mi">10</span><span class="p">]},</span>
+                      <span class="n">out_folder</span><span class="o">=</span><span class="n">outdir_s4</span><span class="o">+</span><span class="s1">&#39;wlc_linwitht&#39;</span><span class="p">)</span>
+
+<span class="c1"># And run the fit!</span>
+<span class="c1"># This shouldn&#39;t take too long, about five minutes or so given that it&#39;s a pretty simple fit.</span>
+
+<span class="n">results</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">sampler</span><span class="o">=</span><span class="s1">&#39;dynesty&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area stderr docutils container">
+<div class="highlight"><pre>
+34043it [03:26, 164.52it/s, +500 | bound: 434 | nc: 1 | ncall: 954717 | eff(%):  3.620 | loglstar:   -inf &lt; 3989.172 &lt;    inf | logz: 3921.741 +/-  0.359 | dlogz:  0.001 &gt;  0.509]
+</pre></div></div>
+</div>
+<p>We’ve used dynesty nested sampling for the above fit. This is great because for each fit you also get the Bayesian evidence, allowing you to compare fit using different detrending techniques to see which is the most justified given the data!</p>
+<p>Let’s now see how this fit turned out. First we’ll open and calculate some relevant quantities</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get the best fitting model from juliet.</span>
+
+<span class="n">transit_model</span><span class="p">,</span> <span class="n">comp</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">lc</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="s1">&#39;SOSS&#39;</span><span class="p">,</span> <span class="n">return_components</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># The &quot;systematics&quot; component is everything that isn&#39;t the transit model.</span>
+
+<span class="n">sys</span> <span class="o">=</span> <span class="n">transit_model</span> <span class="o">-</span> <span class="n">comp</span><span class="p">[</span><span class="s1">&#39;p1&#39;</span><span class="p">]</span>
+
+<span class="c1"># We also want the time of mid-transit and the fitted scatter.</span>
+
+<span class="n">t0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmedian</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">posteriors</span><span class="p">[</span><span class="s1">&#39;posterior_samples&#39;</span><span class="p">][</span><span class="s1">&#39;t0_p1&#39;</span><span class="p">])</span>
+<span class="n">scatter</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">posteriors</span><span class="p">[</span><span class="s1">&#39;posterior_samples&#39;</span><span class="p">][</span><span class="s1">&#39;sigma_w_SOSS&#39;</span><span class="p">])</span>
+
+<span class="c1"># And an estimate of the out-of-transit scatter pre-fit.</span>
+
+<span class="n">out_dev</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">wlc</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span><span class="o">+</span><span class="n">wlc</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span> <span class="o">-</span> <span class="n">wlc</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Now let&#39;s make a plot!</span>
+
+<span class="kn">from</span> <span class="nn">exotedrf.plotting</span> <span class="kn">import</span> <span class="n">make_lightcurve_plot</span>
+
+<span class="n">make_lightcurve_plot</span><span class="p">((</span><span class="n">dataset</span><span class="o">.</span><span class="n">times_lc</span><span class="p">[</span><span class="s1">&#39;SOSS&#39;</span><span class="p">]</span><span class="o">-</span><span class="n">t0</span><span class="p">)</span><span class="o">*</span><span class="mi">24</span><span class="p">,</span> <span class="n">dataset</span><span class="o">.</span><span class="n">data_lc</span><span class="p">[</span><span class="s1">&#39;SOSS&#39;</span><span class="p">],</span>
+                     <span class="n">transit_model</span><span class="p">,</span> <span class="n">scatter</span><span class="p">,</span> <span class="n">out_dev</span><span class="p">,</span> <span class="n">nfit</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span> <span class="n">systematics</span><span class="o">=</span><span class="n">sys</span><span class="p">,</span>
+                     <span class="n">nbin</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/content_notebooks_tutorial_light-curve-fitting_18_0.png" src="../../_images/content_notebooks_tutorial_light-curve-fitting_18_0.png" />
+</div>
+</div>
+<p>Not bad for a first pass! The top panel (blue) shows the full fit, whereas the second panel (red) shows the data after systematics correction. In this case we can see there isn’t too much of a difference.</p>
+<p>The <span class="math notranslate nohighlight">\(\chi^2\)</span> value is also slightly higher than we’d like it to be, and we can see that there is clearly still some correlated noise in the residuals. Perhaps detrending against the PCs could improve this?</p>
+<p>Once you’re happy with the white light curve fit, you’re ready to move on to getting your transit spectrum! The exoTEDRF light curve fitting functionalities are contained with Stage 4. A fit_lightcurves.py script is also provided for a simple light curve analysis (essentially it’s a wrapper around the code above). Simply fill out the corresponding yaml file, and you’re good to go!</p>
+<p>Below is an example of the WASP-39b transmission spectrum that I get following the above procedure and using 20-pixel bins. This is not necessarily an optimized spectrum, but its a good comparison to make sure that you’re on the right track!</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Open the WASP-39b transmission spectrum.</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="n">spec</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;../data/WASP-39b_NIRISS_SOSS_transmission_spectrum_20pix.csv&#39;</span><span class="p">,</span> <span class="n">comment</span><span class="o">=</span><span class="s1">&#39;#&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="highlight-{note} notranslate"><div class="highlight"><pre><span></span>This isn&#39;t the same spectrum presented in Feinstein &amp; Radica et al. (2023).
+We&#39;ve learned a lot about JWST since then, and this version is actually quite a bit cleaner!
+</pre></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Plot transmission spectrum.</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">facecolor</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">errorbar</span><span class="p">(</span><span class="n">spec</span><span class="p">[</span><span class="s1">&#39;wave&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">spec</span><span class="p">[</span><span class="s1">&#39;dppm&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+             <span class="n">yerr</span><span class="o">=</span><span class="n">spec</span><span class="p">[</span><span class="s1">&#39;dppm_err&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">xerr</span><span class="o">=</span><span class="n">spec</span><span class="p">[</span><span class="s1">&#39;wave_err&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+             <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">mec</span><span class="o">=</span><span class="s1">&#39;royalblue&#39;</span><span class="p">,</span> <span class="n">mfc</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">,</span> <span class="n">ecolor</span><span class="o">=</span><span class="s1">&#39;royalblue&#39;</span><span class="p">,</span> <span class="n">ms</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Wavelength (µm)&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">14</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$\rm (R_p/R_*)^2$ (ppm)&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">14</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="mf">0.55</span><span class="p">,</span> <span class="mf">2.9</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">([</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">],</span> <span class="n">labels</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;0.6&#39;</span><span class="p">,</span> <span class="s1">&#39;0.8&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;1.5&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span> <span class="s1">&#39;2.5&#39;</span><span class="p">],</span>
+           <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/content_notebooks_tutorial_light-curve-fitting_24_0.png" src="../../_images/content_notebooks_tutorial_light-curve-fitting_24_0.png" />
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tutorial_niriss-soss.html" class="btn btn-neutral float-left" title="NIRISS/SOSS Reduction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../citations.html" class="btn btn-neutral float-right" title="Citations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Michael Radica.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,426 @@
+:py:mod:`exoTEDRF.exotedrf.utils`
+=================================
+
+.. py:module:: exoTEDRF.exotedrf.utils
+
+.. autoapi-nested-parse::
+
+   Created on Wed Jul 20 08:51 2022
+
+   @author: MCR
+
+   Miscellaneous pipeline tools.
+
+
+
+Module Contents
+---------------
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   exoTEDRF.exotedrf.utils.do_replacement
+   exoTEDRF.exotedrf.utils.download_stellar_spectra
+   exoTEDRF.exotedrf.utils.fancyprint
+   exoTEDRF.exotedrf.utils.format_out_frames
+   exoTEDRF.exotedrf.utils.get_default_header
+   exoTEDRF.exotedrf.utils.get_dq_flag_metrics
+   exoTEDRF.exotedrf.utils.get_filename_root
+   exoTEDRF.exotedrf.utils.get_filename_root_noseg
+   exoTEDRF.exotedrf.utils.get_interp_box
+   exoTEDRF.exotedrf.utils.get_stellar_param_grid
+   exoTEDRF.exotedrf.utils.get_trace_centroids
+   exoTEDRF.exotedrf.utils.get_wavebin_limits
+   exoTEDRF.exotedrf.utils.interpolate_stellar_model_grid
+   exoTEDRF.exotedrf.utils.line_mle
+   exoTEDRF.exotedrf.utils.make_deepstack
+   exoTEDRF.exotedrf.utils.open_filetype
+   exoTEDRF.exotedrf.utils.outlier_resistant_variance
+   exoTEDRF.exotedrf.utils.parse_config
+   exoTEDRF.exotedrf.utils.save_extracted_spectra
+   exoTEDRF.exotedrf.utils.save_ld_priors
+   exoTEDRF.exotedrf.utils.sigma_clip_lightcurves
+   exoTEDRF.exotedrf.utils.sort_datamodels
+   exoTEDRF.exotedrf.utils.unpack_atoca_spectra
+   exoTEDRF.exotedrf.utils.unpack_input_dir
+   exoTEDRF.exotedrf.utils.verify_path
+
+
+
+.. py:function:: do_replacement(frame, badpix_map, dq=None, box_size=5)
+
+   Replace flagged pixels with the median of a surrounding box.
+
+   :param frame: Data frame.
+   :type frame: array-like[float]
+   :param badpix_map: Map of pixels to be replaced.
+   :type badpix_map: array-like[bool]
+   :param dq: Data quality flags.
+   :type dq: array-like[int]
+   :param box_size: Size of box to consider.
+   :type box_size: int
+
+   :returns: * **frame_out** (*array-like[float]*) -- Input frame wth pixels interpolated.
+             * **dq_out** (*array-like[int]*) -- Input dq map with interpolated pixels set to zero.
+
+
+.. py:function:: download_stellar_spectra(st_teff, st_logg, st_met, outdir)
+
+   Download a grid of PHOENIX model stellar spectra.
+
+   :param st_teff: Stellar effective temperature.
+   :type st_teff: float
+   :param st_logg: Stellar log surface gravity.
+   :type st_logg: float
+   :param st_met: Stellar metallicity as [Fe/H].
+   :type st_met: float
+   :param outdir: Output directory.
+   :type outdir: str
+
+   :returns: * **wfile** (*str*) -- Path to wavelength file.
+             * **ffiles** (*list[str]*) -- Path to model stellar spectrum files.
+
+
+.. py:function:: fancyprint(message, msg_type='INFO')
+
+   Fancy printing statement mimicking logging. Basically a hack to get
+   around complications with the STScI pipeline logging.
+
+   :param message: Message to print.
+   :type message: str
+   :param msg_type: Type of message. Mirrors the jwst pipeline logging.
+   :type msg_type: str
+
+
+.. py:function:: format_out_frames(out_frames)
+
+   Create a mask of baseline flux frames for lightcurve normalization.
+
+   :param out_frames: Integration numbers of ingress and/or egress.
+   :type out_frames: int, array-like[int]
+
+   :returns: **baseline_ints** -- Array of baseline frames.
+   :rtype: array-like[int]
+
+
+.. py:function:: get_default_header()
+
+   Format the default header for the lightcurve file.
+
+   :returns: * **header_dict** (*dict*) -- Header keyword dictionary.
+             * **header_commets** (*dict*) -- Header comment dictionary.
+
+
+.. py:function:: get_dq_flag_metrics(dq_map, flags)
+
+   Take a data quality map and extract a map of pixels which are flagged
+   for a specific reason. A list of data quality flags can be found here:
+   https://jwst-reffiles.stsci.edu/source/data_quality.html.
+
+   :param dq_map: Map of data quality flags.
+   :type dq_map: array-like(float)
+   :param flags: Flag types to find.
+   :type flags: list[str], str
+
+   :returns: **flagged** -- Boolean map where True values have the applicable flag.
+   :rtype: np.array(bool)
+
+
+.. py:function:: get_filename_root(datafiles)
+
+   Get the file name roots for each segment. Assumes that file names
+   follow the default jwst pipeline structure and are in correct segment
+   order.
+
+   :param datafiles: Datamodels, or paths to datamodels for each segment.
+   :type datafiles: array-like[str], array-like[jwst.datamodel]
+
+   :returns: **fileroots** -- List of file name roots.
+   :rtype: array-like[str]
+
+
+.. py:function:: get_filename_root_noseg(fileroots)
+
+   Get the file name root for a SOSS TSO with no segment information.
+
+   :param fileroots: File root names for each segment.
+   :type fileroots: array-like[str]
+
+   :returns: **fileroot_noseg** -- File name root with no segment information.
+   :rtype: str
+
+
+.. py:function:: get_interp_box(data, box_size, i, j, dimx)
+
+   Get median and standard deviation of a box centered on a specified
+   pixel.
+
+   :param data: Data frame.
+   :type data: array-like[float]
+   :param box_size: Size of box to consider.
+   :type box_size: int
+   :param i: X pixel.
+   :type i: int
+   :param j: Y pixel.
+   :type j: int
+   :param dimx: Size of x dimension.
+   :type dimx: int
+
+   :returns: **box_properties** -- Median and standard deviation of pixels in the box.
+   :rtype: array-like
+
+
+.. py:function:: get_stellar_param_grid(st_teff, st_logg, st_met)
+
+   Given a set of stellar parameters, determine the neighbouring grid
+   points based on the PHOENIX grid steps.
+
+   :param st_teff: Stellar effective temperature.
+   :type st_teff: float
+   :param st_logg: Stellar log surface gravity.
+   :type st_logg: float
+   :param st_met: Stellar metallicity as [Fe/H].
+   :type st_met: float
+
+   :returns: * **teffs** (*list[float]*) -- Effective temperature grid bounds.
+             * **loggs** (*list[float]*) -- Surface gravity grid bounds.
+             * **mets** (*list[float]*) -- Metallicity grid bounds.
+
+
+.. py:function:: get_trace_centroids(deepframe, tracetable, subarray, save_results=True, save_filename='')
+
+   Get the trace centroids for all three orders via the edgetrigger method.
+
+   :param deepframe: Median stack.
+   :type deepframe: array-like[float]
+   :param tracetable: Path to SpecTrace reference file.
+   :type tracetable: str
+   :param subarray: Subarray identifier.
+   :type subarray: str
+   :param save_results: If True, save results to file.
+   :type save_results: bool
+   :param save_filename: Filename of save file.
+   :type save_filename: str
+
+   :returns: * **cen_o1** (*array-like[float]*) -- Order 1 X and Y centroids.
+             * **cen_o2** (*array-like[float]*) -- Order 2 X and Y centroids.
+             * **cen_o3** (*array-like[float]*) -- Order 3 X and Y centroids.
+
+
+.. py:function:: get_wavebin_limits(wave)
+
+   Determine the upper and lower limits of wavelength bins centered on a
+   given wavelength axis.
+
+   :param wave: Wavelengh array.
+   :type wave: array-like[float]
+
+   :returns: * **bin_low** (*array-like[float]*) -- Lower edge of wavelength bin.
+             * **bin_up** (*array-like[float]*) -- Upper edge of wavelength bin.
+
+
+.. py:function:: interpolate_stellar_model_grid(model_files, st_teff, st_logg, st_met)
+
+   Given a grid of stellar spectrum files, interpolate the model spectra
+   to a set of stellar parameters.
+
+   :param model_files: List of paths to stellar spectra at grid points.
+   :type model_files: list[str]
+   :param st_teff: Stellar effective temperature.
+   :type st_teff: float
+   :param st_logg: Stellar log surface gravity.
+   :type st_logg: float
+   :param st_met: Stellar metallicity as [Fe/H].
+   :type st_met: float
+
+   :returns: **model_interp** -- Model stellar spectrum interpolated to the input paramaters.
+   :rtype: array-like(float)
+
+
+.. py:function:: line_mle(x, y, e)
+
+   Analytical solution for Chi^2 of fitting a straight line to data.
+   All inputs are assumed to be 3D (ints, dimy, dimx).
+
+   :param x: X-data. Median stack for 1/f correction.
+   :type x: array-like[float]
+   :param y: Y-data. Data frames for 1/f correction.
+   :type y: array-like[float]
+   :param e: Errors.
+   :type e: array-like[float]
+
+   :returns: * **m_e** (*np.array(float)*) -- "Slope" values for even numbered columns.
+             * **b_e** (*np.array(float)*) -- "Intercept" values for even numbered columns.
+             * **m_o** (*np.array(float)*) -- "Slope" values for odd numbered columns.
+             * **b_o** (*np.array(float)*) -- "Intercept" values for odd numbered columns.
+
+
+.. py:function:: make_deepstack(cube)
+
+   Make deep stack of a TSO.
+
+   :param cube: Stack of all integrations in a TSO
+   :type cube: array-like[float]
+
+   :returns: **deepstack** -- Median of the input cube along the integration axis.
+   :rtype: array-like[float]
+
+
+.. py:function:: open_filetype(datafile)
+
+   Open a datamodel whether it is a path, or the datamodel itself.
+
+   :param datafile: Datamodel or path to datamodel.
+   :type datafile: str, jwst.datamodel
+
+   :returns: **data** -- Opened datamodel.
+   :rtype: jwst.datamodel
+
+   :raises ValueError: If the filetype passed is not str or jwst.datamodel.
+
+
+.. py:function:: outlier_resistant_variance(data)
+
+   Calculate the varaince of some data along the 0th axis in an outlier
+   resistant manner.
+
+
+.. py:function:: parse_config(config_file)
+
+   Parse a yaml config file.
+
+   :param config_file: Path to config file.
+   :type config_file: str
+
+   :returns: **config** -- Dictionary of config parameters.
+   :rtype: dict
+
+
+.. py:function:: save_extracted_spectra(filename, wl1, wu1, f1, e1, wl2, wu2, f2, e2, t, header_dict=None, header_comments=None, save_results=True)
+
+   Pack stellar spectra into a fits file.
+
+   :param filename: File to which to save results.
+   :type filename: str
+   :param wl1: Order 1 wavelength bin lower limits.
+   :type wl1: array-like[float]
+   :param wu1: Order 1 wavelength bin upper limits.
+   :type wu1: array-like[float]
+   :param f1: Order 1 flux.
+   :type f1: array-like[float]
+   :param e1: Order 1 flux error.
+   :type e1: array-like[float]
+   :param wl2: Order 2 wavelength bin lower limits.
+   :type wl2: array-like[float]
+   :param wu2: Order 2 wavelength bin upper limits.
+   :type wu2: array-like[float]
+   :param f2: Order 2 flux.
+   :type f2: array-like[float]
+   :param e2: Order 2 flux error.
+   :type e2: array-like[float]
+   :param t: Time axis.
+   :type t: array-like[float]
+   :param header_dict: Header keywords and values.
+   :type header_dict: dict
+   :param header_comments: Header comments.
+   :type header_comments: dict
+   :param save_results: If True, save results to file.
+   :type save_results: bool
+
+   :returns: **param_dict** -- Lightcurve parameters packed into a dictionary.
+   :rtype: dict
+
+
+.. py:function:: save_ld_priors(wave, c1, c2, order, target, m_h, teff, logg, outdir)
+
+   Write model limb darkening parameters to a file to be used as priors
+   for light curve fitting.
+
+   :param wave: Wavelength axis.
+   :type wave: array-like[float]
+   :param c1: c1 parameter for two-parameter limb darkening law.
+   :type c1: array-like[float]
+   :param c2: c2 parameter for two-parameter limb darkening law.
+   :type c2: array-like[float]
+   :param order: SOSS order.
+   :type order: int
+   :param target: Name of the target.
+   :type target: str
+   :param m_h: Host star metallicity.
+   :type m_h: float
+   :param teff: Host star effective temperature.
+   :type teff: float
+   :param logg: Host star gravity.
+   :type logg: float
+   :param outdir: Directory to which to save file.
+   :type outdir: str
+
+
+.. py:function:: sigma_clip_lightcurves(flux, thresh=5, window=5)
+
+   Sigma clip outliers in time from final lightcurves.
+
+   :param flux: Flux array.
+   :type flux: array-like[float]
+   :param thresh: Sigma level to be clipped.
+   :type thresh: int
+   :param window: Window function to calculate median. Must be odd.
+   :type window: int
+
+   :returns: **flux_clipped** -- Flux array with outliers
+   :rtype: array-like[float]
+
+
+.. py:function:: sort_datamodels(datafiles)
+
+   Sort a list of jwst datamodels or filenames in chronological order by
+   segment.
+
+   :param datafiles: List of jwst datamodels or filenames.
+   :type datafiles: array-like(str), array-like(datamodel)
+
+   :returns: **files_sorted** -- Inputs sorted in chronological order.
+   :rtype: np.array
+
+
+.. py:function:: unpack_atoca_spectra(datafile, quantities=('WAVELENGTH', 'FLUX', 'FLUX_ERROR'))
+
+   Unpack useful quantities from extract1d outputs.
+
+   :param datafile: Extract1d output, or path to the file.
+   :type datafile: str, MultiSpecModel
+   :param quantities: Quantities to unpack.
+   :type quantities: tuple(str)
+
+   :returns: **all_spec** -- Dictionary containing unpacked quantities for each order.
+   :rtype: dict
+
+
+.. py:function:: unpack_input_dir(indir, filetag='', exposure_type='CLEAR')
+
+   Get all segment files of a specified exposure type from an input data
+    directory.
+
+   :param indir: Path to input directory.
+   :type indir: str
+   :param filetag: File name extension of files to unpack.
+   :type filetag: str
+   :param exposure_type: Either 'CLEAR' or 'F277W'; unpacks the corresponding exposure type.
+   :type exposure_type: str
+
+   :returns: **segments** -- File names of the requested exposure and file tag in chronological
+             order.
+   :rtype: array-like[str]
+
+
+.. py:function:: verify_path(path)
+
+   Verify that a given directory exists. If not, create it.
+
+   :param path: Path to directory.
+   :type path: str
+
+

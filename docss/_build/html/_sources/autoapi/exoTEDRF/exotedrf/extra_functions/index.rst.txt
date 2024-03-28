@@ -1,0 +1,87 @@
+:py:mod:`exoTEDRF.exotedrf.extra_functions`
+===========================================
+
+.. py:module:: exoTEDRF.exotedrf.extra_functions
+
+.. autoapi-nested-parse::
+
+   Created on Mon Nov 20 15:08 2023
+
+   @author: MCR
+
+   Extra functions for use alongside the main pipeline.
+
+
+
+Module Contents
+---------------
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   exoTEDRF.exotedrf.extra_functions.download_observations
+   exoTEDRF.exotedrf.extra_functions.get_throughput_from_photom_file
+   exoTEDRF.exotedrf.extra_functions.make_smoothed_2d_lightcurve
+
+
+
+.. py:function:: download_observations(proposal_id, instrument_name=None, objectname=None, filters=None, visit_nos=None)
+
+   Directly download uncal files associated with a given observation from
+   the MAST archive.
+
+   :param proposal_id: ID for proposal with which the observations are associated.
+   :type proposal_id: str
+   :param instrument_name: Name of instrument data to retrieve. NIRISS/SOSS, NIRSPEC/SLIT
+                           currently supported. (optional).
+   :type instrument_name: str
+   :param objectname: Name of observational target. (optional).
+   :type objectname: str
+   :param filters: Instrument filters to retrieve.
+   :type filters: str
+   :param visit_nos: For targets with multiple visits, which visits to retrieve.
+   :type visit_nos: int, array-like(int)
+
+
+.. py:function:: get_throughput_from_photom_file(photom_path)
+
+   Calculate the throughput based on the photom reference file.
+   Function from Loïc, and is apparently the proper way to get the
+   throughput? Gives different results from contents of spectra reference
+   file.
+
+   :param photom_path: Path to photom reference file
+   :type photom_path: str
+
+   :returns: * **w1** (*np.array(float)*) -- Order 1 wavelength axis.
+             * **w2** (*np.array(float)*) -- Order 2 wavelength axis.
+             * **thpt1** (*np.array(float)*) -- Order 1 throughput values
+             * **thpt2** (*np.array(float)*) -- Order 2 throughput values
+
+
+.. py:function:: make_smoothed_2d_lightcurve(spec, baseline_ints, nint, dimx, filename, order=1, tscale=3, wscale=9)
+
+   Smooth extracted 2D SOSS light curves on specified time and wavelength
+   scales to use as input for chromatic 1/f correction.
+
+   :param spec: Extracted 2D light curves.
+   :type spec: array-like(float)
+   :param baseline_ints: Integrations or ingress and/or egress.
+   :type baseline_ints: int, array-like(int)
+   :param nint: Number of integration in exposure.
+   :type nint: int
+   :param dimx: Number of wavelength bins in exposure.
+   :type dimx: int
+   :param filename: File to which to save results.
+   :type filename: str
+   :param order: SOSS diffraction order being considered.
+   :type order: int
+   :param tscale: Timescale, in integrations, on which to smooth. Must be odd.
+   :type tscale: int
+   :param wscale: Timescale, in wavelength bins, on which to smooth. Must be odd.
+   :type wscale: int
+
+

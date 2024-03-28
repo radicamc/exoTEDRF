@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>exoTEDRF.exotedrf.fit_lightcurves &mdash; exoTEDRF 2024 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=eafc0fe6" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=bbec6902"></script>
+        <script src="../../../../_static/documentation_options.js?v=6fefd858"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            exoTEDRF
+              <img src="../../../../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/usage.html">exoTEDRF Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">exoTEDRF</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><code class="xref py py-mod docutils literal notranslate"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves</span></code></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/autoapi/exoTEDRF/exotedrf/fit_lightcurves/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="module-exoTEDRF.exotedrf.fit_lightcurves">
+<span id="exotedrf-exotedrf-fit-lightcurves"></span><h1><a class="reference internal" href="#module-exoTEDRF.exotedrf.fit_lightcurves" title="exoTEDRF.exotedrf.fit_lightcurves"><code class="xref py py-mod docutils literal notranslate"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves</span></code></a><a class="headerlink" href="#module-exoTEDRF.exotedrf.fit_lightcurves" title="Link to this heading"></a></h1>
+<p>Created on Wed Jul 27 14:35 2022</p>
+<p>&#64;author: MCR</p>
+<p>Juliet light curve fitting script.</p>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.config_file">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">config_file</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.config_file" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.config">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">config</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.outdir">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">outdir</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.outdir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.all_files">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">all_files</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.all_files" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.fit_suffix">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">fit_suffix</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.fit_suffix" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.res_str">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">res_str</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'pixel</span> <span class="pre">resolution'</span></em><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.res_str" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.root_dir">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">root_dir</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.root_dir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.i">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">i</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.i" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.copy_config">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">copy_config</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.copy_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.root">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">root</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.root" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">copy_config</span></span><a class="headerlink" href="#id0" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">copy_config</span></span><a class="headerlink" href="#id1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.f">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">f</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.f" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.time">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">time</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.time" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.formatted_names">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">formatted_names</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.formatted_names" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.t">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">t</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.t" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.lm_data">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">lm_data</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.lm_data" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.lm_quantities">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">lm_quantities</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.lm_quantities" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.gp_data">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">gp_data</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.gp_data" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.baseline_ints">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">baseline_ints</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.baseline_ints" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.results_dict">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">results_dict</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.results_dict" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.first_time">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">first_time</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.first_time" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.order_results">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">order_results</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.order_results" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.depths">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">depths</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.depths" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.errors">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">errors</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.errors" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.waves">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">waves</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.waves" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.wave_errors">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">wave_errors</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.wave_errors" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.orders">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">orders</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.orders" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.infile_header">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">infile_header</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.infile_header" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.extract_type">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">extract_type</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.extract_type" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.target">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">target</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.target" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.spec_type">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">spec_type</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'transmission'</span></em><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.spec_type" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.filename">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">filename</span></span><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.filename" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.fit_lightcurves.fit_metadata">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.fit_lightcurves.</span></span><span class="sig-name descname"><span class="pre">fit_metadata</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">Multiline-String</span></em><a class="headerlink" href="#exoTEDRF.exotedrf.fit_lightcurves.fit_metadata" title="Link to this definition"></a></dt>
+<dd><blockquote>
+<div><details><summary>Show Value</summary><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;#</span>
+<span class="sd"># Fit Metadata</span>
+<span class="sd">&quot;&quot;&quot;</span>
+</pre></div>
+</div>
+</details></div></blockquote>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Michael Radica.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

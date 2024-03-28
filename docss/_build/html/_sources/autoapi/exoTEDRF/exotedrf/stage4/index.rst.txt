@@ -1,0 +1,214 @@
+:py:mod:`exoTEDRF.exotedrf.stage4`
+==================================
+
+.. py:module:: exoTEDRF.exotedrf.stage4
+
+.. autoapi-nested-parse::
+
+   Created on Thurs Jul 21 18:07 2022
+
+   @author: MCR
+
+   Custom JWST DMS pipeline steps for Stage 4 (lightcurve fitting).
+
+
+
+Module Contents
+---------------
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   exoTEDRF.exotedrf.stage4.bin_at_pixel
+   exoTEDRF.exotedrf.stage4.bin_at_resolution
+   exoTEDRF.exotedrf.stage4.fit_data
+   exoTEDRF.exotedrf.stage4.fit_lightcurves
+   exoTEDRF.exotedrf.stage4.gen_ld_coefs
+   exoTEDRF.exotedrf.stage4.read_ld_coefs
+   exoTEDRF.exotedrf.stage4.run_juliet
+   exoTEDRF.exotedrf.stage4.save_transmission_spectrum
+
+
+
+.. py:function:: bin_at_pixel(flux, error, wave, npix)
+
+   Similar to bin_at_resolution, but will bin in widths of a set number of
+   pixels instead of at a fixed resolution.
+
+   :param flux: Flux values.
+   :type flux: array-like[float]
+   :param error: Flux error values.
+   :type error: array-like[float]
+   :param wave: Wavelength values.
+   :type wave: array-like[float]
+   :param npix: Number of pixels per bin.
+   :type npix: int
+
+   :returns: * **wave_bin** (*np.ndarray[float]*) -- Central bin wavelength.
+             * **wave_low** (*np.ndarray[float]*) -- Lower edge of wavelength bin.
+             * **wave_up** (*np.ndarray[float]*) -- Upper edge of wavelength bin.
+             * **dout** (*np.ndarray[float]*) -- Binned depth.
+             * **derrout** (*np.ndarray[float]*) -- Error on binned depth.
+
+
+.. py:function:: bin_at_resolution(inwave_low, inwave_up, flux, flux_err, res, method='sum')
+
+   Function that bins input wavelengths and transit depths (or any other
+   observable, like flux) to a given resolution "res". Can handle 1D or 2D
+   flux arrays.
+
+   :param inwave_low: Lower edge of wavelength bin. Must be 1D.
+   :type inwave_low: array-like[float]
+   :param inwave_up: Upper edge of wavelength bin. Must be 1D.
+   :type inwave_up: array-like[float]
+   :param flux: Flux values at each wavelength. Can be 1D or 2D. If 2D, the first axis
+                must be the one corresponding to wavelength.
+   :type flux: array-like[float]
+   :param flux_err: Errors corresponding to each flux measurement. Must be the same shape
+                    as flux.
+   :type flux_err: array-like[float]
+   :param res: Target resolution at which to bin.
+   :type res: int
+   :param method: Method to bin depths. Either "sum" or "average".
+   :type method: str
+
+   :returns: * **binned_waves** (*array-like[float]*) -- Wavelength of the given bin at the desired resolution.
+             * **binned_werr** (*array-like[float]*) -- Half-width of the wavelength bin.
+             * **binned_flux** (*array-like[float]*) -- Binned flux.
+             * **binned_ferr** (*array-like[float]*) -- Error on binned flux.
+
+
+.. py:function:: fit_data(data_dictionary, priors, output_dir, bin_no, num_bins)
+
+   Functional wrapper around run_juliet to make it compatible for
+   multiprocessing with ray.
+
+
+.. py:function:: fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthreads=4)
+
+   Wrapper about both the juliet and ray libraries to parallelize juliet's
+   lightcurve fitting functionality.
+
+   :param data_dict: Dictionary of fitting data: time, flux, and flu error.
+   :type data_dict: dict
+   :param prior_dict: Dictionary of fitting priors in juliet format.
+   :type prior_dict: dict
+   :param order: SOSS diffraction order.
+   :type order: int
+   :param output_dir: Path to directory to which to save results.
+   :type output_dir: str
+   :param fit_suffix: String to label the results of this fit.
+   :type fit_suffix: str
+   :param nthreads: Number of cores to use for multiprocessing.
+   :type nthreads: int
+
+   :returns: **results** -- The results of the juliet fit.
+   :rtype: juliet.fit object
+
+
+.. py:function:: gen_ld_coefs(spectrace_ref, wavebin_low, wavebin_up, order, m_h, logg, teff, ld_data_path, model_type='stagger')
+
+   Generate estimates of quadratic limb-darkening coefficients using the
+   ExoTiC-LD package.
+
+   :param spectrace_ref: Path to spectrace reference file.
+   :type spectrace_ref: str
+   :param wavebin_low: Lower edge of wavelength bins.
+   :type wavebin_low: array-like[float]
+   :param wavebin_up: Upper edge of wavelength bins.
+   :type wavebin_up: array-like[float]
+   :param order: SOSS diffraction order.
+   :type order: int
+   :param m_h: Stellar metallicity as [M/H].
+   :type m_h: float
+   :param logg: Stellar log gravity.
+   :type logg: float
+   :param teff: Stellar effective temperature in K.
+   :type teff: float
+   :param ld_data_path: Path to ExoTiC-LD model data.
+   :type ld_data_path: str
+   :param model_type: Identifier for type of stellar model to use. See
+                      https://exotic-ld.readthedocs.io/en/latest/views/supported_stellar_grids.html
+                      for supported grids.
+   :type model_type: str
+
+   :returns: * **c1s** (*array-like[float]*) -- c1 parameter for the quadratic limb-darkening law.
+             * **c2s** (*array-like[float]*) -- c2 parameter for the quadratic limb-darkening law.
+
+
+.. py:function:: read_ld_coefs(filename, wavebin_low, wavebin_up, ld_model='quadratic')
+
+   Unpack limb darkening coefficients and interpolate to the wavelength
+   grid of data being fit. File must be comma separated with three columns:
+   wavelength c1 and c2.
+
+   :param filename: Path to file containing model limb darkening coefficients.
+   :type filename: str
+   :param wavebin_low: Lower edge of wavelength bins being fit.
+   :type wavebin_low: array-like[float]
+   :param wavebin_up: Upper edge of wavelength bins being fit.
+   :type wavebin_up: array-like[float]
+   :param ld_model: Limb darkening model.
+   :type ld_model: str
+
+   :returns: * **prior_q1** (*array-like[float]*) -- Model estimates for q1 parameter.
+             * **prior_q2** (*array-like[float]*) -- Model estimates for q2 parameter.
+
+
+.. py:function:: run_juliet(priors, t_lc, y_lc, yerr_lc, out_folder, gp_regressors_lc, linear_regressors_lc)
+
+   Wrapper around the lightcurve fitting functionality of the juliet
+   package.
+
+   :param priors: Dictionary of fitting priors.
+   :type priors: dict
+   :param t_lc: Time axis.
+   :type t_lc: dict
+   :param y_lc: Normalized lightcurve flux values.
+   :type y_lc: dict
+   :param yerr_lc: Errors associated with each flux value.
+   :type yerr_lc: dict
+   :param out_folder: Path to folder to which to save results.
+   :type out_folder: str
+   :param gp_regressors_lc: GP regressors to fit, if any.
+   :type gp_regressors_lc: dict
+   :param linear_regressors_lc: Linear model regressors, if any.
+   :type linear_regressors_lc: dict
+
+   :returns: **res** -- Results of juliet fit.
+   :rtype: juliet.fit object
+
+
+.. py:function:: save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, filename, target, extraction_type, resolution, fit_meta='', occultation_type='transit')
+
+   Write a transmission/emission spectrum to file.
+
+   :param wave: Wavelength values.
+   :type wave: array-like[float]
+   :param wave_err: Bin half-widths for each wavelength bin.
+   :type wave_err: array-like[float]
+   :param dppm: Transit/eclipse depth in each bin.
+   :type dppm: array-like[float]
+   :param dppm_err: Error on the transit/eclipse depth in each bin.
+   :type dppm_err: array-like[float]
+   :param order: SOSS order corresponding to each bin.
+   :type order: array-like[int]
+   :param outdir: Firectory to whch to save outputs.
+   :type outdir: str
+   :param filename: Name of the file to which to save spectra.
+   :type filename: str
+   :param target: Target name.
+   :type target: str
+   :param extraction_type: Type of extraction: either box or atoca.
+   :type extraction_type: str
+   :param resolution: Spectral resolution of spectrum.
+   :type resolution: int, str
+   :param fit_meta: Fitting metadata.
+   :type fit_meta: str
+   :param occultation_type: Type of occultation; either 'transit' or 'eclipse'.
+   :type occultation_type: str
+
+

@@ -1,0 +1,373 @@
+:py:mod:`exoTEDRF.exotedrf.stage2`
+==================================
+
+.. py:module:: exoTEDRF.exotedrf.stage2
+
+.. autoapi-nested-parse::
+
+   Created on Thurs Jul 21 17:33 2022
+
+   @author: MCR
+
+   Custom JWST DMS pipeline steps for Stage 2 (Spectroscopic processing).
+
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   exoTEDRF.exotedrf.stage2.AssignWCSStep
+   exoTEDRF.exotedrf.stage2.SourceTypeStep
+   exoTEDRF.exotedrf.stage2.BackgroundStep
+   exoTEDRF.exotedrf.stage2.FlatFieldStep
+   exoTEDRF.exotedrf.stage2.BadPixStep
+   exoTEDRF.exotedrf.stage2.TracingStep
+
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   exoTEDRF.exotedrf.stage2.backgroundstep
+   exoTEDRF.exotedrf.stage2.badpixstep
+   exoTEDRF.exotedrf.stage2.tracingstep
+   exoTEDRF.exotedrf.stage2.make_order0_mask_from_f277w
+   exoTEDRF.exotedrf.stage2.soss_stability_pca
+   exoTEDRF.exotedrf.stage2.run_stage2
+
+
+
+.. py:class:: AssignWCSStep(datafiles, output_dir='./')
+
+
+   Wrapper around default calwebb_spec2 Assign WCS step.
+
+
+   .. py:method:: run(save_results=True, force_redo=False, **kwargs)
+
+      Method to run the step.
+
+
+
+
+.. py:class:: SourceTypeStep(datafiles, output_dir='./')
+
+
+   Wrapper around default calwebb_spec2 Source Type Determination step.
+
+
+   .. py:method:: run(save_results=True, force_redo=False, **kwargs)
+
+      Method to run the step.
+
+
+
+
+.. py:class:: BackgroundStep(input_data, baseline_ints, background_model, output_dir='./')
+
+
+   Wrapper around custom Background Subtraction step.
+
+
+   .. py:method:: run(save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs)
+
+      Method to run the step.
+
+
+
+
+.. py:class:: FlatFieldStep(datafiles, output_dir='./')
+
+
+   Wrapper around default calwebb_spec2 Flat Field Correction step.
+
+
+   .. py:method:: run(save_results=True, force_redo=False, **kwargs)
+
+      Method to run the step.
+
+
+
+
+.. py:class:: BadPixStep(input_data, baseline_ints, output_dir='./')
+
+
+   Wrapper around custom Bad Pixel Correction Step.
+
+
+   .. py:method:: run(space_thresh=15, time_thresh=10, box_size=5, save_results=True, force_redo=False, do_plot=False, show_plot=False)
+
+      Method to run the step.
+
+
+
+
+.. py:class:: TracingStep(input_data, deepframe, output_dir='./')
+
+
+   Wrapper around custom Tracing Step.
+
+
+   .. py:method:: run(pixel_flags=None, generate_order0_mask=True, f277w=None, calculate_stability=True, pca_components=10, save_results=True, force_redo=False, generate_lc=True, baseline_ints=None, smoothing_scale=None, do_plot=False, show_plot=False)
+
+      Method to run the step.
+
+
+
+
+.. py:function:: backgroundstep(datafiles, background_model, baseline_ints, output_dir='./', save_results=True, fileroots=None, fileroot_noseg='', scale1=None, background_coords1=None, scale2=None, background_coords2=None, differential=False)
+
+   Background subtraction must be carefully treated with SOSS observations.
+   Due to the extent of the PSF wings, there are very few, if any,
+   non-illuminated pixels to serve as a sky region. Furthermore, the zodi
+   background has a unique stepped shape, which would render a constant
+   background subtraction ill-advised. Therefore, a background subtracton is
+   performed by scaling a model background to the counts level of a median
+   stack of the exposure. This scaled model background is then subtracted
+   from each integration.
+
+   :param datafiles: Paths to data segments for a SOSS exposure, or the datamodels
+                     themselves.
+   :type datafiles: array-like[str], array-like[CubeModel]
+   :param background_model: Background model. Should be 2D (dimy, dimx)
+   :type background_model: array-like[float]
+   :param baseline_ints: Integrations of ingress and egress.
+   :type baseline_ints: array-like[int]
+   :param output_dir: Directory to which to save outputs.
+   :type output_dir: str
+   :param save_results: If True, save outputs to file.
+   :type save_results: bool
+   :param fileroots: Root names for output files.
+   :type fileroots: array-like[str]
+   :param fileroot_noseg: Root name with no segment information.
+   :type fileroot_noseg: str
+   :param scale1: Scaling value to apply to background model to match data. Will take
+                  precedence over calculated scaling value. If applied at group level,
+                  length of scaling array must equal ngroup.
+   :type scale1: float, array-like[float], None
+   :param background_coords1: Region of frame to use to estimate the background. Must be 1D:
+                              [x_low, x_up, y_low, y_up].
+   :type background_coords1: array-like[int], None
+   :param scale2: Scaling value to apply to background model to match post-step data.
+                  Will take precedence over calculated scaling value. If applied at
+                  group level, length of scaling array must equal ngroup.
+   :type scale2: float, array-like[float], None
+   :param background_coords2: Region of frame to use to estimate the post-step background. Must be
+                              1D: [x_low, x_up, y_low, y_up].
+   :type background_coords2: array-like[int], None
+   :param differential: if True, calculate the background scaling seperately for the pre- and
+                        post-step frame.
+   :type differential: bool
+
+   :returns: * **results** (*array-like[CubeModel]*) -- Input data segments, corrected for the background.
+             * **model_scaled** (*array-like[float]*) -- Background model, scaled to the flux level of each group median.
+
+
+.. py:function:: badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10, box_size=5, output_dir='./', save_results=True, fileroots=None, fileroot_noseg='', do_plot=False, show_plot=False)
+
+   Identify and correct outlier pixels remaining in the dataset, using
+   both a spatial and temporal approach. First, find spatial outlier pixels
+   in the median stack and correct them in each integration via the median of
+   a box of surrounding pixels. Then flag outlier pixels in the temporal
+   direction and again replace with the surrounding median in time.
+
+   :param datafiles: List of paths to datafiles for each segment, or the datamodels
+                     themselves.
+   :type datafiles: array-like[str], array-like[RampModel]
+   :param baseline_ints: Integrations of ingress and egress.
+   :type baseline_ints: array-like[int]
+   :param space_thresh: Sigma threshold for a deviant pixel to be flagged spatially.
+   :type space_thresh: int
+   :param time_thresh: Sigma threshold for a deviant pixel to be flagged temporally.
+   :type time_thresh: int
+   :param box_size: Size of box around each pixel to test for deviations.
+   :type box_size: int
+   :param output_dir: Directory to which to output results.
+   :type output_dir: str
+   :param save_results: If True, save results to file.
+   :type save_results: bool
+   :param fileroots: Root names for output files.
+   :type fileroots: array-like[str], None
+   :param fileroot_noseg: Root file name with no segment information.
+   :type fileroot_noseg: str
+   :param do_plot: If True, do the step diagnostic plot.
+   :type do_plot: bool
+   :param show_plot: If True, show the step diagnostic plot instead of/in addition to
+                     saving it to file.
+   :type show_plot: bool
+
+   :returns: * **data** (*list[CubeModel]*) -- Input datamodels for each segment, corrected for outlier pixels.
+             * **deepframe** (*array-like[float]*) -- Final median stack of all outlier corrected integrations.
+
+
+.. py:function:: tracingstep(datafiles, deepframe=None, calculate_stability=True, pca_components=10, pixel_flags=None, generate_order0_mask=False, f277w=None, generate_lc=True, baseline_ints=None, smoothing_scale=None, output_dir='./', save_results=True, fileroot_noseg='', do_plot=False, show_plot=False)
+
+   A multipurpose step to perform some initial analysis of the 2D
+   dataframes and produce products which can be useful in further reduction
+   iterations. The four functionalities are detailed below:
+   1. Locate the centroids of all three SOSS orders via the edgetrigger
+   algorithm.
+   2. (optional) Generate a mask of order 0 contaminants from background
+   stars.
+   3. (optional) Calculate the stability of the SOSS traces over the course
+   of the TSO.
+   4. (optional) Create a smoothed estimate of the order 1 white light curve.
+
+   :param datafiles: List of paths to datafiles for each segment, or the datamodels
+                     themselves.
+   :type datafiles: array-like[str], array-like[RampModel]
+   :param deepframe: Path to median stack file, or the median stack itself. Should be 2D
+                     (dimy, dimx). If None is passed, one will be generated.
+   :type deepframe: str, array-like[float], None
+   :param calculate_stability: If True, calculate the stabilty of the SOSS trace over the TSO using a
+                               PCA method.
+   :type calculate_stability: bool
+   :param pca_components: Number of PCA stability components to calcaulte.
+   :type pca_components: int
+   :param pixel_flags: Paths to files containing existing pixel flags to which the trace mask
+                       should be added. Only necesssary if generate_tracemask is True.
+   :type pixel_flags: None, str, array-like[str]
+   :param generate_order0_mask: If True, generate a mask of order 0 cotaminants using an F277W filter
+                                exposure.
+   :type generate_order0_mask: bool
+   :param f277w: F277W filter exposure which has been superbias and background
+                 corrected. Only necessary if generate_order0_mask is True.
+   :type f277w: None, str, array-like[float]
+   :param generate_lc: If True, also produce a smoothed order 1 white light curve.
+   :type generate_lc: bool
+   :param baseline_ints: Integrations of ingress and egress. Only necessary if generate_lc=True.
+   :type baseline_ints: array-like[int]
+   :param smoothing_scale: Timescale on which to smooth the lightcurve. Only necessary if
+                           generate_lc=True.
+   :type smoothing_scale: int, None
+   :param output_dir: Directory to which to save outputs.
+   :type output_dir: str
+   :param save_results: If Tre, save results to file.
+   :type save_results: bool
+   :param fileroot_noseg: Root file name with no segment information.
+   :type fileroot_noseg: str
+   :param do_plot: If True, do the step diagnostic plot.
+   :type do_plot: bool
+   :param show_plot: If True, show the step diagnostic plot instead of/in addition to
+                     saving it to file.
+   :type show_plot: bool
+
+   :returns: * **centroids** (*array-like[float]*) -- Trace centroids for all three orders.
+             * **order0mask** (*array-like[bool], None*) -- If requested, the order 0 mask.
+             * **smoothed_lc** (*array-like[float], None*) -- If requested, the smoothed order 1 white light curve.
+
+
+.. py:function:: make_order0_mask_from_f277w(f277w, thresh_std=1, thresh_size=10)
+
+   Locate order 0 contaminants from background stars using an F277W filter
+    exposure data frame.
+
+   :param f277w: An F277W filter exposure, superbias and background subtracted.
+   :type f277w: array-like[float]
+   :param thresh_std: Threshold above which a group of pixels will be flagged.
+   :type thresh_std: int
+   :param thresh_size: Size of pixel group to be considered an order 0.
+   :type thresh_size: int
+
+   :returns: **mask** -- Frame with locations of order 0 contaminants.
+   :rtype: array-like[int]
+
+
+.. py:function:: soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_plot=False)
+
+   Calculate the stability of the SOSS trace over the course of a TSO
+   using a PCA method.
+
+   :param cube: Cube of TSO data.
+   :type cube: array-like[float]
+   :param n_components: Maximum number of principle components to calcaulte.
+   :type n_components: int
+   :param outfile: File to which to save plot.
+   :type outfile: None, str
+   :param do_plot: If True, do the step diagnostic plot.
+   :type do_plot: bool
+   :param show_plot: If True, show the step diagnostic plot instead of/in addition to
+                     saving it to file.
+   :type show_plot: bool
+
+   :returns: * **pcs** (*array-like[float]*) -- Extracted principle components.
+             * **var** (*array-like[float]*) -- Explained variance of each principle component.
+
+
+.. py:function:: run_stage2(results, background_model, baseline_ints, save_results=True, force_redo=False, space_thresh=15, time_thresh=15, calculate_stability=True, pca_components=10, timeseries=None, timeseries_o2=None, oof_method='scale-achromatic', root_dir='./', output_tag='', smoothing_scale=None, skip_steps=None, generate_lc=True, inner_mask_width=40, outer_mask_width=70, pixel_masks=None, generate_order0_mask=True, f277w=None, do_plot=False, show_plot=False, centroids=None, **kwargs)
+
+   Run the exoTEDRF Stage 2 pipeline: spectroscopic processing,
+   using a combination of official STScI DMS and custom steps. Documentation
+   for the official DMS steps can be found here:
+   https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_spec2.html
+
+   :param results: exoTEDRF Stage 1 output files.
+   :type results: array-like[str], array-like[CubeModel]
+   :param background_model: SOSS background model.
+   :type background_model: array-like[float]
+   :param baseline_ints: Integrations of ingress and egress.
+   :type baseline_ints: array-like[int]
+   :param save_results: If True, save results of each step to file.
+   :type save_results: bool
+   :param force_redo: If True, redo steps even if outputs files are already present.
+   :type force_redo: bool
+   :param space_thresh: Sigma threshold for pixel to be flagged as an outlier spatially.
+   :type space_thresh: int
+   :param time_thresh: Sigma threshold for pixel to be flagged as an outlier temporally.
+   :type time_thresh: int
+   :param calculate_stability: If True, calculate the stability of the SOSS trace over the course of
+                               the TSO using a PCA method.
+   :type calculate_stability: bool
+   :param pca_components: Number of PCA components to calculate.
+   :type pca_components: int
+   :param timeseries: Normalized 1D or 2D light curve(s) for order 1.
+   :type timeseries: array-like[float], None
+   :param timeseries_o2:
+                         Normalized 2D light curves for order 2. Only necessary if oof_method
+                          is "scale-chromatic".
+   :type timeseries_o2: array-like[float], None
+   :param oof_method: 1/f correction method. Options are "scale-chromatic",
+                      "scale-achromatic", "scale-achromatic-window", or "solve".
+   :type oof_method: str
+   :param root_dir: Directory from which all relative paths are defined.
+   :type root_dir: str
+   :param output_tag: Name tag to append to pipeline outputs directory.
+   :type output_tag: str
+   :param smoothing_scale: Timescale on which to smooth the lightcurve.
+   :type smoothing_scale: int, None
+   :param skip_steps: Step names to skip (if any).
+   :type skip_steps: array-like[str], None
+   :param generate_lc: If True, produce a smoothed order 1 white light curve.
+   :type generate_lc: bool
+   :param inner_mask_width: Inner mask width, in pixels, around the trace centroids.
+   :type inner_mask_width: int
+   :param outer_mask_width: Outer mask width, in pixels, around the trace centroids.
+   :type outer_mask_width: int
+   :param pixel_masks: Paths to files containing existing pixel flags to which the trace mask
+                       should be added. Only necesssary if generate_tracemask is True.
+   :type pixel_masks: None, str, array-like[str]
+   :param generate_order0_mask: If True, generate a mask of order 0 cotaminants using an F277W filter
+                                exposure.
+   :type generate_order0_mask: bool
+   :param f277w: F277W filter exposure which has been superbias and background
+                 corrected. Only necessary if generate_order0_mask is True.
+   :type f277w: None, str, array-like[float]
+   :param do_plot: If True, make step diagnostic plots.
+   :type do_plot: bool
+   :param show_plot: Only necessary if do_plot is True. Show the diagnostic plots in
+                     addition to/instead of saving to file.
+   :type show_plot: bool
+   :param centroids: Path to file containing trace positions for all orders.
+   :type centroids: str, None
+
+   :returns: **results** -- Datafiles for each segment processed through Stage 2.
+   :rtype: array-like[CubeModel]
+
+
