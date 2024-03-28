@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>exoTEDRF.exotedrf.utils &mdash; exoTEDRF 2024 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=eafc0fe6" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=bbec6902"></script>
+        <script src="../../../../_static/documentation_options.js?v=6fefd858"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            exoTEDRF
+              <img src="../../../../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/usage.html">exoTEDRF Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">exoTEDRF</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><code class="xref py py-mod docutils literal notranslate"><span class="pre">exoTEDRF.exotedrf.utils</span></code></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/autoapi/exoTEDRF/exotedrf/utils/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="module-exoTEDRF.exotedrf.utils">
+<span id="exotedrf-exotedrf-utils"></span><h1><a class="reference internal" href="#module-exoTEDRF.exotedrf.utils" title="exoTEDRF.exotedrf.utils"><code class="xref py py-mod docutils literal notranslate"><span class="pre">exoTEDRF.exotedrf.utils</span></code></a><a class="headerlink" href="#module-exoTEDRF.exotedrf.utils" title="Link to this heading"></a></h1>
+<p>Created on Wed Jul 20 08:51 2022</p>
+<p>&#64;author: MCR</p>
+<p>Miscellaneous pipeline tools.</p>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<section id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.do_replacement" title="exoTEDRF.exotedrf.utils.do_replacement"><code class="xref py py-obj docutils literal notranslate"><span class="pre">do_replacement</span></code></a>(frame, badpix_map[, dq, box_size])</p></td>
+<td><p>Replace flagged pixels with the median of a surrounding box.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.download_stellar_spectra" title="exoTEDRF.exotedrf.utils.download_stellar_spectra"><code class="xref py py-obj docutils literal notranslate"><span class="pre">download_stellar_spectra</span></code></a>(st_teff, st_logg, st_met, outdir)</p></td>
+<td><p>Download a grid of PHOENIX model stellar spectra.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.fancyprint" title="exoTEDRF.exotedrf.utils.fancyprint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fancyprint</span></code></a>(message[, msg_type])</p></td>
+<td><p>Fancy printing statement mimicking logging. Basically a hack to get</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.format_out_frames" title="exoTEDRF.exotedrf.utils.format_out_frames"><code class="xref py py-obj docutils literal notranslate"><span class="pre">format_out_frames</span></code></a>(out_frames)</p></td>
+<td><p>Create a mask of baseline flux frames for lightcurve normalization.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.get_default_header" title="exoTEDRF.exotedrf.utils.get_default_header"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_default_header</span></code></a>()</p></td>
+<td><p>Format the default header for the lightcurve file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.get_dq_flag_metrics" title="exoTEDRF.exotedrf.utils.get_dq_flag_metrics"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_dq_flag_metrics</span></code></a>(dq_map, flags)</p></td>
+<td><p>Take a data quality map and extract a map of pixels which are flagged</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.get_filename_root" title="exoTEDRF.exotedrf.utils.get_filename_root"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_filename_root</span></code></a>(datafiles)</p></td>
+<td><p>Get the file name roots for each segment. Assumes that file names</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.get_filename_root_noseg" title="exoTEDRF.exotedrf.utils.get_filename_root_noseg"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_filename_root_noseg</span></code></a>(fileroots)</p></td>
+<td><p>Get the file name root for a SOSS TSO with no segment information.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.get_interp_box" title="exoTEDRF.exotedrf.utils.get_interp_box"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_interp_box</span></code></a>(data, box_size, i, j, dimx)</p></td>
+<td><p>Get median and standard deviation of a box centered on a specified</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.get_stellar_param_grid" title="exoTEDRF.exotedrf.utils.get_stellar_param_grid"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_stellar_param_grid</span></code></a>(st_teff, st_logg, st_met)</p></td>
+<td><p>Given a set of stellar parameters, determine the neighbouring grid</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.get_trace_centroids" title="exoTEDRF.exotedrf.utils.get_trace_centroids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_trace_centroids</span></code></a>(deepframe, tracetable, subarray[, ...])</p></td>
+<td><p>Get the trace centroids for all three orders via the edgetrigger method.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.get_wavebin_limits" title="exoTEDRF.exotedrf.utils.get_wavebin_limits"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_wavebin_limits</span></code></a>(wave)</p></td>
+<td><p>Determine the upper and lower limits of wavelength bins centered on a</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.interpolate_stellar_model_grid" title="exoTEDRF.exotedrf.utils.interpolate_stellar_model_grid"><code class="xref py py-obj docutils literal notranslate"><span class="pre">interpolate_stellar_model_grid</span></code></a>(model_files, st_teff, ...)</p></td>
+<td><p>Given a grid of stellar spectrum files, interpolate the model spectra</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.line_mle" title="exoTEDRF.exotedrf.utils.line_mle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">line_mle</span></code></a>(x, y, e)</p></td>
+<td><p>Analytical solution for Chi^2 of fitting a straight line to data.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.make_deepstack" title="exoTEDRF.exotedrf.utils.make_deepstack"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_deepstack</span></code></a>(cube)</p></td>
+<td><p>Make deep stack of a TSO.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.open_filetype" title="exoTEDRF.exotedrf.utils.open_filetype"><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_filetype</span></code></a>(datafile)</p></td>
+<td><p>Open a datamodel whether it is a path, or the datamodel itself.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.outlier_resistant_variance" title="exoTEDRF.exotedrf.utils.outlier_resistant_variance"><code class="xref py py-obj docutils literal notranslate"><span class="pre">outlier_resistant_variance</span></code></a>(data)</p></td>
+<td><p>Calculate the varaince of some data along the 0th axis in an outlier</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.parse_config" title="exoTEDRF.exotedrf.utils.parse_config"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parse_config</span></code></a>(config_file)</p></td>
+<td><p>Parse a yaml config file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.save_extracted_spectra" title="exoTEDRF.exotedrf.utils.save_extracted_spectra"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_extracted_spectra</span></code></a>(filename, wl1, wu1, f1, e1, ...)</p></td>
+<td><p>Pack stellar spectra into a fits file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.save_ld_priors" title="exoTEDRF.exotedrf.utils.save_ld_priors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_ld_priors</span></code></a>(wave, c1, c2, order, target, m_h, teff, ...)</p></td>
+<td><p>Write model limb darkening parameters to a file to be used as priors</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.sigma_clip_lightcurves" title="exoTEDRF.exotedrf.utils.sigma_clip_lightcurves"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sigma_clip_lightcurves</span></code></a>(flux[, thresh, window])</p></td>
+<td><p>Sigma clip outliers in time from final lightcurves.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.sort_datamodels" title="exoTEDRF.exotedrf.utils.sort_datamodels"><code class="xref py py-obj docutils literal notranslate"><span class="pre">sort_datamodels</span></code></a>(datafiles)</p></td>
+<td><p>Sort a list of jwst datamodels or filenames in chronological order by</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.unpack_atoca_spectra" title="exoTEDRF.exotedrf.utils.unpack_atoca_spectra"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unpack_atoca_spectra</span></code></a>(datafile[, quantities])</p></td>
+<td><p>Unpack useful quantities from extract1d outputs.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.unpack_input_dir" title="exoTEDRF.exotedrf.utils.unpack_input_dir"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unpack_input_dir</span></code></a>(indir[, filetag, exposure_type])</p></td>
+<td><p>Get all segment files of a specified exposure type from an input data</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.utils.verify_path" title="exoTEDRF.exotedrf.utils.verify_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">verify_path</span></code></a>(path)</p></td>
+<td><p>Verify that a given directory exists. If not, create it.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.do_replacement">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">do_replacement</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">badpix_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">box_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.do_replacement" title="Link to this definition"></a></dt>
+<dd><p>Replace flagged pixels with the median of a surrounding box.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>frame</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Data frame.</p></li>
+<li><p><strong>badpix_map</strong> (<em>array-like</em><em>[</em><em>bool</em><em>]</em>) – Map of pixels to be replaced.</p></li>
+<li><p><strong>dq</strong> (<em>array-like</em><em>[</em><em>int</em><em>]</em>) – Data quality flags.</p></li>
+<li><p><strong>box_size</strong> (<em>int</em>) – Size of box to consider.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>frame_out</strong> (<em>array-like[float]</em>) – Input frame wth pixels interpolated.</p></li>
+<li><p><strong>dq_out</strong> (<em>array-like[int]</em>) – Input dq map with interpolated pixels set to zero.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.download_stellar_spectra">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">download_stellar_spectra</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">st_teff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_logg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_met</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.download_stellar_spectra" title="Link to this definition"></a></dt>
+<dd><p>Download a grid of PHOENIX model stellar spectra.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>st_teff</strong> (<em>float</em>) – Stellar effective temperature.</p></li>
+<li><p><strong>st_logg</strong> (<em>float</em>) – Stellar log surface gravity.</p></li>
+<li><p><strong>st_met</strong> (<em>float</em>) – Stellar metallicity as [Fe/H].</p></li>
+<li><p><strong>outdir</strong> (<em>str</em>) – Output directory.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>wfile</strong> (<em>str</em>) – Path to wavelength file.</p></li>
+<li><p><strong>ffiles</strong> (<em>list[str]</em>) – Path to model stellar spectrum files.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.fancyprint">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">fancyprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">msg_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'INFO'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.fancyprint" title="Link to this definition"></a></dt>
+<dd><p>Fancy printing statement mimicking logging. Basically a hack to get
+around complications with the STScI pipeline logging.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>message</strong> (<em>str</em>) – Message to print.</p></li>
+<li><p><strong>msg_type</strong> (<em>str</em>) – Type of message. Mirrors the jwst pipeline logging.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.format_out_frames">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">format_out_frames</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">out_frames</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.format_out_frames" title="Link to this definition"></a></dt>
+<dd><p>Create a mask of baseline flux frames for lightcurve normalization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>out_frames</strong> (<em>int</em><em>, </em><em>array-like</em><em>[</em><em>int</em><em>]</em>) – Integration numbers of ingress and/or egress.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>baseline_ints</strong> – Array of baseline frames.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.get_default_header">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">get_default_header</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.get_default_header" title="Link to this definition"></a></dt>
+<dd><p>Format the default header for the lightcurve file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><strong>header_dict</strong> (<em>dict</em>) – Header keyword dictionary.</p></li>
+<li><p><strong>header_commets</strong> (<em>dict</em>) – Header comment dictionary.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.get_dq_flag_metrics">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">get_dq_flag_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dq_map</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flags</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.get_dq_flag_metrics" title="Link to this definition"></a></dt>
+<dd><p>Take a data quality map and extract a map of pixels which are flagged
+for a specific reason. A list of data quality flags can be found here:
+<a class="reference external" href="https://jwst-reffiles.stsci.edu/source/data_quality.html">https://jwst-reffiles.stsci.edu/source/data_quality.html</a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dq_map</strong> (<em>array-like</em><em>(</em><em>float</em><em>)</em>) – Map of data quality flags.</p></li>
+<li><p><strong>flags</strong> (<em>list</em><em>[</em><em>str</em><em>]</em><em>, </em><em>str</em>) – Flag types to find.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>flagged</strong> – Boolean map where True values have the applicable flag.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.array(bool)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.get_filename_root">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">get_filename_root</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafiles</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.get_filename_root" title="Link to this definition"></a></dt>
+<dd><p>Get the file name roots for each segment. Assumes that file names
+follow the default jwst pipeline structure and are in correct segment
+order.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>datafiles</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>array-like</em><em>[</em><em>jwst.datamodel</em><em>]</em>) – Datamodels, or paths to datamodels for each segment.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>fileroots</strong> – List of file name roots.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.get_filename_root_noseg">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">get_filename_root_noseg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fileroots</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.get_filename_root_noseg" title="Link to this definition"></a></dt>
+<dd><p>Get the file name root for a SOSS TSO with no segment information.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>fileroots</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em>) – File root names for each segment.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>fileroot_noseg</strong> – File name root with no segment information.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.get_interp_box">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">get_interp_box</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">box_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">j</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dimx</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.get_interp_box" title="Link to this definition"></a></dt>
+<dd><p>Get median and standard deviation of a box centered on a specified
+pixel.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Data frame.</p></li>
+<li><p><strong>box_size</strong> (<em>int</em>) – Size of box to consider.</p></li>
+<li><p><strong>i</strong> (<em>int</em>) – X pixel.</p></li>
+<li><p><strong>j</strong> (<em>int</em>) – Y pixel.</p></li>
+<li><p><strong>dimx</strong> (<em>int</em>) – Size of x dimension.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>box_properties</strong> – Median and standard deviation of pixels in the box.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.get_stellar_param_grid">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">get_stellar_param_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">st_teff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_logg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_met</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.get_stellar_param_grid" title="Link to this definition"></a></dt>
+<dd><p>Given a set of stellar parameters, determine the neighbouring grid
+points based on the PHOENIX grid steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>st_teff</strong> (<em>float</em>) – Stellar effective temperature.</p></li>
+<li><p><strong>st_logg</strong> (<em>float</em>) – Stellar log surface gravity.</p></li>
+<li><p><strong>st_met</strong> (<em>float</em>) – Stellar metallicity as [Fe/H].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>teffs</strong> (<em>list[float]</em>) – Effective temperature grid bounds.</p></li>
+<li><p><strong>loggs</strong> (<em>list[float]</em>) – Surface gravity grid bounds.</p></li>
+<li><p><strong>mets</strong> (<em>list[float]</em>) – Metallicity grid bounds.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.get_trace_centroids">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">get_trace_centroids</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">deepframe</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tracetable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.get_trace_centroids" title="Link to this definition"></a></dt>
+<dd><p>Get the trace centroids for all three orders via the edgetrigger method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>deepframe</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Median stack.</p></li>
+<li><p><strong>tracetable</strong> (<em>str</em>) – Path to SpecTrace reference file.</p></li>
+<li><p><strong>subarray</strong> (<em>str</em>) – Subarray identifier.</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If True, save results to file.</p></li>
+<li><p><strong>save_filename</strong> (<em>str</em>) – Filename of save file.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>cen_o1</strong> (<em>array-like[float]</em>) – Order 1 X and Y centroids.</p></li>
+<li><p><strong>cen_o2</strong> (<em>array-like[float]</em>) – Order 2 X and Y centroids.</p></li>
+<li><p><strong>cen_o3</strong> (<em>array-like[float]</em>) – Order 3 X and Y centroids.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.get_wavebin_limits">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">get_wavebin_limits</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.get_wavebin_limits" title="Link to this definition"></a></dt>
+<dd><p>Determine the upper and lower limits of wavelength bins centered on a
+given wavelength axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>wave</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Wavelengh array.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>bin_low</strong> (<em>array-like[float]</em>) – Lower edge of wavelength bin.</p></li>
+<li><p><strong>bin_up</strong> (<em>array-like[float]</em>) – Upper edge of wavelength bin.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.interpolate_stellar_model_grid">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">interpolate_stellar_model_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_files</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_teff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_logg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_met</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.interpolate_stellar_model_grid" title="Link to this definition"></a></dt>
+<dd><p>Given a grid of stellar spectrum files, interpolate the model spectra
+to a set of stellar parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_files</strong> (<em>list</em><em>[</em><em>str</em><em>]</em>) – List of paths to stellar spectra at grid points.</p></li>
+<li><p><strong>st_teff</strong> (<em>float</em>) – Stellar effective temperature.</p></li>
+<li><p><strong>st_logg</strong> (<em>float</em>) – Stellar log surface gravity.</p></li>
+<li><p><strong>st_met</strong> (<em>float</em>) – Stellar metallicity as [Fe/H].</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>model_interp</strong> – Model stellar spectrum interpolated to the input paramaters.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like(float)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.line_mle">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">line_mle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">e</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.line_mle" title="Link to this definition"></a></dt>
+<dd><p>Analytical solution for Chi^2 of fitting a straight line to data.
+All inputs are assumed to be 3D (ints, dimy, dimx).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – X-data. Median stack for 1/f correction.</p></li>
+<li><p><strong>y</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Y-data. Data frames for 1/f correction.</p></li>
+<li><p><strong>e</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Errors.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>m_e</strong> (<em>np.array(float)</em>) – “Slope” values for even numbered columns.</p></li>
+<li><p><strong>b_e</strong> (<em>np.array(float)</em>) – “Intercept” values for even numbered columns.</p></li>
+<li><p><strong>m_o</strong> (<em>np.array(float)</em>) – “Slope” values for odd numbered columns.</p></li>
+<li><p><strong>b_o</strong> (<em>np.array(float)</em>) – “Intercept” values for odd numbered columns.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.make_deepstack">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">make_deepstack</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cube</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.make_deepstack" title="Link to this definition"></a></dt>
+<dd><p>Make deep stack of a TSO.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cube</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Stack of all integrations in a TSO</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>deepstack</strong> – Median of the input cube along the integration axis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like[float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.open_filetype">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">open_filetype</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafile</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.open_filetype" title="Link to this definition"></a></dt>
+<dd><p>Open a datamodel whether it is a path, or the datamodel itself.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>datafile</strong> (<em>str</em><em>, </em><em>jwst.datamodel</em>) – Datamodel or path to datamodel.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>data</strong> – Opened datamodel.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jwst.datamodel</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If the filetype passed is not str or jwst.datamodel.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.outlier_resistant_variance">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">outlier_resistant_variance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.outlier_resistant_variance" title="Link to this definition"></a></dt>
+<dd><p>Calculate the varaince of some data along the 0th axis in an outlier
+resistant manner.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.parse_config">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">parse_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.parse_config" title="Link to this definition"></a></dt>
+<dd><p>Parse a yaml config file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>config_file</strong> (<em>str</em>) – Path to config file.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>config</strong> – Dictionary of config parameters.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.save_extracted_spectra">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">save_extracted_spectra</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wl1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wu1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">e1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wl2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wu2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">f2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">e2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">header_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">header_comments</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.save_extracted_spectra" title="Link to this definition"></a></dt>
+<dd><p>Pack stellar spectra into a fits file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<em>str</em>) – File to which to save results.</p></li>
+<li><p><strong>wl1</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Order 1 wavelength bin lower limits.</p></li>
+<li><p><strong>wu1</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Order 1 wavelength bin upper limits.</p></li>
+<li><p><strong>f1</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Order 1 flux.</p></li>
+<li><p><strong>e1</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Order 1 flux error.</p></li>
+<li><p><strong>wl2</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Order 2 wavelength bin lower limits.</p></li>
+<li><p><strong>wu2</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Order 2 wavelength bin upper limits.</p></li>
+<li><p><strong>f2</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Order 2 flux.</p></li>
+<li><p><strong>e2</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Order 2 flux error.</p></li>
+<li><p><strong>t</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Time axis.</p></li>
+<li><p><strong>header_dict</strong> (<em>dict</em>) – Header keywords and values.</p></li>
+<li><p><strong>header_comments</strong> (<em>dict</em>) – Header comments.</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If True, save results to file.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>param_dict</strong> – Lightcurve parameters packed into a dictionary.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.save_ld_priors">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">save_ld_priors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">c1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">c2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m_h</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">teff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.save_ld_priors" title="Link to this definition"></a></dt>
+<dd><p>Write model limb darkening parameters to a file to be used as priors
+for light curve fitting.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>wave</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Wavelength axis.</p></li>
+<li><p><strong>c1</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – c1 parameter for two-parameter limb darkening law.</p></li>
+<li><p><strong>c2</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – c2 parameter for two-parameter limb darkening law.</p></li>
+<li><p><strong>order</strong> (<em>int</em>) – SOSS order.</p></li>
+<li><p><strong>target</strong> (<em>str</em>) – Name of the target.</p></li>
+<li><p><strong>m_h</strong> (<em>float</em>) – Host star metallicity.</p></li>
+<li><p><strong>teff</strong> (<em>float</em>) – Host star effective temperature.</p></li>
+<li><p><strong>logg</strong> (<em>float</em>) – Host star gravity.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em>) – Directory to which to save file.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.sigma_clip_lightcurves">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">sigma_clip_lightcurves</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.sigma_clip_lightcurves" title="Link to this definition"></a></dt>
+<dd><p>Sigma clip outliers in time from final lightcurves.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>flux</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Flux array.</p></li>
+<li><p><strong>thresh</strong> (<em>int</em>) – Sigma level to be clipped.</p></li>
+<li><p><strong>window</strong> (<em>int</em>) – Window function to calculate median. Must be odd.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>flux_clipped</strong> – Flux array with outliers</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like[float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.sort_datamodels">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">sort_datamodels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafiles</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.sort_datamodels" title="Link to this definition"></a></dt>
+<dd><p>Sort a list of jwst datamodels or filenames in chronological order by
+segment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>datafiles</strong> (<em>array-like</em><em>(</em><em>str</em><em>)</em><em>, </em><em>array-like</em><em>(</em><em>datamodel</em><em>)</em>) – List of jwst datamodels or filenames.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>files_sorted</strong> – Inputs sorted in chronological order.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.unpack_atoca_spectra">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">unpack_atoca_spectra</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantities</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('WAVELENGTH',</span> <span class="pre">'FLUX',</span> <span class="pre">'FLUX_ERROR')</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.unpack_atoca_spectra" title="Link to this definition"></a></dt>
+<dd><p>Unpack useful quantities from extract1d outputs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datafile</strong> (<em>str</em><em>, </em><em>MultiSpecModel</em>) – Extract1d output, or path to the file.</p></li>
+<li><p><strong>quantities</strong> (<em>tuple</em><em>(</em><em>str</em><em>)</em>) – Quantities to unpack.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>all_spec</strong> – Dictionary containing unpacked quantities for each order.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.unpack_input_dir">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">unpack_input_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">indir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filetag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exposure_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'CLEAR'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.unpack_input_dir" title="Link to this definition"></a></dt>
+<dd><dl class="simple">
+<dt>Get all segment files of a specified exposure type from an input data</dt><dd><p>directory.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>indir</strong> (<em>str</em>) – Path to input directory.</p></li>
+<li><p><strong>filetag</strong> (<em>str</em>) – File name extension of files to unpack.</p></li>
+<li><p><strong>exposure_type</strong> (<em>str</em>) – Either ‘CLEAR’ or ‘F277W’; unpacks the corresponding exposure type.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>segments</strong> – File names of the requested exposure and file tag in chronological
+order.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.utils.verify_path">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.utils.</span></span><span class="sig-name descname"><span class="pre">verify_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.utils.verify_path" title="Link to this definition"></a></dt>
+<dd><p>Verify that a given directory exists. If not, create it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> (<em>str</em>) – Path to directory.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Michael Radica.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

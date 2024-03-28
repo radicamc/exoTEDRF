@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>exoTEDRF.exotedrf.stage3 &mdash; exoTEDRF 2024 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=eafc0fe6" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=bbec6902"></script>
+        <script src="../../../../_static/documentation_options.js?v=6fefd858"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            exoTEDRF
+              <img src="../../../../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/usage.html">exoTEDRF Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">exoTEDRF</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><code class="xref py py-mod docutils literal notranslate"><span class="pre">exoTEDRF.exotedrf.stage3</span></code></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/autoapi/exoTEDRF/exotedrf/stage3/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="module-exoTEDRF.exotedrf.stage3">
+<span id="exotedrf-exotedrf-stage3"></span><h1><a class="reference internal" href="#module-exoTEDRF.exotedrf.stage3" title="exoTEDRF.exotedrf.stage3"><code class="xref py py-mod docutils literal notranslate"><span class="pre">exoTEDRF.exotedrf.stage3</span></code></a><a class="headerlink" href="#module-exoTEDRF.exotedrf.stage3" title="Link to this heading"></a></h1>
+<p>Created on Thurs Jul 21 17:33 2022</p>
+<p>&#64;author: MCR</p>
+<p>Custom JWST DMS pipeline steps for Stage 3 (1D spectral extraction).</p>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<section id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage3.SpecProfileStep" title="exoTEDRF.exotedrf.stage3.SpecProfileStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SpecProfileStep</span></code></a></p></td>
+<td><p>Wrapper around custom SpecProfile Reference Construction step.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage3.Extract1DStep" title="exoTEDRF.exotedrf.stage3.Extract1DStep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Extract1DStep</span></code></a></p></td>
+<td><p>Wrapper around default calwebb_spec2 1D Spectral Extraction step, with</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage3.specprofilestep" title="exoTEDRF.exotedrf.stage3.specprofilestep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">specprofilestep</span></code></a>(datafiles[, empirical, output_dir])</p></td>
+<td><p>Wrapper around the APPLESOSS module to construct a specprofile</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage3.box_extract_soss" title="exoTEDRF.exotedrf.stage3.box_extract_soss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">box_extract_soss</span></code></a>(datafiles, centroids, soss_width[, ...])</p></td>
+<td><p>Perform a simple box aperture extraction on SOSS orders 1 and 2.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage3.do_box_extraction" title="exoTEDRF.exotedrf.stage3.do_box_extraction"><code class="xref py py-obj docutils literal notranslate"><span class="pre">do_box_extraction</span></code></a>(cube, err, ypos, width[, ...])</p></td>
+<td><p>Do intrapixel aperture extraction.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage3.do_ccf" title="exoTEDRF.exotedrf.stage3.do_ccf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">do_ccf</span></code></a>(wave, flux, err, mod_flux[, nsteps])</p></td>
+<td><p>Perform a cross-correlation analysis between an extracted and model</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage3.format_extracted_spectra" title="exoTEDRF.exotedrf.stage3.format_extracted_spectra"><code class="xref py py-obj docutils literal notranslate"><span class="pre">format_extracted_spectra</span></code></a>(datafiles, times, ...[, ...])</p></td>
+<td><p>Unpack the outputs of the 1D extraction and format them into</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage3.get_soss_estimate" title="exoTEDRF.exotedrf.stage3.get_soss_estimate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_soss_estimate</span></code></a>(atoca_spectra, output_dir)</p></td>
+<td><p>Convert the AtocaSpectra output of ATOCA into the format expected for a</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage3.run_stage3" title="exoTEDRF.exotedrf.stage3.run_stage3"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_stage3</span></code></a>(results[, save_results, root_dir, ...])</p></td>
+<td><p>Run the exoTEDRF Stage 3 pipeline: 1D spectral extraction, using</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.SpecProfileStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage3.</span></span><span class="sig-name descname"><span class="pre">SpecProfileStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafiles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.SpecProfileStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around custom SpecProfile Reference Construction step.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.SpecProfileStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">empirical</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.SpecProfileStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.Extract1DStep">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage3.</span></span><span class="sig-name descname"><span class="pre">Extract1DStep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extract_method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_teff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_logg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_met</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">planet_letter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'b'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.Extract1DStep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around default calwebb_spec2 1D Spectral Extraction step, with
+custom modifications.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.Extract1DStep.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">soss_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">40</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">specprofile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centroids</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_pastasoss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">soss_estimate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.Extract1DStep.run" title="Link to this definition"></a></dt>
+<dd><p>Method to run the step.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.specprofilestep">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage3.</span></span><span class="sig-name descname"><span class="pre">specprofilestep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafiles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">empirical</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.specprofilestep" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around the APPLESOSS module to construct a specprofile
+reference file tailored to the particular TSO being analyzed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datafiles</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>array-like</em><em>[</em><em>jwst.RampModel</em><em>]</em>) – Input datamodels or paths to datamodels for each segment.</p></li>
+<li><p><strong>empirical</strong> (<em>bool</em>) – If True, construct profiles using only the data. If False, fall back
+on WebbPSF for the trace wings. Note: The current WebbPSF wings are
+known to not accurately match observations. This mode is therefore not
+advised.</p></li>
+<li><p><strong>output_dir</strong> (<em>str</em>) – Directory to which to save outputs.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>filename</strong> – Name of the output file.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.box_extract_soss">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage3.</span></span><span class="sig-name descname"><span class="pre">box_extract_soss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafiles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centroids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">soss_width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.box_extract_soss" title="Link to this definition"></a></dt>
+<dd><p>Perform a simple box aperture extraction on SOSS orders 1 and 2.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datafiles</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>array-like</em><em>[</em><em>jwst.RampModel</em><em>]</em>) – Input datamodels or paths to datamodels for each segment.</p></li>
+<li><p><strong>centroids</strong> (<em>dict</em>) – Dictionary of centroid positions for all SOSS orders.</p></li>
+<li><p><strong>soss_width</strong> (<em>int</em><em>, </em><em>str</em>) – Width of extraction box. Or ‘optimize’.</p></li>
+<li><p><strong>do_plot</strong> (<em>bool</em>) – If True, do the step diagnostic plot.</p></li>
+<li><p><strong>show_plot</strong> (<em>bool</em>) – If True, show the step diagnostic plot instead of/in addition to
+saving it to file.</p></li>
+<li><p><strong>output_dir</strong> (<em>str</em>) – Directory to which to output results.</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If True, save results to file.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>wave_o1</strong> (<em>array_like[float]</em>) – 2D wavelength solution for order 1.</p></li>
+<li><p><strong>flux_o1</strong> (<em>array_like[float]</em>) – 2D extracted flux for order 1.</p></li>
+<li><p><strong>ferr_o1</strong> (<em>array_like[float]</em>) – 2D flux errors for order 1.</p></li>
+<li><p><strong>wave_o2</strong> (<em>array_like[float]</em>) – 2D wavelength solution for order 2.</p></li>
+<li><p><strong>flux_o2</strong> (<em>array_like[float]</em>) – 2D extracted flux for order 2.</p></li>
+<li><p><strong>ferr_o2</strong> (<em>array_like[float]</em>) – 2D flux errors for order 2.</p></li>
+<li><p><strong>soss_width</strong> (<em>int</em>) – Optimized aperture width.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.do_box_extraction">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage3.</span></span><span class="sig-name descname"><span class="pre">do_box_extraction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cube</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ypos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extract_start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extract_end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.do_box_extraction" title="Link to this definition"></a></dt>
+<dd><p>Do intrapixel aperture extraction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cube</strong> (<em>array-like</em><em>(</em><em>float</em><em>)</em>) – Data cube.</p></li>
+<li><p><strong>err</strong> (<em>array-like</em><em>(</em><em>float</em><em>)</em>) – Error cube.</p></li>
+<li><p><strong>ypos</strong> (<em>array-like</em><em>(</em><em>float</em><em>)</em>) – Detector Y-positions to extract.</p></li>
+<li><p><strong>width</strong> (<em>int</em>) – Full-width of the extraction aperture to use.</p></li>
+<li><p><strong>extract_start</strong> (<em>int</em>) – Detector X-position at which to start extraction.</p></li>
+<li><p><strong>extract_end</strong> (<em>int</em><em>, </em><em>None</em>) – Detector X-position at which to end extraction.</p></li>
+<li><p><strong>progress</strong> (<em>bool</em>) – if True, show extraction progress bar.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>f</strong> (<em>np.array(float)</em>) – Extracted flux values.</p></li>
+<li><p><strong>ferr</strong> (<em>np.array(float)</em>) – Extracted error values.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.do_ccf">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage3.</span></span><span class="sig-name descname"><span class="pre">do_ccf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mod_flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsteps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.do_ccf" title="Link to this definition"></a></dt>
+<dd><p>Perform a cross-correlation analysis between an extracted and model
+stellar spectrum to determine the appropriate wavelength shift between
+the two.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>wave</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Wavelength axis.</p></li>
+<li><p><strong>flux</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Extracted spectrum.</p></li>
+<li><p><strong>err</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Errors on extracted spectrum.</p></li>
+<li><p><strong>mod_flux</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Model spectrum.</p></li>
+<li><p><strong>nsteps</strong> (<em>int</em>) – Number of wavelength steps to test.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>shift</strong> – Wavelength shift between the model and extracted spectrum in microns.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.format_extracted_spectra">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage3.</span></span><span class="sig-name descname"><span class="pre">format_extracted_spectra</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datafiles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">times</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extract_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_teff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_logg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_met</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">throughput</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pwcpos</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_pastasoss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.format_extracted_spectra" title="Link to this definition"></a></dt>
+<dd><p>Unpack the outputs of the 1D extraction and format them into
+lightcurves at the native detector resolution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datafiles</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>array-like</em><em>[</em><em>MultiSpecModel</em><em>]</em><em>, </em><em>tuple</em>) – Input extract1d data files.</p></li>
+<li><p><strong>times</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Time stamps corresponding to each integration.</p></li>
+<li><p><strong>output_dir</strong> (<em>str</em>) – Directory to which to save outputs.</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If True, save outputs to file.</p></li>
+<li><p><strong>extract_params</strong> (<em>dict</em>) – Dictonary of parameters used for the 1D extraction.</p></li>
+<li><p><strong>target_name</strong> (<em>str</em>) – Name of the target.</p></li>
+<li><p><strong>st_teff</strong> (<em>float</em><em>, </em><em>None</em>) – Stellar effective temperature.</p></li>
+<li><p><strong>st_logg</strong> (<em>float</em><em>, </em><em>None</em>) – Stellar log surface gravity.</p></li>
+<li><p><strong>st_met</strong> (<em>float</em><em>, </em><em>None</em>) – Stellar metallicity as [Fe/H].</p></li>
+<li><p><strong>throughput</strong> (<em>str</em>) – Path to JWST spectrace reference file.</p></li>
+<li><p><strong>pwcpos</strong> (<em>float</em>) – Filter wheel position. Only necessary is use_pastasoss is True.</p></li>
+<li><p><strong>use_pastasoss</strong> (<em>bool</em>) – If True, use pastasoss package to predict wavelength solution based on
+pupil wheel position. Note that this will only allow the extraction of
+order 2 from 0.6 - 0.85µm.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>spectra</strong> – 1D stellar spectra at the native detector resolution.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.get_soss_estimate">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage3.</span></span><span class="sig-name descname"><span class="pre">get_soss_estimate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atoca_spectra</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.get_soss_estimate" title="Link to this definition"></a></dt>
+<dd><p>Convert the AtocaSpectra output of ATOCA into the format expected for a
+soss_estimate.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>atoca_spectra</strong> (<em>str</em><em>, </em><em>MultiSpecModel</em>) – AtocaSpectra datamodel, or path to the datamodel.</p></li>
+<li><p><strong>output_dir</strong> (<em>str</em>) – Directory to which to save results.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>estimate_filename</strong> – Path to soss_estimate file.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage3.run_stage3">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage3.</span></span><span class="sig-name descname"><span class="pre">run_stage3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_results</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_redo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extract_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'box'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">specprofile</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">centroids</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">soss_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">40</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_teff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_logg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">st_met</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">planet_letter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'b'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_tag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage3.run_stage3" title="Link to this definition"></a></dt>
+<dd><p>Run the exoTEDRF Stage 3 pipeline: 1D spectral extraction, using
+a combination of the official STScI DMS and custom steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>results</strong> (<em>array-like</em><em>[</em><em>str</em><em>]</em><em>, </em><em>array-like</em><em>[</em><em>CubeModel</em><em>]</em>) – exoTEDRF Stage 2 outputs for each segment.</p></li>
+<li><p><strong>save_results</strong> (<em>bool</em>) – If True, save the results of each step to file.</p></li>
+<li><p><strong>root_dir</strong> (<em>str</em>) – Directory from which all relative paths are defined.</p></li>
+<li><p><strong>force_redo</strong> (<em>bool</em>) – If True, redo steps even if outputs files are already present.</p></li>
+<li><p><strong>extract_method</strong> (<em>str</em>) – Either ‘box’ or ‘atoca’. Runs the applicable 1D extraction routine.</p></li>
+<li><p><strong>specprofile</strong> (<em>str</em><em>, </em><em>None</em>) – Specprofile reference file; only neceessary for ATOCA extractions.</p></li>
+<li><p><strong>centroids</strong> (<em>str</em><em>, </em><em>None</em>) – Path to file containing trace positions for each order.</p></li>
+<li><p><strong>soss_width</strong> (<em>int</em>) – Width around the trace centroids, in pixels, for the 1D extraction.</p></li>
+<li><p><strong>st_teff</strong> (<em>float</em><em>, </em><em>None</em>) – Stellar effective temperature.</p></li>
+<li><p><strong>st_logg</strong> (<em>float</em><em>, </em><em>None</em>) – Stellar log surface gravity.</p></li>
+<li><p><strong>st_met</strong> (<em>float</em><em>, </em><em>None</em>) – Stellar metallicity as [Fe/H].</p></li>
+<li><p><strong>planet_letter</strong> (<em>str</em>) – Letter designation for the planet.</p></li>
+<li><p><strong>output_tag</strong> (<em>str</em>) – Name tag to append to pipeline outputs directory.</p></li>
+<li><p><strong>do_plot</strong> (<em>bool</em>) – If True, make step diagnostic plot.</p></li>
+<li><p><strong>show_plot</strong> (<em>bool</em>) – Only necessary if do_plot is True. Show the diagnostic plots in
+addition to/instead of saving to file.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>specra</strong> – 1D stellar spectra for each wavelength bin at the native detector
+resolution.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Michael Radica.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>exoTEDRF.exotedrf.stage4 &mdash; exoTEDRF 2024 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=eafc0fe6" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=bbec6902"></script>
+        <script src="../../../../_static/documentation_options.js?v=6fefd858"></script>
+        <script src="../../../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            exoTEDRF
+              <img src="../../../../_static/logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/usage.html">exoTEDRF Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../content/citations.html">Citations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">exoTEDRF</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><code class="xref py py-mod docutils literal notranslate"><span class="pre">exoTEDRF.exotedrf.stage4</span></code></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/autoapi/exoTEDRF/exotedrf/stage4/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="module-exoTEDRF.exotedrf.stage4">
+<span id="exotedrf-exotedrf-stage4"></span><h1><a class="reference internal" href="#module-exoTEDRF.exotedrf.stage4" title="exoTEDRF.exotedrf.stage4"><code class="xref py py-mod docutils literal notranslate"><span class="pre">exoTEDRF.exotedrf.stage4</span></code></a><a class="headerlink" href="#module-exoTEDRF.exotedrf.stage4" title="Link to this heading"></a></h1>
+<p>Created on Thurs Jul 21 18:07 2022</p>
+<p>&#64;author: MCR</p>
+<p>Custom JWST DMS pipeline steps for Stage 4 (lightcurve fitting).</p>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<section id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage4.bin_at_pixel" title="exoTEDRF.exotedrf.stage4.bin_at_pixel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bin_at_pixel</span></code></a>(flux, error, wave, npix)</p></td>
+<td><p>Similar to bin_at_resolution, but will bin in widths of a set number of</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage4.bin_at_resolution" title="exoTEDRF.exotedrf.stage4.bin_at_resolution"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bin_at_resolution</span></code></a>(inwave_low, inwave_up, flux, ...[, ...])</p></td>
+<td><p>Function that bins input wavelengths and transit depths (or any other</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage4.fit_data" title="exoTEDRF.exotedrf.stage4.fit_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fit_data</span></code></a>(data_dictionary, priors, output_dir, bin_no, ...)</p></td>
+<td><p>Functional wrapper around run_juliet to make it compatible for</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage4.fit_lightcurves" title="exoTEDRF.exotedrf.stage4.fit_lightcurves"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fit_lightcurves</span></code></a>(data_dict, prior_dict, order, ...[, ...])</p></td>
+<td><p>Wrapper about both the juliet and ray libraries to parallelize juliet's</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage4.gen_ld_coefs" title="exoTEDRF.exotedrf.stage4.gen_ld_coefs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gen_ld_coefs</span></code></a>(spectrace_ref, wavebin_low, wavebin_up, ...)</p></td>
+<td><p>Generate estimates of quadratic limb-darkening coefficients using the</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage4.read_ld_coefs" title="exoTEDRF.exotedrf.stage4.read_ld_coefs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_ld_coefs</span></code></a>(filename, wavebin_low, wavebin_up[, ...])</p></td>
+<td><p>Unpack limb darkening coefficients and interpolate to the wavelength</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage4.run_juliet" title="exoTEDRF.exotedrf.stage4.run_juliet"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run_juliet</span></code></a>(priors, t_lc, y_lc, yerr_lc, out_folder, ...)</p></td>
+<td><p>Wrapper around the lightcurve fitting functionality of the juliet</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#exoTEDRF.exotedrf.stage4.save_transmission_spectrum" title="exoTEDRF.exotedrf.stage4.save_transmission_spectrum"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_transmission_spectrum</span></code></a>(wave, wave_err, dppm, ...)</p></td>
+<td><p>Write a transmission/emission spectrum to file.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage4.bin_at_pixel">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage4.</span></span><span class="sig-name descname"><span class="pre">bin_at_pixel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">npix</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage4.bin_at_pixel" title="Link to this definition"></a></dt>
+<dd><p>Similar to bin_at_resolution, but will bin in widths of a set number of
+pixels instead of at a fixed resolution.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>flux</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Flux values.</p></li>
+<li><p><strong>error</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Flux error values.</p></li>
+<li><p><strong>wave</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Wavelength values.</p></li>
+<li><p><strong>npix</strong> (<em>int</em>) – Number of pixels per bin.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>wave_bin</strong> (<em>np.ndarray[float]</em>) – Central bin wavelength.</p></li>
+<li><p><strong>wave_low</strong> (<em>np.ndarray[float]</em>) – Lower edge of wavelength bin.</p></li>
+<li><p><strong>wave_up</strong> (<em>np.ndarray[float]</em>) – Upper edge of wavelength bin.</p></li>
+<li><p><strong>dout</strong> (<em>np.ndarray[float]</em>) – Binned depth.</p></li>
+<li><p><strong>derrout</strong> (<em>np.ndarray[float]</em>) – Error on binned depth.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage4.bin_at_resolution">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage4.</span></span><span class="sig-name descname"><span class="pre">bin_at_resolution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inwave_low</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inwave_up</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flux_err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sum'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage4.bin_at_resolution" title="Link to this definition"></a></dt>
+<dd><p>Function that bins input wavelengths and transit depths (or any other
+observable, like flux) to a given resolution “res”. Can handle 1D or 2D
+flux arrays.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inwave_low</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Lower edge of wavelength bin. Must be 1D.</p></li>
+<li><p><strong>inwave_up</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Upper edge of wavelength bin. Must be 1D.</p></li>
+<li><p><strong>flux</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Flux values at each wavelength. Can be 1D or 2D. If 2D, the first axis
+must be the one corresponding to wavelength.</p></li>
+<li><p><strong>flux_err</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Errors corresponding to each flux measurement. Must be the same shape
+as flux.</p></li>
+<li><p><strong>res</strong> (<em>int</em>) – Target resolution at which to bin.</p></li>
+<li><p><strong>method</strong> (<em>str</em>) – Method to bin depths. Either “sum” or “average”.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>binned_waves</strong> (<em>array-like[float]</em>) – Wavelength of the given bin at the desired resolution.</p></li>
+<li><p><strong>binned_werr</strong> (<em>array-like[float]</em>) – Half-width of the wavelength bin.</p></li>
+<li><p><strong>binned_flux</strong> (<em>array-like[float]</em>) – Binned flux.</p></li>
+<li><p><strong>binned_ferr</strong> (<em>array-like[float]</em>) – Error on binned flux.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage4.fit_data">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage4.</span></span><span class="sig-name descname"><span class="pre">fit_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_dictionary</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">priors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_no</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_bins</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage4.fit_data" title="Link to this definition"></a></dt>
+<dd><p>Functional wrapper around run_juliet to make it compatible for
+multiprocessing with ray.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage4.fit_lightcurves">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage4.</span></span><span class="sig-name descname"><span class="pre">fit_lightcurves</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prior_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fit_suffix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nthreads</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage4.fit_lightcurves" title="Link to this definition"></a></dt>
+<dd><p>Wrapper about both the juliet and ray libraries to parallelize juliet’s
+lightcurve fitting functionality.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_dict</strong> (<em>dict</em>) – Dictionary of fitting data: time, flux, and flu error.</p></li>
+<li><p><strong>prior_dict</strong> (<em>dict</em>) – Dictionary of fitting priors in juliet format.</p></li>
+<li><p><strong>order</strong> (<em>int</em>) – SOSS diffraction order.</p></li>
+<li><p><strong>output_dir</strong> (<em>str</em>) – Path to directory to which to save results.</p></li>
+<li><p><strong>fit_suffix</strong> (<em>str</em>) – String to label the results of this fit.</p></li>
+<li><p><strong>nthreads</strong> (<em>int</em>) – Number of cores to use for multiprocessing.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>results</strong> – The results of the juliet fit.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>juliet.fit object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage4.gen_ld_coefs">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage4.</span></span><span class="sig-name descname"><span class="pre">gen_ld_coefs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">spectrace_ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wavebin_low</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wavebin_up</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">m_h</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">teff</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ld_data_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'stagger'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage4.gen_ld_coefs" title="Link to this definition"></a></dt>
+<dd><p>Generate estimates of quadratic limb-darkening coefficients using the
+ExoTiC-LD package.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>spectrace_ref</strong> (<em>str</em>) – Path to spectrace reference file.</p></li>
+<li><p><strong>wavebin_low</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Lower edge of wavelength bins.</p></li>
+<li><p><strong>wavebin_up</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Upper edge of wavelength bins.</p></li>
+<li><p><strong>order</strong> (<em>int</em>) – SOSS diffraction order.</p></li>
+<li><p><strong>m_h</strong> (<em>float</em>) – Stellar metallicity as [M/H].</p></li>
+<li><p><strong>logg</strong> (<em>float</em>) – Stellar log gravity.</p></li>
+<li><p><strong>teff</strong> (<em>float</em>) – Stellar effective temperature in K.</p></li>
+<li><p><strong>ld_data_path</strong> (<em>str</em>) – Path to ExoTiC-LD model data.</p></li>
+<li><p><strong>model_type</strong> (<em>str</em>) – Identifier for type of stellar model to use. See
+<a class="reference external" href="https://exotic-ld.readthedocs.io/en/latest/views/supported_stellar_grids.html">https://exotic-ld.readthedocs.io/en/latest/views/supported_stellar_grids.html</a>
+for supported grids.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>c1s</strong> (<em>array-like[float]</em>) – c1 parameter for the quadratic limb-darkening law.</p></li>
+<li><p><strong>c2s</strong> (<em>array-like[float]</em>) – c2 parameter for the quadratic limb-darkening law.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage4.read_ld_coefs">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage4.</span></span><span class="sig-name descname"><span class="pre">read_ld_coefs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wavebin_low</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wavebin_up</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ld_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'quadratic'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage4.read_ld_coefs" title="Link to this definition"></a></dt>
+<dd><p>Unpack limb darkening coefficients and interpolate to the wavelength
+grid of data being fit. File must be comma separated with three columns:
+wavelength c1 and c2.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<em>str</em>) – Path to file containing model limb darkening coefficients.</p></li>
+<li><p><strong>wavebin_low</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Lower edge of wavelength bins being fit.</p></li>
+<li><p><strong>wavebin_up</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Upper edge of wavelength bins being fit.</p></li>
+<li><p><strong>ld_model</strong> (<em>str</em>) – Limb darkening model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>prior_q1</strong> (<em>array-like[float]</em>) – Model estimates for q1 parameter.</p></li>
+<li><p><strong>prior_q2</strong> (<em>array-like[float]</em>) – Model estimates for q2 parameter.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage4.run_juliet">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage4.</span></span><span class="sig-name descname"><span class="pre">run_juliet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">priors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_lc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_lc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">yerr_lc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gp_regressors_lc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">linear_regressors_lc</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage4.run_juliet" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around the lightcurve fitting functionality of the juliet
+package.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>priors</strong> (<em>dict</em>) – Dictionary of fitting priors.</p></li>
+<li><p><strong>t_lc</strong> (<em>dict</em>) – Time axis.</p></li>
+<li><p><strong>y_lc</strong> (<em>dict</em>) – Normalized lightcurve flux values.</p></li>
+<li><p><strong>yerr_lc</strong> (<em>dict</em>) – Errors associated with each flux value.</p></li>
+<li><p><strong>out_folder</strong> (<em>str</em>) – Path to folder to which to save results.</p></li>
+<li><p><strong>gp_regressors_lc</strong> (<em>dict</em>) – GP regressors to fit, if any.</p></li>
+<li><p><strong>linear_regressors_lc</strong> (<em>dict</em>) – Linear model regressors, if any.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>res</strong> – Results of juliet fit.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>juliet.fit object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="exoTEDRF.exotedrf.stage4.save_transmission_spectrum">
+<span class="sig-prename descclassname"><span class="pre">exoTEDRF.exotedrf.stage4.</span></span><span class="sig-name descname"><span class="pre">save_transmission_spectrum</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">wave</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wave_err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dppm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dppm_err</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extraction_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fit_meta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">occultation_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'transit'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#exoTEDRF.exotedrf.stage4.save_transmission_spectrum" title="Link to this definition"></a></dt>
+<dd><p>Write a transmission/emission spectrum to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>wave</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Wavelength values.</p></li>
+<li><p><strong>wave_err</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Bin half-widths for each wavelength bin.</p></li>
+<li><p><strong>dppm</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Transit/eclipse depth in each bin.</p></li>
+<li><p><strong>dppm_err</strong> (<em>array-like</em><em>[</em><em>float</em><em>]</em>) – Error on the transit/eclipse depth in each bin.</p></li>
+<li><p><strong>order</strong> (<em>array-like</em><em>[</em><em>int</em><em>]</em>) – SOSS order corresponding to each bin.</p></li>
+<li><p><strong>outdir</strong> (<em>str</em>) – Firectory to whch to save outputs.</p></li>
+<li><p><strong>filename</strong> (<em>str</em>) – Name of the file to which to save spectra.</p></li>
+<li><p><strong>target</strong> (<em>str</em>) – Target name.</p></li>
+<li><p><strong>extraction_type</strong> (<em>str</em>) – Type of extraction: either box or atoca.</p></li>
+<li><p><strong>resolution</strong> (<em>int</em><em>, </em><em>str</em>) – Spectral resolution of spectrum.</p></li>
+<li><p><strong>fit_meta</strong> (<em>str</em>) – Fitting metadata.</p></li>
+<li><p><strong>occultation_type</strong> (<em>str</em>) – Type of occultation; either ‘transit’ or ‘eclipse’.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Michael Radica.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
