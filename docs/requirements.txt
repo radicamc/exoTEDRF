@@ -20,4 +20,3 @@ cython
 dynesty==1.2.2
 exotic_ld
 h5py
-juliet
