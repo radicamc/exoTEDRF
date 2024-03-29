@@ -35,11 +35,7 @@ extensions = ['sphinx_rtd_theme',
               'sphinx.ext.autodoc',
               'sphinx.ext.napoleon',
               'sphinx.ext.mathjax',
-              'nbsphinx',
-              'autoapi.extension']
-
-autoapi_type = 'python'
-autoapi_dirs = ['../exotedrf']
+              'nbsphinx']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
