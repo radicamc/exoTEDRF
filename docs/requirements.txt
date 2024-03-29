@@ -16,8 +16,9 @@ scipy
 tqdm
 pastasoss
 pyyaml
-cython
 dynesty==1.2.2
 exotic_ld
 h5py
-juliet
+
+#TODO: docs for Stage 4 will not build as they require juliet, which in turn requires radvel. radvel is not installing
+#TODO: on readthedocs for some reason. It's installing fine (either as part of juliet or on its own) in a fresh conda env.
