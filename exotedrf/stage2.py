@@ -679,8 +679,8 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     fancyprint('Starting temporal outlier flagging...')
     # Median filter the data.
     cube_filt = medfilt(newdata, (5, 1, 1))
-    cube_filt[:1] = cube_filt[2]
-    cube_filt[-2:] = cube_filt[-3]
+    cube_filt[:2] = np.median(cube_filt[2:7], axis=0)
+    cube_filt[-2:] = np.median(cube_filt[-8:-3], axis=0)
     # Check along the time axis for outlier pixels.
     std_dev = bn.nanmedian(np.abs(0.5*(newdata[0:-2] + newdata[2:]) - newdata[1:-1]), axis=0)
     std_dev = np.where(std_dev == 0, np.nanmedian(std_dev), std_dev)
@@ -890,8 +890,8 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
                     # Combine with existing flags and overwrite old file.
                     for flag_file in pixel_flags:
                         with fits.open(flag_file) as old_flags:
-                            old_flags[0].data = old_flags[0].data.astype(bool) | order0mask.astype(bool)
-                        old_flags.writeto(flag_file, overwrite=True)
+                            old_flags[1].data = (old_flags[1].data.astype(bool) | order0mask.astype(bool)).astype(int)
+                            old_flags.writeto(flag_file, overwrite=True)
                     # Overwrite old flags file.
                     parts = pixel_flags[0].split('seg')
                     outfile = parts[0] + 'seg' + 'XXX' + parts[1][3:]
