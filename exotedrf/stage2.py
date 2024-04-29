@@ -890,8 +890,8 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
                     # Combine with existing flags and overwrite old file.
                     for flag_file in pixel_flags:
                         with fits.open(flag_file) as old_flags:
-                            old_flags[0].data = old_flags[0].data.astype(bool) | order0mask.astype(bool)
-                        old_flags.writeto(flag_file, overwrite=True)
+                            old_flags[1].data = (old_flags[1].data.astype(bool) | order0mask.astype(bool)).astype(int)
+                            old_flags.writeto(flag_file, overwrite=True)
                     # Overwrite old flags file.
                     parts = pixel_flags[0].split('seg')
                     outfile = parts[0] + 'seg' + 'XXX' + parts[1][3:]
