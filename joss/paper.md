@@ -39,15 +39,15 @@ Like similar pipelines (`Eureka!` [@bell_eureka_2022], `jwst` [@bushouse_howard_
 - Stage 3, Spectral extraction: Extract the 2D stellar spectra from the 3D slope images.
 - Stage 4, Light curve fitting: An optional stage for the fitting of extracted light curves.
 
-In `exoTEDRF`, Stage 4 is an optional installation which is currently built around the excellent `juliet` library [@espinoza_juliet_2019], and incorporates tools such as`exoTiC-LD` [@david_grant_2022_7437681] for the estimation of stellar limb darkening parameters. 
+In `exoTEDRF`, Stage 4 is an optional installation which is currently built around the excellent `juliet` library [@espinoza_juliet_2019], and incorporates tools such as `ExoTiC-LD` [@david_grant_2022_7437681] for the estimation of stellar limb darkening parameters. 
 In certain places (e.g., superbias subtraction, flat field correction), `exoTEDRF` simply provides a wrapper around the existing functionalities of the `jwst` package maintained by the Space Telescope Science Institute. 
 
 
 # Statement of Need
 Data analysis is a challenging process that is encountered by all observational studies. Ensuring that the resulting 
-atmosphere spectra are robust against particular choices made in the reduction process is also critical, especially as we push to characterize the atmospheres of small rocky planets. 
+atmosphere spectra are robust against particular choices made in the reduction process is critical, especially as we push to characterize the atmospheres of small rocky planets. 
 The modularity and tunability of `exoTEDRF` make it easy to run multiple reductions of a given dataset, and therefore robustly ascertain whether the spectral features driving atmosphere inferences are robust, or sensitive to the peculiarities of a given reduction.
-Moreover, `exoTEDRF` has full support for TSOs with NIRISS/SOSS [@Albert2023], an observing mode which is underserved by the current ecosystem of JWST reduction tools, including the ability to run the `ATOCA` extraction algorithm [@Darveau-Bernier2022; @Radica:2022] to explicitly model the SOSS order overlap. 
+Moreover, `exoTEDRF` has full support for TSOs with NIRISS/SOSS [@Albert2023], an observing mode which is underserved by the current ecosystem of JWST reduction tools, including the ability to run the `ATOCA` extraction algorithm [@Darveau-Bernier2022; @Radica2022] to explicitly model the SOSS order overlap. 
 
 
 # Documentation
@@ -65,15 +65,16 @@ The current release of `exoTEDRF` (v1.4.0) currently supports the reduction of T
 Support for observations with NIRSpec and MIRI/LRS are in development and will be added in the coming months.
 `exoTEDRF` has also been applied to exoplanet observations from the Hubble Space Telescope using the UVIS mode (Radica et al., 2024, in prep). This functionality will also be made available to the public.
 Finally, updates to the light curve fitting routines are underway to allow for more flexibility for the fitting of both astrophysical and systematics models.
+
 Suggestions for additional features are always welcome!
 
 
 # Similar Tools
 The following is a list of other open source pipelines tailored to exoplanet observations with JWST:
-`Eureka!` @bell_eureka_2022, `jwst` @bushouse_howard_2022_7038885, `tshirt` @tshirt2022, `PACMAN` @pacman2022,
-`nirHiss` @nirhiss2022, `ExoTiC-JEDI` @jedi2022, `ExoTiC-MIRI` @grant_david_2023_8211207, 
-and `transitspectroscopy` @espinoza_nestor_2022_6960924.
-Packages like `exoplanet` @exoplanet:joss and `Eureka!` @bell_eureka_2022 also enable simmilar light curve fitting. 
+`Eureka!` [@bell_eureka_2022], `jwst` [@bushouse_howard_2022_7038885], `tshirt` [@tshirt2022], `PACMAN` [@pacman2022],
+`nirHiss` [@nirhiss2022], `ExoTiC-JEDI` [@jedi2022], `ExoTiC-MIRI` [@grant_david_2023_8211207], 
+and `transitspectroscopy` [@espinoza_nestor_2022_6960924].
+Packages like `exoplanet` [@exoplanet:joss] and `Eureka!` [@bell_eureka_2022] also enable similar light curve fitting. 
 
 
 # Acknowledgements
