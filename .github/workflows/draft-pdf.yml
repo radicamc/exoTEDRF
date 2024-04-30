@@ -3,7 +3,7 @@ name: "Build JOSS Paper Draft"
 on:
   push:
     branches:
-      - 'joss'
+      - 'main'
 
 jobs:
   paper:
