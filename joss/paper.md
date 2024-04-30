@@ -2,103 +2,76 @@
 title: 'exoTEDRF: An EXOplanet Transit and Eclipse Data Reduction Framework'
 tags:
   - Python
-  - astronomy
+  - Astronomy
   - JWST
-  - exoplanets
+  - Exoplanets
 authors:
   - name: Michael Radica
     orcid: 0000-0002-3328-1203
-    equal-contrib: true
     affiliation: 1
 affiliations:
- - name: Trottier Institute for Reasearch on Exoplanets (iREx), Université de Montréal, Canada
+ - name: Trottier Institute for Research on Exoplanets (iREx), Université de Montréal, Canada
    index: 1
 date: 30 April 2024
 bibliography: paper.bib
-
-# Optional fields if submitting to a AAS journal too, see this blog post:
-# https://blog.joss.theoj.org/2018/12/a-new-collaboration-with-aas-publishing
-aas-doi: 10.3847/xxxxx <- update this with the DOI from AAS once you know it.
-aas-journal: Astrophysical Journal <- The name of the AAS journal.
 ---
 
 # Summary
+`exoTEDRF` (EXOplanet Transit and Eclipse Data Reduction Framework; formerly known as 
+`supreme-SPOON`) is an end-to-end pipeline for the data reduction and light curve analysis
+of exoplanet time series observations (TSOs) with JWST.
 
-The forces on stars, galaxies, and dark matter under external gravitational
-fields lead to the dynamical evolution of structures in the universe. The orbits
-of these bodies are therefore key to understanding the formation, history, and
-future state of galaxies. The field of "galactic dynamics," which aims to model
-the gravitating components of galaxies to study their structure and evolution,
-is now well-established, commonly taught, and frequently used in astronomy.
-Aside from toy problems and demonstrations, the majority of problems require
-efficient numerical tools, many of which require the same base code (e.g., for
-performing numerical orbit integration).
 
-# Statement of need
+# Overview of exoTEDRF Stages
+Like similar pipelines (`Eureka!` [@bell_eureka_2022], `jwst` [@bushouse_howard_2022_7038885], etc.)
+`exoTEDRF` is divided up into four major stages which are summarized below:
 
-`Gala` is an Astropy-affiliated Python package for galactic dynamics. Python
-enables wrapping low-level languages (e.g., C) for speed without losing
-flexibility or ease-of-use in the user-interface. The API for `Gala` was
-designed to provide a class-based and user-friendly interface to fast (C or
-Cython-optimized) implementations of common operations such as gravitational
-potential and force evaluation, orbit integration, dynamical transformations,
-and chaos indicators for nonlinear dynamics. `Gala` also relies heavily on and
-interfaces well with the implementations of physical units and astronomical
-coordinate systems in the `Astropy` package [@astropy] (`astropy.units` and
-`astropy.coordinates`).
+- Stage 1, Detector-level processing: Converts raw, 4D (integrations, groups, x-pixel, y-pixel) data frame to 3D (integrations, x-pixel, y-pixel) slope images. Steps include superbias subtractions, correction of 1/$f$ noise, ramp fitting, etc. 
+- Stage 2, Spectroscopic processing: Performs additional calibrations to prepare slope images for spectral extraction. Steps include, flat field correction, background subtraction, etc. 
+- Stage 3, Spectral extraction: Extract the 2D stellar spectra from the 3D slope images.
+- Stage 4, Light curve fitting: An optional stage for the fitting of extracted light curves.
 
-`Gala` was designed to be used by both astronomical researchers and by
-students in courses on gravitational dynamics or astronomy. It has already been
-used in a number of scientific publications [@Pearson:2017] and has also been
-used in graduate courses on Galactic dynamics to, e.g., provide interactive
-visualizations of textbook material [@Binney:2008]. The combination of speed,
-design, and support for Astropy functionality in `Gala` will enable exciting
-scientific explorations of forthcoming data releases from the *Gaia* mission
-[@gaia] by students and experts alike.
+In `exoTEDRF` Stage 4 is an optional installation, which is currently built around the excellent `juliet` library [@espinoza_juliet_2019], and incorporates tools such as
+`exoTiC-LD` [@david_grant_2022_7437681] fof the estimation of stellar limb darkening parameters. 
 
-# Mathematics
 
-Single dollars ($) are required for inline mathematics e.g. $f(x) = e^{\pi/x}$
+# Statement of Need
+Is good pipeline.
 
-Double dollars make self-standing equations:
 
-$$\Theta(x) = \left\{\begin{array}{l}
-0\textrm{ if } x < 0\cr
-1\textrm{ else}
-\end{array}\right.$$
+# Documentation
+Documentation for `exoTEDRF`, including example notebooks, is available at [https://exotedrf.readthedocs.io/en/latest/](https://exotedrf.readthedocs.io/en/latest/). 
 
-You can also use plain \LaTeX for equations
-\begin{equation}\label{eq:fourier}
-\hat f(\omega) = \int_{-\infty}^{\infty} f(x) e^{i\omega x} dx
-\end{equation}
-and refer to \autoref{eq:fourier} from text.
 
-# Citations
+# Uses of exoTEDRF in Current Literature
+`exoTEDRF` (particulalry in its previous life as `supreme-SPOON`) has been widely applied to exoplanet TSOs. 
+A list of current literature which has made use of `exoTEDRF` includes: 
+@Feinstein2023, @Coulombe2023, @Radica2023, @Albert2023, @Lim2023, @Radica2024, @Fournier-Tondreau2024, and @Benneke2024.
 
-Citations to entries in paper.bib should be in
-[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
-format.
 
-If you want to cite a software repository URL (e.g. something on GitHub without a preferred
-citation) then you can do it with the example BibTeX entry below for @fidgit.
+# Future Developments
+The current release of `exoTEDRF` (v1.4.0) currently supports the reduction of TSOs observed with JWST NIRISS/SOSS. 
+Support for observations with NIRSpec and MIRI/LRS are in development and will be added in the coming months.
+`exoTEDRF` has also been applied to exoplanet observations from the Hubble Space Telescope using the UVIS mode (Radica et al., 2024, in prep).
+This functionality will also be made available to the public.
+Finally, updates to the light curve fitting functionalities are underway to allow for more flexibility for the fitting of both astrophysical and systematics models.
+Suggestions for additional features are always welcome!
 
-For a quick reference, the following citation commands can be used:
-- `@author:2001`  ->  "Author et al. (2001)"
-- `[@author:2001]` -> "(Author et al., 2001)"
-- `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
 
-# Figures
+# Similar Tools
+The following is a list of other open source pipelines tailored to exoplanet observations with JWST:
+`Eureka!` @bell_eureka_2022, `jwst` @bushouse_howard_2022_7038885, `tshirt` @tshirt2022, `PACMAN` @pacman2022,
+`nirHiss` @nirHiss2022, `ExoTiC-JEDI` @jedi2022, `ExoTiC-MIRI` @grant_david_2023_8211207, 
+and `transitspectroscopy` @espinoza_nestor_2022_6960924.
+Packages like `exoplanet` @exoplanet:joss and `Eureka!` @bell_eureka_2022 also enable simmilar light curve fitting. 
 
-Figures can be included like this:
-![Caption for example figure.\label{fig:example}](figure.png)
-and referenced from text using \autoref{fig:example}.
-
-Figure sizes can be customized by adding an optional second parameter:
-![Caption for example figure.](figure.png){ width=20% }
 
 # Acknowledgements
+MR acknowledges funding from the Natural Sciences and Engineering Research Council of Canada,
+the Fonds de Recherche du Québec - Nature et Technologies, and the Trottier Institute for Research on Exoplanets. 
+MR would also like to thank the JWST Transiting Exoplanet Community Early Release Science program for providing the 
+forum where much of the development of this pipeline occured, and in particular, Adina Feinstein, Louis-Philippe 
+Coulombe, Néstor Espinoza, and Lili Alderson for many helpful conversations. 
 
-We acknowledge contributions from Brigitta Sipocz, Syrtis Major, and Semyeong
-Oh, and support from Kathryn Johnston during the genesis of this project.
 
 # References
