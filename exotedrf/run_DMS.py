@@ -9,7 +9,6 @@ Script to run JWST DMS with custom reduction steps.
 """
 
 from datetime import datetime
-import numpy as np
 import os
 import shutil
 import sys
@@ -64,15 +63,6 @@ fancyprint('Identified {0} {1} exposure '
 for file in input_files:
     fancyprint(' ' + file)
 
-# Open some of the input files.
-background_model = np.load(config['background_file'])
-if config['timeseries'] is not None:
-    config['timeseries'] = np.load(config['timeseries'])
-if config['timeseries_o2'] is not None:
-    config['timeseries_o2'] = np.load(config['timeseries_o2'])
-if config['f277w'] is not None:
-    config['f277w'] = np.load(config['f277w'])
-
 # ===== Run Stage 1 =====
 if 1 in config['run_stages']:
     # Determine which steps to run and which to skip.
@@ -87,7 +77,8 @@ if 1 in config['run_stages']:
             else:
                 stage1_skip.append(step)
     # Run stage 1.
-    stage1_results = run_stage1(input_files, background_model=background_model,
+    stage1_results = run_stage1(input_files,
+                                background_model=config['background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 oof_method=config['oof_method'],
                                 inner_mask_width=config['inner_mask_width'],
@@ -124,7 +115,7 @@ if 2 in config['run_stages']:
                 stage2_skip.append(step)
     # Run stage 2.
     stage2_results = run_stage2(stage1_results,
-                                background_model=background_model,
+                                background_model=config['background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 save_results=config['save_results'],
                                 force_redo=config['force_redo'],

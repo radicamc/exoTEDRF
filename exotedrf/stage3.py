@@ -32,20 +32,43 @@ class SpecProfileStep:
     """Wrapper around custom SpecProfile Reference Construction step.
     """
 
-    def __init__(self, datafiles, output_dir='./'):
+    def __init__(self, input_data, output_dir='./'):
         """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        output_dir : str
+            Path to directory to which to save outputs.
         """
 
+        # Set up easy attribute.
         self.output_dir = output_dir
-        self.datafiles = np.atleast_1d(datafiles)
+
+        # Unpack input data files.
+        datafiles = utils.sort_datamodels(input_data)
+        self.datafiles = []
+        for file in datafiles:
+            self.datafiles.append(utils.open_filetype(file))
+
         # Get subarray identifier.
-        if isinstance(self.datafiles[0], str):
-            self.subarray = fits.getheader(self.datafiles[0])['SUBARRAY']
-        elif isinstance(self.datafiles[0], datamodels.CubeModel):
-            self.subarray = self.datafiles[0].meta.subarray.name
+        self.subarray = self.datafiles[0].meta.subarray.name
 
     def run(self, force_redo=False, empirical=True):
         """Method to run the step.
+
+        Parameters
+        ----------
+        force_redo : bool
+            If True, run step even if output files are detected.
+        empirical : bool
+            If True, run APPLESOSS in empirical mode.
+
+        Returns
+        -------
+        specprofile : str
+            Path to file containing the 2D PSF model for each order.
         """
 
         all_files = glob.glob(self.output_dir + '*')
@@ -73,14 +96,39 @@ class Extract1DStep:
     def __init__(self, input_data, extract_method, st_teff=None, st_logg=None,
                  st_met=None, planet_letter='b', output_dir='./'):
         """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        extract_method : str
+            1D extraction method to use; either "box" or "atoca".
+        st_teff : float
+            Stellar effective temperature.
+        st_logg : float
+            Stellar log gravity.
+        st_met : float
+            Stellar metallicity.
+        planet_letter : str
+            Planet's letter designation.
+        output_dir : str
+            Path to directory to which to save outputs.
         """
 
+        # Set up easy attributes.
+        self.extract_method = extract_method
         self.tag = 'extract1dstep_{}.fits'.format(extract_method)
         self.output_dir = output_dir
-        self.datafiles = utils.sort_datamodels(input_data)
+
+        # Unpack input data files.
+        datafiles = utils.sort_datamodels(input_data)
+        self.datafiles = []
+        for file in datafiles:
+            self.datafiles.append(utils.open_filetype(file))
         self.fileroots = utils.get_filename_root(self.datafiles)
         self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
-        self.extract_method = extract_method
+
+        # Set planet and star attributes.
         with utils.open_filetype(self.datafiles[0]) as datamodel:
             self.target_name = datamodel.meta.target.catalog_name
         self.pl_name = self.target_name + ' ' + planet_letter
@@ -90,6 +138,33 @@ class Extract1DStep:
             save_results=True, force_redo=False, do_plot=False,
             show_plot=False, use_pastasoss=False, soss_estimate=None):
         """Method to run the step.
+
+        Parameters
+        ----------
+        soss_width : int
+            Full width of extraction aperture to use.
+        specprofile : str, None
+            Path to specprofile file.
+        centroids : str, None
+            Path to file containing centroids for each order.
+        save_results : bool
+            If True, save results.
+        force_redo : bool
+            If True, run step even if output files are detected.
+        do_plot : bool
+            If True, do step diagnostic plot.
+        show_plot : bool
+            If True, show the step diagnostic plot.
+        use_pastasoss : bool
+            If True, use pastasoss to esimate trace positions and wavelength
+            solution.
+        soss_estimate : str, None
+            Path to file containing the soss_estimate for atoca extractions.
+
+        Returns
+        -------
+        spectra : dict
+            1D stellar spectra at the native detector resolution.
         """
 
         fancyprint('Starting 1D extraction using the {} '
@@ -562,9 +637,9 @@ def format_extracted_spectra(datafiles, times, extract_params, target_name,
 
     Parameters
     ----------
-    datafiles : array-like[str], array-like[MultiSpecModel], tuple
+    datafiles : list(MultiSpecModel), tuple
         Input extract1d data files.
-    times : array-like[float]
+    times : array-like(float)
         Time stamps corresponding to each integration.
     output_dir : str
         Directory to which to save outputs.
@@ -765,7 +840,7 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
 
     Parameters
     ----------
-    results : array-like[str], array-like[CubeModel]
+    results : array-like(str), array-like(CubeModel)
         exoTEDRF Stage 2 outputs for each segment.
     save_results : bool
         If True, save the results of each step to file.

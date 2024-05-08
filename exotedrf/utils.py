@@ -286,7 +286,7 @@ def get_filename_root(datafiles):
 
     Returns
     -------
-    fileroots : array-like[str]
+    fileroots : list[str]
         List of file name roots.
     """
 
@@ -295,10 +295,15 @@ def get_filename_root(datafiles):
     if isinstance(datafiles[0], str):
         with datamodels.open(datafiles[0]) as data:
             filename = data.meta.filename  # Get file name.
-            seg_start = data.meta.exposure.segment_number  # starting segment
+            seg_start = data.meta.exposure.segment_number  # Starting segment.
     else:
-        filename = datafiles[0].meta.filename
-        seg_start = datafiles[0].meta.exposure.segment_number
+        try:
+            filename = datafiles[0].meta.filename
+            seg_start = datafiles[0].meta.exposure.segment_number
+        except AttributeError:
+            msg = 'Unexpected type {}'.format(type(datafiles[0]))
+            raise ValueError(msg)
+
     # Get the last part of the path, and split file name into chunks.
     filename_split = filename.split('/')[-1].split('_')
     fileroot = ''
