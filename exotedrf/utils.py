@@ -218,6 +218,25 @@ def get_default_header():
     return header_dict, header_comments
 
 
+def get_detector_name(datafile):
+    """Get name of detector.
+
+    Parameters
+    ----------
+    datafile : str, datamodel
+        Path to datafile or datafile itself.
+
+    Returns
+    -------
+    detector : str
+        Name of detector.
+    """
+
+    with datamodels.open(datafile) as d:
+        detector = d.meta.instrument.detector.lower()
+    return detector
+
+
 def get_dq_flag_metrics(dq_map, flags):
     """Take a data quality map and extract a map of pixels which are flagged
     for a specific reason. A list of data quality flags can be found here:
@@ -352,6 +371,25 @@ def get_filename_root_noseg(fileroots):
         fileroot_noseg = fileroots[0]
 
     return fileroot_noseg
+
+
+def get_instrument_name(datafile):
+    """Get name of instrument.
+
+    Parameters
+    ----------
+    datafile : str, datamodel
+        Path to datafile or datafile itself.
+
+    Returns
+    -------
+    instrument : str
+        Name of instrument.
+    """
+
+    with datamodels.open(datafile) as d:
+        instrument = d.meta.instrument.name
+    return instrument
 
 
 def get_interp_box(data, box_size, i, j, dimx):

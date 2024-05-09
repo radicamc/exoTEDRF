@@ -220,6 +220,8 @@ class SuperBiasStep:
             self.datafiles.append(utils.open_filetype(file))
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, do_plot=False,
             show_plot=False, **kwargs):
         """Method to run the step.
@@ -271,6 +273,10 @@ class SuperBiasStep:
         if do_plot is True:
             if save_results is True:
                 plot_file = self.output_dir + self.tag.replace('.fits', '.png')
+                if self.instrument == 'NIRSPEC':
+                    det = utils.get_detector_name(self.datafiles[0])
+                    plot_file = plot_file.replace('.png',
+                                                  '_{}.png'.format(det))
             else:
                 plot_file = None
             plotting.make_superbias_plot(results, outfile=plot_file,
