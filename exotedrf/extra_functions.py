@@ -183,3 +183,104 @@ def make_smoothed_2d_lightcurve(spec, baseline_ints, nint, dimx, filename,
     # Save file.
     suffix = 'lcestimate_2d_o{}.npy'.format(order)
     np.save(filename + suffix, ref_file)
+
+
+def refine_soss_timestamps(mid_int_times, centroids, subarray='SUBSTRIP256',
+                           outfile=None):
+    """SOSS read times are long compared to other instruments meaning that
+    there are several seconds of time difference between when red and blue
+    wavelengths are read. For limb asymmetry studies, this can be important.
+    This function refines the default mid integration times to yield a
+    seperate timestamp for each wavelength, which can then be outputs as 2D
+    maps, or appended to an existing spectrum file.
+    Note, when binning these time stamps it is important to also consider the
+    relative contributions of each wavelength to the bin via the brightness of
+    the stellar spectrum.
+
+    Parameters
+    ----------
+    mid_int_times : array-like(float)
+        Default mid-integration timestamps.
+    centroids : dict
+        Centroids dictionary.
+    subarray : str
+        SOSS subarray identifier, either "SUBSTRIP256" or "SUBSTRIP96".
+    outfile : str, None
+        Spectrum file to which to append output.
+
+    Returns
+    -------
+    int_times_o1 : ndarray(float)
+        Integration times for each wavelength in order 1.
+    int_times_o2 : ndarray(float), None
+        Integration times for each wavelength in order 2.
+    """
+
+    tpix = 1e-5  # Read time for individual pixel
+    tgap = 1.2e-4  # Gap time between columns
+    # Note using these times results in a frame time which is ~5ms shorter
+    # than the actual frame time of 5.494s. Not sure why, since these are
+    # apparently the correct pixel and gap times. The frame time formula
+    # (Equ. 3 in Albert+ 2023) gives the 5.494s (for SUBSTRIP256).
+
+    # Get readout pattern and subarray dimensions.
+    if subarray == 'SUBSTRIP256':
+        dimx, dimy = 2048, 256
+    elif subarray == 'SUBSTRIP96':
+        dimx, dimy = 2048, 96
+    else:
+        raise ValueError('Unknown subarray: {}'.format(subarray))
+
+    # Create map of readout times of individual pixels.
+    time = 0
+    time_map = np.zeros((dimy, dimx))
+    for x in range(dimx - 1, -1, -1):
+        if x != dimx - 1:
+            time += tgap
+        for y in range(dimy - 1, -1, -1):
+            time += tpix
+            time_map[y, x] = time
+    # Assume default mid-integration time is the time at the frame center.
+    time_map -= time_map[dimy // 2, dimx // 2]
+
+    # Get time shift for each wavelength.
+    t_o1 = []
+    for x in range(dimx):
+        ypos1 = round(centroids['ypos o1'][x], 0).astype(int)
+        t_o1.append(time_map[ypos1, x])
+    t_o1 = np.array(t_o1)
+
+    int_times_o1 = np.repeat(mid_int_times[:, np.newaxis], dimx, axis=1)
+    int_times_o1 = int_times_o1 - t_o1 / 3600 / 24
+
+    # Only do order 2 for SUBSTRIP256.
+    if subarray != 'SUBSTRIP96':
+        t_o2 = []
+        for x in range(dimx):
+            ypos2 = round(centroids['ypos o2'][x], 0).astype(int)
+            if 0 <= ypos2 < dimy:
+                t_o2.append(time_map[ypos2, x])
+            else:
+                t_o2.append(np.nan)
+        t_o2 = np.array(t_o2)
+
+        int_times_o2 = np.repeat(mid_int_times[:, np.newaxis], dimx, axis=1)
+        int_times_o2 = int_times_o2 - t_o2 / 3600 / 24
+    else:
+        int_times_o2 = None
+
+    # If a spectrum file is passed, tack on the new timestamps.
+    if outfile is not None:
+        file = fits.open(outfile)
+        hdr = fits.Header()
+        hdr['EXTNAME'] = "Time O1"
+        hdr['UNITS'] = "MJD"
+        file.append(fits.ImageHDU(int_times_o1, header=hdr))
+        if subarray != 'SUBSRIP96':
+            hdr = fits.Header()
+            hdr['EXTNAME'] = "Time O2"
+            hdr['UNITS'] = "MJD"
+            file.append(fits.ImageHDU(int_times_o2, header=hdr))
+        file.writeto(outfile, overwrite=True)
+
+    return int_times_o1, int_times_o2
