@@ -1454,16 +1454,16 @@ def run_stage2(results, background_model, baseline_ints, save_results=True,
             step_kwargs = kwargs['OneOverFStep']
         else:
             step_kwargs = {}
-        step = stage1.OneOverFStep(results, baseline_ints=baseline_ints,
-                                   output_dir=outdir, method=oof_method,
-                                   timeseries=timeseries,
-                                   timeseries_o2=timeseries_o2,
+        step = stage1.OneOverFStep(results, output_dir=outdir,
+                                   baseline_ints=baseline_ints,
                                    pixel_masks=pixel_masks,
-                                   centroids=centroids)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           do_plot=do_plot, show_plot=show_plot,
-                           inner_mask_width=inner_mask_width,
-                           outer_mask_width=outer_mask_width, **step_kwargs)
+                                   centroids=centroids, method=oof_method,
+                                   soss_timeseries=timeseries,
+                                   soss_timeseries_o2=timeseries_o2)
+        results = step.run(soss_inner_mask_width=inner_mask_width,
+                           soss_outer_mask_width=outer_mask_width,
+                           save_results=save_results, force_redo=force_redo,
+                           do_plot=do_plot, show_plot=show_plot, **step_kwargs)
 
     # ===== Bad Pixel Correction Step =====
     # Custom DMS step.

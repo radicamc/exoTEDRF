@@ -157,7 +157,7 @@ def format_out_frames(out_frames):
 
     Parameters
     ----------
-    out_frames : int, array-like[int]
+    out_frames : array-like[int], int
         Integration numbers of ingress and/or egress.
 
     Returns

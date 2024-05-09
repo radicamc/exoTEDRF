@@ -77,24 +77,26 @@ if 1 in config['run_stages']:
             else:
                 stage1_skip.append(step)
     # Run stage 1.
-    stage1_results = run_stage1(input_files,
-                                background_model=config['background_file'],
-                                baseline_ints=config['baseline_ints'],
+    stage1_results = run_stage1(input_files, soss_background_model=config[
+        'background_file'], baseline_ints=config['baseline_ints'],
                                 oof_method=config['oof_method'],
-                                inner_mask_width=config['inner_mask_width'],
-                                outer_mask_width=config['outer_mask_width'],
+                                soss_timeseries=config['timeseries'],
+                                soss_timeseries_o2=config['timeseries_o2'],
                                 save_results=config['save_results'],
                                 pixel_masks=config['outlier_maps'],
                                 force_redo=config['force_redo'],
                                 flag_up_ramp=config['flag_up_ramp'],
                                 rejection_threshold=config['jump_threshold'],
                                 flag_in_time=config['flag_in_time'],
-                                time_rejection_threshold=config['time_jump_threshold'],
+                                time_rejection_threshold=config[
+                                    'time_jump_threshold'],
                                 output_tag=config['output_tag'],
                                 skip_steps=stage1_skip,
                                 do_plot=config['do_plots'],
-                                timeseries=config['timeseries'],
-                                timeseries_o2=config['timeseries_o2'],
+                                soss_inner_mask_width=config[
+                                    'inner_mask_width'],
+                                soss_outer_mask_width=config[
+                                    'outer_mask_width'],
                                 centroids=config['centroids'],
                                 **config['stage1_kwargs'])
 else:
