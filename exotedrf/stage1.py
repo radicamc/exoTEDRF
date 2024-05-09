@@ -1353,8 +1353,8 @@ def oneoverfstep_scale(datafiles, baseline_ints, inner_mask_width=40,
             thisdeep = deepstack[-1]
         else:
             thisdeep = deepstack
-        centroids = utils.get_trace_centroids(thisdeep, tracetable, subarray,
-                                              save_results=False)
+        centroids = utils.get_centroids_soss(thisdeep, tracetable, subarray,
+                                             save_results=False)
         x1, y1 = centroids[0][0], centroids[0][1]
         x2, y2 = centroids[1][0], centroids[1][1]
         x3, y3 = centroids[2][0], centroids[2][1]
@@ -1741,8 +1741,8 @@ def oneoverfstep_solve(datafiles, baseline_ints, trace_width=70,
             deepstack = utils.make_deepstack(cube[baseline_ints, -1])
         else:
             deepstack = utils.make_deepstack(cube[baseline_ints])
-        centroids = utils.get_trace_centroids(deepstack, tracetable,
-                                              subarray, save_results=False)
+        centroids = utils.get_centroids_soss(deepstack, tracetable, subarray,
+                                             save_results=False)
         x1, y1 = centroids[0][0], centroids[0][1]
         x2, y2 = centroids[1][0], centroids[1][1]
     else:

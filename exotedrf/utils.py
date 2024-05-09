@@ -20,7 +20,7 @@ from scipy.signal import medfilt
 import warnings
 import yaml
 
-from applesoss.edgetrigger_centroids import get_soss_centroids
+import applesoss.edgetrigger_centroids as apl
 from jwst import datamodels
 
 
@@ -482,9 +482,68 @@ def get_stellar_param_grid(st_teff, st_logg, st_met):
     return teffs, loggs, mets
 
 
-def get_trace_centroids(deepframe, tracetable, subarray, save_results=True,
-                        save_filename=''):
-    """Get the trace centroids for all three orders via the edgetrigger method.
+def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
+                          save_filename=''):
+    """Get the NIRSpec trace centroids via the edgetrigger method.
+
+    Parameters
+    ----------
+    deepframe : array-like[float]
+        Median stack.
+    xstart : int
+        Starting x-pixel position on the frame.
+    xend : int, None
+        Ending x-pixel position on the frame.
+    save_results : bool
+        If True, save results to file.
+    save_filename : str
+        Filename of save file.
+
+    Returns
+    -------
+    cens : array-like[float]
+        X and Y centroids.
+    """
+
+    dimy, dimx = np.shape(deepframe)
+    if xend is None:
+        xend = dimx
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore')
+        cens = apl.get_centroids_edgetrigger(deepframe[:, xstart:xend],
+                                             mode='mean', poly_order=2,
+                                             halfwidth=3)
+
+    x1, y1 = cens[0]+xstart, cens[1]
+    ii = np.where((x1 >= xstart) & (x1 <= xend - 1))
+    # Interpolate onto native pixel grid
+    xx1 = np.linspace(xstart, xend-1, (xend-1)-xstart+1)
+    yy1 = np.interp(xx1, x1[ii], y1[ii])
+
+    if save_results is True:
+        centroids_dict = {'xpos': xx1, 'ypos': yy1}
+        df = pd.DataFrame(data=centroids_dict)
+        if save_filename[-1] != '_':
+            save_filename += '_'
+        outfile_name = save_filename + 'centroids.csv'
+        outfile = open(outfile_name, 'w')
+        outfile.write('# File Contents: Edgetrigger trace centroids\n')
+        outfile.write('# File Creation Date: {}\n'.format(
+            datetime.utcnow().replace(microsecond=0).isoformat()))
+        outfile.write('# File Author: MCR\n')
+        df.to_csv(outfile, index=False)
+        outfile.close()
+        fancyprint('Centroids saved to {}'.format(outfile_name))
+
+    cens = np.array([xx1, yy1])
+
+    return cens
+
+
+def get_centroids_soss(deepframe, tracetable, subarray, save_results=True,
+                       save_filename=''):
+    """Get the SOSS trace centroids for all three orders via the edgetrigger
+    method.
 
     Parameters
     ----------
@@ -512,8 +571,8 @@ def get_trace_centroids(deepframe, tracetable, subarray, save_results=True,
     dimy, dimx = np.shape(deepframe)
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        cens = get_soss_centroids(deepframe, tracetable,
-                                  subarray=subarray)
+        cens = apl.get_soss_centroids(deepframe, tracetable,
+                                      subarray=subarray)
 
     x1, y1 = cens['order 1']['X centroid'], cens['order 1']['Y centroid']
     ii = np.where((x1 >= 0) & (y1 <= dimx - 1))

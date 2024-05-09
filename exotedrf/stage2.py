@@ -1114,9 +1114,9 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
     tracetable = step.get_reference_file(datafiles[0], 'spectrace')
     # Get centroids via the edgetrigger method.
     save_filename = output_dir + fileroot_noseg
-    centroids = utils.get_trace_centroids(deepframe, tracetable, subarray,
-                                          save_results=save_results,
-                                          save_filename=save_filename)
+    centroids = utils.get_centroids_soss(deepframe, tracetable, subarray,
+                                         save_results=save_results,
+                                         save_filename=save_filename)
 
     # ===== PART 2: Create order 0 background contamination mask =====
     # If requested, create a mask for all background order 0 contaminants.
