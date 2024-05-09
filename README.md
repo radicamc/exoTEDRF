@@ -17,5 +17,5 @@ An installation guide, code documentation, and tutorials are included in the [ex
 If you make use of this code in your work, please cite [Radica et al. (2023)](https://ui.adsabs.harvard.edu/abs/2023MNRAS.524..835R/abstract) 
 and [Feinstein et al. (2023)](https://ui.adsabs.harvard.edu/abs/2023Natur.614..670F/abstract).  
 
-A list of other works you should consider citing depending on which functionalities you are using can be found [here]().
+A list of other works you should consider citing depending on which functionalities you are using can be found [here](https://exotedrf.readthedocs.io/en/latest/content/citations.html).
 
