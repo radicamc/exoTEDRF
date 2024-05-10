@@ -965,6 +965,9 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
     flux_clipped = np.copy(flux)
     nints, nwaves = np.shape(flux)
     flux_filt = medfilt(flux, (window, 1))
+    ii = window//2
+    flux_filt[:ii] = np.median(flux_filt[ii:(ii+window)], axis=0)
+    flux_filt[-ii:] = np.median(flux_filt[-(ii+1+window):-(ii+1)], axis=0)
 
     # Check along the time axis for outlier pixels.
     std_dev = np.median(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)

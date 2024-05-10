@@ -867,7 +867,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
         # wave1d += wave_shift
 
     # Clip remaining 3-sigma outliers.
-    flux_clip = utils.sigma_clip_lightcurves(flux, ferr, window=11)
+    flux_clip = utils.sigma_clip_lightcurves(flux, window=11, thresh=3)
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
