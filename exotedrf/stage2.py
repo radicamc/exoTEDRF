@@ -100,6 +100,76 @@ class AssignWCSStep:
         return results
 
 
+class Extract2DStep:
+    """Wrapper around default calwebb_spec2 2D Extraction step.
+    """
+
+    def __init__(self, input_data, output_dir='./'):
+        """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        output_dir : str
+            Path to directory to which to save outputs.
+        """
+
+        # Set up easy attributes.
+        self.tag = 'extract2dstep.fits'
+        self.output_dir = output_dir
+
+        # Unpack input data files.
+        datafiles = utils.sort_datamodels(input_data)
+        self.datafiles = []
+        for file in datafiles:
+            self.datafiles.append(utils.open_filetype(file))
+        self.fileroots = utils.get_filename_root(self.datafiles)
+
+    def run(self, save_results=True, force_redo=False, **kwargs):
+        """Method to run the step.
+
+        Parameters
+        ----------
+        save_results : bool
+            If True, save results.
+        force_redo : bool
+            If True, run step even if output files are detected.
+        kwargs : dict
+            Keyword arguments for calwebb_spec2.extract_2d_step.Extract2dStep.
+
+        Returns
+        -------
+        results : list(datamodel)
+            Input data files processed through the step.
+        """
+
+        results = []
+        all_files = glob.glob(self.output_dir + '*')
+        for i, segment in enumerate(self.datafiles):
+            # If an output file for this segment already exists, skip the step.
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            if expected_file in all_files and force_redo is False:
+                fancyprint('File {} already exists.'.format(expected_file))
+                fancyprint('Skipping 2D Extraction Step.')
+                res = datamodels.open(expected_file)
+            # If no output files are detected, run the step.
+            else:
+                step = calwebb_spec2.extract_2d_step.Extract2dStep()
+                res = step.call(segment, output_dir=self.output_dir,
+                                save_results=save_results, **kwargs)
+                # Verify that filename is correct.
+                if save_results is True:
+                    current_name = self.output_dir + res.meta.filename
+                    if expected_file != current_name:
+                        res.close()
+                        os.rename(current_name, expected_file)
+                        res = datamodels.open(expected_file)
+            results.append(res)
+
+        return results
+
+
 class SourceTypeStep:
     """Wrapper around default calwebb_spec2 Source Type Determination step.
     """
@@ -156,6 +226,76 @@ class SourceTypeStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_spec2.srctype_step.SourceTypeStep()
+                res = step.call(segment, output_dir=self.output_dir,
+                                save_results=save_results, **kwargs)
+                # Verify that filename is correct.
+                if save_results is True:
+                    current_name = self.output_dir + res.meta.filename
+                    if expected_file != current_name:
+                        res.close()
+                        os.rename(current_name, expected_file)
+                        res = datamodels.open(expected_file)
+            results.append(res)
+
+        return results
+
+
+class WaveCorrStep:
+    """Wrapper around default calwebb_spec2 Wavelength Correction step.
+    """
+
+    def __init__(self, input_data, output_dir='./'):
+        """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        output_dir : str
+            Path to directory to which to save outputs.
+        """
+
+        # Set up easy attributes.
+        self.tag = 'wavecorrstep.fits'
+        self.output_dir = output_dir
+
+        # Unpack input data files.
+        datafiles = utils.sort_datamodels(input_data)
+        self.datafiles = []
+        for file in datafiles:
+            self.datafiles.append(utils.open_filetype(file))
+        self.fileroots = utils.get_filename_root(self.datafiles)
+
+    def run(self, save_results=True, force_redo=False, **kwargs):
+        """Method to run the step.
+
+        Parameters
+        ----------
+        save_results : bool
+            If True, save results.
+        force_redo : bool
+            If True, run step even if output files are detected.
+        kwargs : dict
+            Keyword arguments for calwebb_spec2.wavecorr_step.WavecorrStep.
+
+        Returns
+        -------
+        results : list(datamodel)
+            Input data files processed through the step.
+        """
+
+        results = []
+        all_files = glob.glob(self.output_dir + '*')
+        for i, segment in enumerate(self.datafiles):
+            # If an output file for this segment already exists, skip the step.
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            if expected_file in all_files and force_redo is False:
+                fancyprint('File {} already exists.'.format(expected_file))
+                fancyprint('Skipping Wavelength Correction Step.')
+                res = datamodels.open(expected_file)
+            # If no output files are detected, run the step.
+            else:
+                step = calwebb_spec2.wavecorr_step.WavecorrStep()
                 res = step.call(segment, output_dir=self.output_dir,
                                 save_results=save_results, **kwargs)
                 # Verify that filename is correct.
@@ -394,6 +534,9 @@ class BadPixStep:
         self.fileroots = utils.get_filename_root(self.datafiles)
         self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, space_thresh=15, time_thresh=10, box_size=5,
             save_results=True, force_redo=False, do_plot=False,
             show_plot=False):
@@ -481,15 +624,17 @@ class TracingStep:
             Path to directory to which to save outputs.
         generate_order0_mask : bool
             If True, generate a mask of background star order 0s using an
-            F277W exposure.
+            F277W exposure. For SOSS observations only.
         f277w : str, np.ndarray(float)
             F277W exposure deepstack or path to a file containing one.
         calculate_stability : bool
             If True, calculate the observation stability using PCA.
         generate_lc : bool
             If True, generate an estimate of the order 1 white light curve.
+            For SOSS observations only.
         baseline_ints : array-like(int), None
-            Integration number(s) to use as ingress and/or egress.
+            Integration number(s) to use as ingress and/or egress. Only
+            necessary if generate_lc is True.
         """
 
         # Set up easy attribute.
@@ -529,6 +674,20 @@ class TracingStep:
             msg = 'Invalid type for f277w: {}'.format(type(f277w))
             raise ValueError(msg)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+        if self.instrument == 'NIRSPEC':
+            if generate_order0_mask is True:
+                fancyprint('generate_order0_mask is set to True, but mode is '
+                           'not NIRISS/SOSS. Ignoring generate_order0_mask.',
+                           msg_type='WARNING')
+                self.generate_order0_mask = False
+            if generate_lc is True:
+                fancyprint('generate_lc is set to True, but mode is not '
+                           'NIRISS/SOSS. Ignoring generate_lc.',
+                           msg_type='WARNING')
+                self.generate_lc = False
+
     def run(self, pixel_flags=None, pca_components=10, save_results=True,
             force_redo=False, smoothing_scale=None, do_plot=False,
             show_plot=False):
@@ -547,7 +706,8 @@ class TracingStep:
         force_redo : bool
             If True, run step even if output files are detected.
         smoothing_scale : int, None
-            Timescale on which to smooth light curve estimate.
+            Timescale on which to smooth light curve estimate. Only necessary
+            if generate_lc is True.
         do_plot : bool
             If True, do step diagnostic plot.
         show_plot : bool
@@ -890,8 +1050,13 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     newdata[newdata < 0] = 0
 
     # Loop over whole deepstack and flag deviant pixels.
+    instrument = utils.get_instrument_name(datafiles[0])
+    if instrument == 'NIRISS':
+        ymax = dimy - 5
+    else:
+        ymax = dimy
     for i in tqdm(range(5, dimx - 5)):
-        for j in range(dimy - 5):
+        for j in range(ymax):
             # If the pixel is known to be hot, add it to list to interpolate.
             if hot_pix[j, i]:
                 hotpix[j, i] = 1
@@ -937,9 +1102,14 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     # ===== Temporal Outlier Flagging =====
     fancyprint('Starting temporal outlier flagging...')
     # Median filter the data.
-    cube_filt = medfilt(newdata, (5, 1, 1))
-    cube_filt[:2] = np.median(cube_filt[2:7], axis=0)
-    cube_filt[-2:] = np.median(cube_filt[-8:-3], axis=0)
+    if instrument == 'NIRISS':
+        cube_filt = medfilt(newdata, (5, 1, 1))
+        cube_filt[:2] = np.median(cube_filt[2:7], axis=0)
+        cube_filt[-2:] = np.median(cube_filt[-8:-3], axis=0)
+    else:
+        cube_filt = medfilt(newdata, (11, 1, 1))
+        cube_filt[:5] = np.median(cube_filt[5:15], axis=0)
+        cube_filt[-5:] = np.median(cube_filt[-16:-6], axis=0)
     # Check along the time axis for outlier pixels.
     std_dev = bn.nanmedian(np.abs(0.5*(newdata[0:-2] + newdata[2:]) - newdata[1:-1]), axis=0)
     std_dev = np.where(std_dev == 0, np.nanmedian(std_dev), std_dev)
@@ -962,9 +1132,10 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     deepframe_itl[np.isnan(deepframe_itl)] = 0
 
     # Replace reference pixels with 0s.
-    newdata[:, -5:] = 0
     newdata[:, :, :5] = 0
     newdata[:, :, -5:] = 0
+    if instrument == 'NIRISS':
+        newdata[:, -5:] = 0
 
     # Make a final, corrected deepframe for the baseline intergations.
     deepframe_fnl = utils.make_deepstack(newdata[baseline_ints])
@@ -1003,6 +1174,11 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
     if do_plot is True:
         if save_results is True:
             outfile = output_dir + 'badpixstep.png'
+            # Get proper detector names for NIRSpec.
+            instrument = utils.get_instrument_name(results[0])
+            if instrument == 'NIRSPEC':
+                det = utils.get_detector_name(results[0])
+                outfile = outfile.replace('.png', '_{}.png'.format(det))
         else:
             outfile = None
         hotpix = np.where(hotpix != 0)
@@ -1098,25 +1274,39 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
             else:
                 cube = np.concatenate([cube, this_data], axis=0)
         deepframe = utils.make_deepstack(cube)
-    # Get the subarray dimensions.
-    dimy, dimx = np.shape(deepframe)
-    if dimy == 256:
-        subarray = 'SUBSTRIP256'
-    elif dimy == 96:
-        subarray = 'SUBSTRIP96'
-    else:
-        raise NotImplementedError
 
     # ===== PART 1: Get centroids for orders one to three =====
     fancyprint('Finding trace centroids.')
-    # Get the most up to date trace table file.
-    step = calwebb_spec2.extract_1d_step.Extract1dStep()
-    tracetable = step.get_reference_file(datafiles[0], 'spectrace')
-    # Get centroids via the edgetrigger method.
-    save_filename = output_dir + fileroot_noseg
-    centroids = utils.get_centroids_soss(deepframe, tracetable, subarray,
-                                         save_results=save_results,
-                                         save_filename=save_filename)
+    instrument = utils.get_instrument_name(datafiles[0])
+    if instrument == 'NIRISS':
+        # Get the subarray dimensions.
+        dimy, dimx = np.shape(deepframe)
+        if dimy == 256:
+            subarray = 'SUBSTRIP256'
+        elif dimy == 96:
+            subarray = 'SUBSTRIP96'
+        else:
+            raise NotImplementedError
+        # Get the most up to date trace table file.
+        step = calwebb_spec2.extract_1d_step.Extract1dStep()
+        tracetable = step.get_reference_file(datafiles[0], 'spectrace')
+        # Get centroids via the edgetrigger method.
+        save_filename = output_dir + fileroot_noseg
+        centroids = utils.get_centroids_soss(deepframe, tracetable, subarray,
+                                             save_results=save_results,
+                                             save_filename=save_filename)
+    else:
+        # Get centroids via the edgetrigger method.
+        save_filename = output_dir + fileroot_noseg
+        det = utils.get_detector_name(datafiles[0])
+        if det == 'nrs1' and not isinstance(datafiles[0],
+                                            datamodels.SlitModel):
+            xstart = 500
+        else:
+            xstart = 0
+        centroids = utils.get_centroids_nirspec(deepframe, xstart=xstart,
+                                                save_results=save_results,
+                                                save_filename=save_filename)
 
     # ===== PART 2: Create order 0 background contamination mask =====
     # If requested, create a mask for all background order 0 contaminants.
@@ -1155,7 +1345,12 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
         fancyprint('Calculating trace stability using the PCA method...')
 
         # Calculate the trace stability using PCA.
-        outfile = output_dir + 'soss_stability_pca.png'
+        outfile = output_dir + 'stability_pca.png'
+        # Get proper detector names for NIRSpec.
+        instrument = utils.get_instrument_name(datafiles[0])
+        if instrument == 'NIRSPEC':
+            det = utils.get_detector_name(datafiles[0])
+            outfile = outfile.replace('.png', '_{}.png'.format(det))
         pcs, var = soss_stability_pca(cube, n_components=pca_components,
                                       outfile=outfile, do_plot=do_plot,
                                       show_plot=show_plot)
@@ -1163,7 +1358,9 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
         for i, pc in enumerate(pcs):
             stability_results['Component {}'.format(i+1)] = pc
         # Save stability results.
-        suffix = 'soss_stability.csv'
+        suffix = 'stability.csv'
+        if instrument == 'NIRSPEC':
+            suffix = suffix.replace('.csv', '_{}.csv'.format(det))
         if os.path.exists(output_dir + fileroot_noseg + suffix):
             old_data = pd.read_csv(output_dir + fileroot_noseg + suffix,
                                    comment='#')
@@ -1304,13 +1501,14 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False,
     return pcs, var
 
 
-def run_stage2(results, background_model, baseline_ints, save_results=True,
-               force_redo=False, space_thresh=15, time_thresh=15,
-               calculate_stability=True, pca_components=10, timeseries=None,
-               timeseries_o2=None, oof_method='scale-achromatic',
-               root_dir='./', output_tag='', smoothing_scale=None,
-               skip_steps=None, generate_lc=True, inner_mask_width=40,
-               outer_mask_width=70, pixel_masks=None,
+def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
+               save_results=True, force_redo=False, space_thresh=15,
+               time_thresh=15,  calculate_stability=True, pca_components=10,
+               soss_timeseries=None, soss_timeseries_o2=None,
+               oof_method='scale-achromatic', root_dir='./', output_tag='',
+               smoothing_scale=None, skip_steps=None, generate_lc=True,
+               soss_inner_mask_width=40, soss_outer_mask_width=70,
+               nirspec_mask_width=16, pixel_masks=None,
                generate_order0_mask=True, f277w=None, do_plot=False,
                show_plot=False, centroids=None, **kwargs):
     """Run the exoTEDRF Stage 2 pipeline: spectroscopic processing,
@@ -1322,9 +1520,11 @@ def run_stage2(results, background_model, baseline_ints, save_results=True,
     ----------
     results : array-like(str), array-like(CubeModel)
         exoTEDRF Stage 1 output files.
-    background_model : array-like(float)
+    mode : str
+        Instrument mode which produced the data being analyzed.
+    soss_background_model : array-like(float), None
         SOSS background model or path to a file containing it.
-    baseline_ints : array-like(int)
+    baseline_ints : array-like(int), None
         Integrations of ingress and egress.
     save_results : bool
         If True, save results of each step to file.
@@ -1339,10 +1539,10 @@ def run_stage2(results, background_model, baseline_ints, save_results=True,
         the TSO using a PCA method.
     pca_components : int
         Number of PCA components to calculate.
-    timeseries : array-like(float), None
+    soss_timeseries : array-like(float), None
         Normalized 1D or 2D light curve(s) for order 1, or path to a file
         containing it.
-    timeseries_o2 : array-like(float), None
+    soss_timeseries_o2 : array-like(float), None
         Normalized 2D light curves for order 2, or path to a file contanining
         them. Only necessary if oof_method is "scale-chromatic".
     oof_method : str
@@ -1358,10 +1558,12 @@ def run_stage2(results, background_model, baseline_ints, save_results=True,
         Step names to skip (if any).
     generate_lc : bool
         If True, produce a smoothed order 1 white light curve.
-    inner_mask_width : int
+    soss_inner_mask_width : int
         Inner mask width, in pixels, around the trace centroids.
-    outer_mask_width : int
+    soss_outer_mask_width : int
         Outer mask width, in pixels, around the trace centroids.
+    nirspec_mask_width : int
+        Full-width (in pixels) around the target trace to mask for NIRSpec.
     pixel_masks: None, str, array-like(str)
         Paths to files containing existing pixel flags to which the order 0
         mask should be added. Only necesssary if generate_order0_mask is True.
@@ -1411,6 +1613,18 @@ def run_stage2(results, background_model, baseline_ints, save_results=True,
         results = step.run(save_results=save_results, force_redo=force_redo,
                            **step_kwargs)
 
+    # ===== Extract 2D Step =====
+    if mode == 'NIRSpec/G395H':
+        # Default DMS step.
+        if 'Extract2DStep' not in skip_steps:
+            if 'Extract2DStep' in kwargs.keys():
+                step_kwargs = kwargs['Extract2DStep']
+            else:
+                step_kwargs = {}
+            step = Extract2DStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results,
+                               force_redo=force_redo, **step_kwargs)
+
     # ===== Source Type Determination Step =====
     # Default DMS step.
     if 'SourceTypeStep' not in skip_steps:
@@ -1422,30 +1636,44 @@ def run_stage2(results, background_model, baseline_ints, save_results=True,
         results = step.run(save_results=save_results, force_redo=force_redo,
                            **step_kwargs)
 
+    # ===== Wavelength Correction Step =====
+    if mode == 'NIRSpec/G395H':
+        # Default DMS step.
+        if 'WaveCorrStep' not in skip_steps:
+            if 'WaveCorrStep' in kwargs.keys():
+                step_kwargs = kwargs['WaveCorrStep']
+            else:
+                step_kwargs = {}
+            step = WaveCorrStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results,
+                               force_redo=force_redo, **step_kwargs)
+
     # ===== Flat Field Correction Step =====
-    # Default DMS step.
-    if 'FlatFieldStep' not in skip_steps:
-        if 'FlatFieldStep' in kwargs.keys():
-            step_kwargs = kwargs['FlatFieldStep']
-        else:
-            step_kwargs = {}
-        step = FlatFieldStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           **step_kwargs)
+    if mode == 'NIRISS/SOSS':
+        # Default DMS step.
+        if 'FlatFieldStep' not in skip_steps:
+            if 'FlatFieldStep' in kwargs.keys():
+                step_kwargs = kwargs['FlatFieldStep']
+            else:
+                step_kwargs = {}
+            step = FlatFieldStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results,
+                               force_redo=force_redo, **step_kwargs)
 
     # ===== Background Subtraction Step =====
-    # Custom DMS step.
-    if 'BackgroundStep' not in skip_steps:
-        if 'BackgroundStep' in kwargs.keys():
-            step_kwargs = kwargs['BackgroundStep']
-        else:
-            step_kwargs = {}
-        step = BackgroundStep(results, baseline_ints=baseline_ints,
-                              background_model=background_model,
-                              output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           do_plot=do_plot, show_plot=show_plot,
-                           **step_kwargs)[0]
+    if mode == 'NIRISS/SOSS':
+        # Custom DMS step.
+        if 'BackgroundStep' not in skip_steps:
+            if 'BackgroundStep' in kwargs.keys():
+                step_kwargs = kwargs['BackgroundStep']
+            else:
+                step_kwargs = {}
+            step = BackgroundStep(results, baseline_ints=baseline_ints,
+                                  background_model=soss_background_model,
+                                  output_dir=outdir)
+            results = step.run(save_results=save_results,
+                               force_redo=force_redo, do_plot=do_plot,
+                               show_plot=show_plot, **step_kwargs)[0]
 
     # ===== 1/f Noise Correction Step =====
     # Custom DMS step.
@@ -1458,10 +1686,11 @@ def run_stage2(results, background_model, baseline_ints, save_results=True,
                                    baseline_ints=baseline_ints,
                                    pixel_masks=pixel_masks,
                                    centroids=centroids, method=oof_method,
-                                   soss_timeseries=timeseries,
-                                   soss_timeseries_o2=timeseries_o2)
-        results = step.run(soss_inner_mask_width=inner_mask_width,
-                           soss_outer_mask_width=outer_mask_width,
+                                   soss_timeseries=soss_timeseries,
+                                   soss_timeseries_o2=soss_timeseries_o2)
+        results = step.run(soss_inner_mask_width=soss_inner_mask_width,
+                           soss_outer_mask_width=soss_outer_mask_width,
+                           nirspec_mask_width=nirspec_mask_width,
                            save_results=save_results, force_redo=force_redo,
                            do_plot=do_plot, show_plot=show_plot, **step_kwargs)
 

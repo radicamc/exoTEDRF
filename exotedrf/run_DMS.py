@@ -77,8 +77,9 @@ if 1 in config['run_stages']:
             else:
                 stage1_skip.append(step)
     # Run stage 1.
-    stage1_results = run_stage1(input_files, soss_background_model=config[
-        'background_file'], baseline_ints=config['baseline_ints'],
+    stage1_results = run_stage1(input_files,
+                                soss_background_model=config['background_file'],
+                                baseline_ints=config['baseline_ints'],
                                 oof_method=config['oof_method'],
                                 soss_timeseries=config['timeseries'],
                                 soss_timeseries_o2=config['timeseries_o2'],
@@ -88,15 +89,12 @@ if 1 in config['run_stages']:
                                 flag_up_ramp=config['flag_up_ramp'],
                                 rejection_threshold=config['jump_threshold'],
                                 flag_in_time=config['flag_in_time'],
-                                time_rejection_threshold=config[
-                                    'time_jump_threshold'],
+                                time_rejection_threshold=config['time_jump_threshold'],
                                 output_tag=config['output_tag'],
                                 skip_steps=stage1_skip,
                                 do_plot=config['do_plots'],
-                                soss_inner_mask_width=config[
-                                    'inner_mask_width'],
-                                soss_outer_mask_width=config[
-                                    'outer_mask_width'],
+                                soss_inner_mask_width=config['inner_mask_width'],
+                                soss_outer_mask_width=config['outer_mask_width'],
                                 centroids=config['centroids'],
                                 **config['stage1_kwargs'])
 else:
@@ -117,7 +115,7 @@ if 2 in config['run_stages']:
                 stage2_skip.append(step)
     # Run stage 2.
     stage2_results = run_stage2(stage1_results,
-                                background_model=config['background_file'],
+                                soss_background_model=config['background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 save_results=config['save_results'],
                                 force_redo=config['force_redo'],
@@ -125,20 +123,20 @@ if 2 in config['run_stages']:
                                 time_thresh=config['time_outlier_threshold'],
                                 calculate_stability=config['calculate_stability'],
                                 pca_components=config['pca_components'],
-                                timeseries=config['timeseries'],
-                                timeseries_o2=config['timeseries_o2'],
+                                soss_timeseries=config['timeseries'],
+                                soss_timeseries_o2=config['timeseries_o2'],
                                 oof_method=config['oof_method'],
                                 output_tag=config['output_tag'],
                                 smoothing_scale=config['smoothing_scale'],
                                 skip_steps=stage2_skip,
                                 generate_lc=config['generate_lc'],
-                                inner_mask_width=config['inner_mask_width'],
-                                outer_mask_width=config['outer_mask_width'],
-                                centroids=config['centroids'],
+                                soss_inner_mask_width=config['inner_mask_width'],
+                                soss_outer_mask_width=config['outer_mask_width'],
                                 pixel_masks=config['outlier_maps'],
                                 generate_order0_mask=config['generate_order0_mask'],
                                 f277w=config['f277w'],
                                 do_plot=config['do_plots'],
+                                centroids=config['centroids'],
                                 **config['stage2_kwargs'])
 else:
     stage2_results = input_files

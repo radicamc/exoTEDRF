@@ -1323,7 +1323,8 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
 
 def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
                          pixel_masks=None, fileroots=None, mask_width=16,
-                         centroids=None, method='median'):
+                         centroids=None, method='median',
+                         override_centroids=False):
     """Custom 1/f correction routine to be applied at the group level. The
     median level of each detector column is subtracted off while masking
     outlier pixels and the target trace.
@@ -1348,6 +1349,9 @@ def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
         Dictionary containing trace positions for each order.
     method : str
         1/f correction method. Options are "median" or "slope".
+    override_centroids : bool
+        If True, when passed centroids do not match the shape of the data
+        frame, use passed centroids and do not recalculate.
 
     Returns
     -------
@@ -1382,6 +1386,21 @@ def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
         nint, dimy, dimx = np.shape(cube)
 
     # Get the trace centroids.
+    if centroids is not None:
+        # Unpack centroids if provided.
+        fancyprint('Unpacking centroids.')
+        xpos, ypos = centroids['xpos'], centroids['ypos']
+        # If centroids on trimmed slit data frame are passed to be used on
+        # full frame data, recalculate centroids on data, unless overridden.
+        # This is mostly just cosmetic as we only care about the "in slit"
+        # data, however, I like my plots to look nice and not have part of the
+        # detector corrected and part not.
+        if len(xpos) != dimx and override_centroids is False:
+            fancyprint('Dimension of passed centroids do not match data frame '
+                       'dimensions. New centroids will be calculated.',
+                       msg_type='WARNING')
+            centroids = None
+
     if centroids is None:
         # If no centroids file is provided, get the trace positions from the
         # data now.
@@ -1395,17 +1414,13 @@ def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
         deepstack = bn.nanmedian(thiscube, axis=0)
         # Get detector to determine x limits.
         det = utils.get_detector_name(datafiles[0])
-        if det == 'nrs1':
+        if det == 'nrs1' and not isinstance(datafiles[0], datamodels.SlitModel):
             xstart = 500
         else:
             xstart = 0
         centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart,
                                                 save_results=False)
         xpos, ypos = centroids[0], centroids[1]
-    else:
-        # Unpack centroids if provided.
-        fancyprint('Unpacking centroids.')
-        xpos, ypos = centroids['xpos'], centroids['ypos']
 
     # Read in the outlier maps - (nints, dimy, dimx) 3D cubes.
     if pixel_masks is None:
@@ -1415,6 +1430,15 @@ def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
     else:
         fancyprint('Constructing outlier map.')
         for i, badpix in enumerate(pixel_masks):
+            # If the correction is at the integration level after performing
+            # the Extract2D step, the detector size will be limited to that
+            # illuminated by the slit. Trim pixel masks to match.
+            if isinstance(datafiles[0], datamodels.SlitModel):
+                xstart = datafiles[0].xstart - 1  # 1-indexed.
+                xend = xstart + datafiles[0].xsize
+                ystart = datafiles[0].ystart - 1
+                yend = ystart + datafiles[0].ysize
+                badpix = badpix[:, ystart:yend, xstart:xend]
             # Create mask cubes.
             if i == 0:
                 outliers = badpix.astype(bool)
@@ -1469,7 +1493,7 @@ def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
             # pixels as the 1/f + background level.
             if method == 'median':
                 # For group-level corrections.
-                if np.ndim(cube == 4):
+                if np.ndim(cube) == 4:
                     dc[:, :, :] = bn.nanmedian(cube[i], axis=1)[:, None, :]
                 # For integration-level corrections.
                 else:
