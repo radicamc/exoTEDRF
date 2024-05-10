@@ -56,12 +56,12 @@ f.close()
 
 # Unpack all files in the input directory.
 input_files = unpack_input_dir(config['input_dir'],
-                               mode=config['mode'],
+                               mode=config['observing_mode'],
                                filetag=config['input_filetag'],
                                filter_detector=config['filter_detector'])
 fancyprint('Identified {0} {1} {2} observation '
            'segment(s)'.format(len(input_files), config['filter_detector'],
-                               config['mode']))
+                               config['observing_mode']))
 for file in input_files:
     fancyprint(' ' + file)
 

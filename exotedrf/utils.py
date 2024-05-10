@@ -1078,8 +1078,8 @@ def unpack_input_dir(indir, mode, filter_detector, filetag=''):
     all_files = glob.glob(indir + '*')
     segments = []
 
-    instrument = mode.split['/'][0]
-    exposure_type = mode.split['/'][1]
+    instrument = mode.split('/')[0]
+    exposure_type = mode.split('/')[1]
 
     # Check all files in the input directory to see if they match the
     # specified exposure type and file tag.

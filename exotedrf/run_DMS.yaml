@@ -11,7 +11,7 @@ input_dir : 'DMS_uncal/'
 input_filetag : 'uncal'
 # Instrument mode used. Currently tested are 'NIRISS/SOSS' and 'NIRSpec/G395H', though other NIRSpec gratings are
 # also supported.
-mode : 'NIRISS/SOSS'
+observing_mode : 'NIRISS/SOSS'
 # Type of filter or detector used. For SOSS, either 'CLEAR' or 'F277W'. For NIRSpec, either 'NRS1' or 'NRS2'.
 filter_detector : 'CLEAR'
 
