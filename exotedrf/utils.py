@@ -836,33 +836,20 @@ def parse_config(config_file):
     return config
 
 
-def save_extracted_spectra(filename, wl1, wu1, f1, e1, wl2, wu2, f2, e2, t,
-                           header_dict=None, header_comments=None,
-                           save_results=True):
+def save_extracted_spectra(filename, data, names, units, header_dict=None,
+                           header_comments=None, save_results=True):
     """Pack stellar spectra into a fits file.
 
     Parameters
     ----------
     filename : str
         File to which to save results.
-    wl1 : array-like[float]
-        Order 1 wavelength bin lower limits.
-    wu1 : array-like[float]
-        Order 1 wavelength bin upper limits.
-    f1 : array-like[float]
-        Order 1 flux.
-    e1 : array-like[float]
-        Order 1 flux error.
-    wl2 : array-like[float]
-        Order 2 wavelength bin lower limits.
-    wu2 : array-like[float]
-        Order 2 wavelength bin upper limits.
-    f2 : array-like[float]
-        Order 2 flux.
-    e2 : array-like[float]
-        Order 2 flux error.
-    t : array-like[float]
-        Time axis.
+    data : array-like[float]
+        Data to save.
+    names : array-like[str]
+        Names of data.
+    units : array-like[str]
+        Units of dat.
     header_dict : dict
         Header keywords and values.
     header_comments : dict
@@ -885,57 +872,21 @@ def save_extracted_spectra(filename, wl1, wu1, f1, e1, wl2, wu2, f2, e2, t,
                 hdr.comments[key] = header_comments[key]
     hdu1 = fits.PrimaryHDU(header=hdr)
 
-    # Pack order 1 values.
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Wave Low O1"
-    hdr['UNITS'] = "Micron"
-    hdu2 = fits.ImageHDU(wl1, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Wave Up O1"
-    hdr['UNITS'] = "Micron"
-    hdu3 = fits.ImageHDU(wu1, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Flux O1"
-    hdr['UNITS'] = "DN/s"
-    hdu4 = fits.ImageHDU(f1, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Flux Err O1"
-    hdr['UNITS'] = "DN/s"
-    hdu5 = fits.ImageHDU(e1, header=hdr)
-
-    # Pack order 2 values.
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Wave Low O2"
-    hdr['UNITS'] = "Micron"
-    hdu6 = fits.ImageHDU(wl2, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Wave Up O2"
-    hdr['UNITS'] = "Micron"
-    hdu7 = fits.ImageHDU(wu2, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Flux O2"
-    hdr['UNITS'] = "DN/s"
-    hdu8 = fits.ImageHDU(f2, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Flux Err O2"
-    hdr['UNITS'] = "DN/s"
-    hdu9 = fits.ImageHDU(e2, header=hdr)
-
-    # Pack time axis.
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Time"
-    hdr['UNITS'] = "MJD"
-    hdu10 = fits.ImageHDU(t, header=hdr)
+    hdulist = [hdu1]
+    param_dict = {}
+    assert len(data) == len(names) == len(units)
+    # Pack data.
+    for d, n, u in zip(data, names, units):
+        hdr = fits.Header()
+        hdr['EXTNAME'] = n
+        hdr['UNITS'] = u
+        hdulist.append(fits.ImageHDU(d, header=hdr))
+        param_dict[n] = d
 
     if save_results is True:
         fancyprint('Spectra saved to {}'.format(filename))
-        hdul = fits.HDUList([hdu1, hdu2, hdu3, hdu4, hdu5, hdu6, hdu7, hdu8,
-                             hdu9, hdu10])
+        hdul = fits.HDUList(hdulist)
         hdul.writeto(filename, overwrite=True)
-
-    param_dict = {'Wave Low O1': wl1, 'Wave Up O1': wu1, 'Flux O1': f1,
-                  'Flux Err O1': e1, 'Wave Low O2': wl2, 'Wave Up O2': wu2,
-                  'Flux O2': f2, 'Flux Err O2': e2, 'Time': t}
 
     return param_dict
 
