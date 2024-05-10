@@ -1102,8 +1102,8 @@ def get_soss_estimate(atoca_spectra, output_dir):
 
 
 def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
-               extract_method='box', specprofile=None, centroids=None,
-               soss_width=40, st_teff=None, st_logg=None, st_met=None,
+               extract_method='box', soss_specprofile=None, centroids=None,
+               extract_width=40, st_teff=None, st_logg=None, st_met=None,
                planet_letter='b', output_tag='', do_plot=False,
                show_plot=False, **kwargs):
     """Run the exoTEDRF Stage 3 pipeline: 1D spectral extraction, using
@@ -1121,11 +1121,11 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
         If True, redo steps even if outputs files are already present.
     extract_method : str
         Either 'box' or 'atoca'. Runs the applicable 1D extraction routine.
-    specprofile : str, None
+    soss_specprofile : str, None
         Specprofile reference file; only neceessary for ATOCA extractions.
     centroids : str, None
         Path to file containing trace positions for each order.
-    soss_width : int
+    extract_width : int
         Width around the trace centroids, in pixels, for the 1D extraction.
     st_teff : float, None
         Stellar effective temperature.
@@ -1165,13 +1165,13 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
     # ===== SpecProfile Construction Step =====
     # Custom DMS step
     if extract_method == 'atoca':
-        if specprofile is None:
+        if soss_specprofile is None:
             if 'SpeProfileStep' in kwargs.keys():
                 step_kwargs = kwargs['SpeProfileStep']
             else:
                 step_kwargs = {}
             step = SpecProfileStep(results, output_dir=outdir)
-            specprofile = step.run(force_redo=force_redo, **step_kwargs)
+            soss_specprofile = step.run(force_redo=force_redo, **step_kwargs)
 
     # ===== 1D Extraction Step =====
     # Custom/default DMS step.
@@ -1182,7 +1182,8 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
     step = Extract1DStep(results, extract_method=extract_method,
                          st_teff=st_teff, st_logg=st_logg, st_met=st_met,
                          planet_letter=planet_letter,  output_dir=outdir)
-    spectra = step.run(extract_width=soss_width, soss_specprofile=specprofile,
+    spectra = step.run(extract_width=extract_width,
+                       soss_specprofile=soss_specprofile,
                        centroids=centroids, save_results=save_results,
                        force_redo=force_redo, do_plot=do_plot,
                        show_plot=show_plot, **step_kwargs)

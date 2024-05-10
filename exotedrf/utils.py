@@ -1046,7 +1046,7 @@ def unpack_atoca_spectra(datafile,
     return all_spec
 
 
-def unpack_input_dir(indir, filetag='', exposure_type='CLEAR'):
+def unpack_input_dir(indir, mode, filter_detector, filetag=''):
     """Get all segment files of a specified exposure type from an input data
      directory.
 
@@ -1054,14 +1054,18 @@ def unpack_input_dir(indir, filetag='', exposure_type='CLEAR'):
     ----------
     indir : str
         Path to input directory.
+    mode : str
+        Instrument mode. Currently tested are "NIRISS/SOSS" and
+        "NIRSpec/G395H". Though other NIRSpec gratings are also supported.
+    filter_detector : str
+        Filter or detector used. For SOSS, either "CLEAR" or "F277W". For
+        NIRSpec, either "NRS1" or "NRS2".
     filetag : str
         File name extension of files to unpack.
-    exposure_type : str
-        Either 'CLEAR' or 'F277W'; unpacks the corresponding exposure type.
 
     Returns
     -------
-    segments: array-like[str]
+    segments: ndarray[str]
         File names of the requested exposure and file tag in chronological
         order.
     """
@@ -1070,6 +1074,9 @@ def unpack_input_dir(indir, filetag='', exposure_type='CLEAR'):
         indir += '/'
     all_files = glob.glob(indir + '*')
     segments = []
+
+    instrument = mode.split['/'][0]
+    exposure_type = mode.split['/'][1]
 
     # Check all files in the input directory to see if they match the
     # specified exposure type and file tag.
@@ -1081,9 +1088,17 @@ def unpack_input_dir(indir, filetag='', exposure_type='CLEAR'):
             continue
         # Keep files of the correct exposure with the correct tag.
         try:
-            if header['FILTER'] == exposure_type:
-                if filetag in file:
-                    segments.append(file)
+            if header['INSTRUME'] == instrument.upper() and instrument == 'NIRISS':
+                if header['EXP_TYPE'].split('_')[1] == exposure_type:
+                    if header['FILTER'] == filter_detector:
+                        if filetag in file:
+                            segments.append(file)
+            elif header['INSTRUME'] == instrument.upper() and instrument == 'NIRSpec':
+                if header['EXP_TYPE'] == 'NRS_BRIGHTOBJ':
+                    if header['GRATING'] == exposure_type:
+                        if header['DETECTOR'] == filter_detector:
+                            if filetag in file:
+                                segments.append(file)
             else:
                 continue
         except KeyError:
