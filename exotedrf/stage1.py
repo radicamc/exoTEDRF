@@ -220,6 +220,7 @@ class SuperBiasStep:
             self.datafiles.append(utils.open_filetype(file))
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, do_plot=False,
@@ -725,6 +726,9 @@ class LinearityStep:
             self.datafiles.append(utils.open_filetype(file))
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, do_plot=False,
             show_plot=False, **kwargs):
         """Method to run the step.
@@ -779,6 +783,12 @@ class LinearityStep:
                                                                 '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits',
                                                                 '_2.png')
+                if self.instrument == 'NIRSPEC':
+                    det = utils.get_detector_name(self.datafiles[0])
+                    plot_file1 = plot_file1.replace('.png',
+                                                    '_{}.png'.format(det))
+                    plot_file2 = plot_file2.replace('.png',
+                                                    '_{}.png'.format(det))
             else:
                 plot_file1, plot_file2 = None, None
             plotting.make_linearity_plot(results, self.datafiles,
@@ -817,6 +827,9 @@ class JumpStep:
         for file in datafiles:
             self.datafiles.append(utils.open_filetype(file))
         self.fileroots = utils.get_filename_root(self.datafiles)
+
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, flag_up_ramp=False,
             rejection_threshold=15, flag_in_time=True,
@@ -912,10 +925,16 @@ class JumpStep:
         if do_plot is True:
             if save_results is True:
                 plot_file = self.output_dir + self.tag.replace('.fits', '.png')
+                if self.instrument == 'NIRSPEC':
+                    det = utils.get_detector_name(self.datafiles[0])
+                    plot_file = plot_file.replace('.png',
+                                                  '_{}.png'.format(det))
             else:
                 plot_file = None
             plotting.make_jump_location_plot(results, outfile=plot_file,
                                              show_plot=show_plot)
+
+        fancyprint('Step JumpStep done.')
 
         return results
 
@@ -945,6 +964,9 @@ class RampFitStep:
         for file in datafiles:
             self.datafiles.append(utils.open_filetype(file))
         self.fileroots = utils.get_filename_root(self.datafiles)
+
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
@@ -997,33 +1019,41 @@ class RampFitStep:
                 if save_results is True:
                     res.save(self.output_dir + res.meta.filename)
 
+                # Store pixel flags for use in 1/f correction.
                 if save_results is True:
-                    # Store flags for use in 1/f correction.
                     flags = res.dq
                     flags[flags != 0] = 1  # Convert to binary mask.
-                    # Mask detector reset artifact.
-                    int_start = res.meta.exposure.integration_start
-                    int_end = np.min([res.meta.exposure.integration_end, 256])
-                    # Artifact only affects first 256 integrations.
-                    if int_start < 255:
-                        for j, jj in enumerate(range(int_start, int_end)):
-                            # j counts ints from start of this segment, jj is
-                            # integrations from start of exposure (1-indexed).
-                            # Mask rows from jj to jj+3 for detector reset
-                            # artifact.
-                            min_row = np.max([256-(jj+3), 0])
-                            max_row = np.min([(258 - jj), 256])
-                            flags[j, min_row:max_row, :] = 1
+                    # NIRISS observations have a line of bright pixels that
+                    # move down the detector one row at a time each
+                    # integration. IDK why exactly, its a "detector reset
+                    # artifact" according to Loïc. It needs to be masked.
+                    if self.instrument == 'NIRISS':
+                        # Mask detector reset artifact.
+                        int_start = res.meta.exposure.integration_start
+                        int_end = np.min([res.meta.exposure.integration_end, 256])
+                        # Artifact only affects first 256 integrations.
+                        if int_start < 255:
+                            for j, jj in enumerate(range(int_start, int_end)):
+                                # j counts ints from start of this segment, jj
+                                # is integrations from start of exposure
+                                # (1-indexed).
+                                # Mask rows from jj to jj+3 for detector reset
+                                # artifact.
+                                min_row = np.max([256-(jj+3), 0])
+                                max_row = np.min([(258 - jj), 256])
+                                flags[j, min_row:max_row, :] = 1
                     # Save flags to file.
                     hdu = fits.PrimaryHDU()
                     hdu1 = fits.ImageHDU(flags)
                     hdul = fits.HDUList([hdu, hdu1])
                     outfile = self.output_dir + self.fileroots[i] + 'pixelflags.fits'
                     hdul.writeto(outfile, overwrite=True)
+
                     # Remove rate file because we don't need it and I don't
                     # like having extra files.
                     rate = res.meta.filename.replace('_1_ramp', '_0_ramp')
                     os.remove(self.output_dir + rate)
+
                     # Verify that filename is correct.
                     current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
@@ -1031,6 +1061,8 @@ class RampFitStep:
                         os.rename(current_name, expected_file)
                         res = datamodels.open(expected_file)
             results.append(res)
+
+        fancyprint('Step RampFitStep really done.')
 
         return results
 
