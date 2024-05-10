@@ -107,7 +107,7 @@ else:
 if 2 in config['run_stages']:
     # Determine which steps to run and which to skip.
     steps = ['AssignWCSStep', 'Extract2DStep', 'SourceTypeStep',
-             'WaveCorrStep' 'FlatFieldStep', 'OneOverFStep_int',
+             'WaveCorrStep', 'FlatFieldStep', 'OneOverFStep_int',
              'BackgroundStep', 'TracingStep', 'BadPixStep']
     stage2_skip = []
     for step in steps:
