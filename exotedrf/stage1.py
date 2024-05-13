@@ -602,7 +602,7 @@ class OneOverFStep:
             return results
 
         # If no output files are detected, run the step.
-        if self.instrument == 'SOSS':
+        if self.instrument == 'NIRISS':
             if self.method in ['scale-chromatic', 'scale-achromatic',
                                'scale-achromatic-window']:
                 # To use "reference files" to calculate 1/f noise.
