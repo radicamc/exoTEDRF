@@ -491,6 +491,7 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False,
     """
 
     datafiles = np.atleast_1d(datafiles)
+    det = utils.get_detector_name(datafiles[0])
     # Get flux and errors to extract.
     for i, file in enumerate(datafiles):
         with utils.open_filetype(file) as datamodel:
@@ -510,9 +511,13 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False,
         # Extract with a variety of widths and find the one that minimizes
         # the white light curve scatter.
         scatter = []
+        if det == 'nrs1':
+            xstart = 500
+        else:
+            xstart = 0
         for w in tqdm(range(1, 12)):
             flux = do_box_extraction(cube, ecube, y1, width=w,
-                                     progress=False)[0]
+                                     progress=False, extract_start=xstart)[0]
             wlc = np.nansum(flux, axis=1)
             s = np.median(np.abs(0.5*(wlc[0:-2] + wlc[2:]) - wlc[1:-1]))
             scatter.append(s)
@@ -534,7 +539,12 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False,
     # ===== Extraction ======
     # Do the extraction.
     fancyprint('Performing simple aperture extraction.')
-    flux, ferr = do_box_extraction(cube, ecube, y1, width=extract_width)
+    if det == 'nrs1':
+        xstart = 500
+    else:
+        xstart = 0
+    flux, ferr = do_box_extraction(cube, ecube, y1, width=extract_width,
+                                   extract_start=xstart)
 
     # Get default 2D wavelength solution.
     with datamodels.open(datafiles[0]) as d:
@@ -700,18 +710,19 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0,
     # Loop over all integrations and sum flux within the extraction aperture.
     for i in tqdm(range(nint), disable=not progress):
         for x in range(extract_start, extract_end):
+            xx = x - extract_start
             # First sum the whole pixel components within the aperture.
-            up_whole = np.floor(edge_up[x]).astype(int)
-            low_whole = np.ceil(edge_low[x]).astype(int)
+            up_whole = np.floor(edge_up[xx]).astype(int)
+            low_whole = np.ceil(edge_low[xx]).astype(int)
             this_flux = np.sum(cube[i, low_whole:up_whole, x])
             this_err = np.sum(err[i, low_whole:up_whole, x]**2)
 
             # Now incorporate the partial pixels at the upper and lower edges.
-            if edge_up[x] >= (dimy-1) or edge_low[x] == 0:
+            if edge_up[xx] >= (dimy-1) or edge_low[xx] == 0:
                 continue
             else:
-                up_part = edge_up[x] % 1
-                low_part = 1 - edge_low[x] % 1
+                up_part = edge_up[xx] % 1
+                low_part = 1 - edge_low[xx] % 1
                 this_flux += (up_part * cube[i, up_whole, x] +
                               low_part * cube[i, low_whole, x])
                 this_err += (up_part * err[i, up_whole, x]**2 +
