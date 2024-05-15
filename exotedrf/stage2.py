@@ -11,6 +11,7 @@ Custom JWST DMS pipeline steps for Stage 2 (Spectroscopic processing).
 from astropy.io import fits
 import bottleneck as bn
 import copy
+from functools import partial
 import glob
 import more_itertools as mit
 import numpy as np
@@ -23,6 +24,7 @@ from tqdm import tqdm
 import warnings
 
 from jwst import datamodels
+import jwst.assign_wcs.nirspec
 from jwst.pipeline import calwebb_spec2
 
 import exotedrf.stage1 as stage1
@@ -56,6 +58,9 @@ class AssignWCSStep:
             self.datafiles.append(utils.open_filetype(file))
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
@@ -85,6 +90,13 @@ class AssignWCSStep:
                 res = datamodels.open(expected_file)
             # If no output files are detected, run the step.
             else:
+                if self.instrument == 'NIRSPEC':
+                    # Edit slit parameters so wavelength solution can be
+                    # correctly calculated.
+                    jwst.assign_wcs.nirspec.nrs_wcs_set_input = \
+                        partial(jwst.assign_wcs.nirspec.nrs_wcs_set_input,
+                                wavelength_range=[2.3e-06, 5.3e-06],
+                                slit_y_low=-1, slit_y_high=50)
                 step = calwebb_spec2.assign_wcs_step.AssignWcsStep()
                 res = step.call(segment, output_dir=self.output_dir,
                                 save_results=save_results, **kwargs)
@@ -1299,8 +1311,7 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
         # Get centroids via the edgetrigger method.
         save_filename = output_dir + fileroot_noseg
         det = utils.get_detector_name(datafiles[0])
-        if det == 'nrs1' and not isinstance(datafiles[0],
-                                            datamodels.SlitModel):
+        if det == 'nrs1':
             xstart = 500
         else:
             xstart = 0

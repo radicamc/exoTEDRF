@@ -1414,7 +1414,7 @@ def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
         deepstack = bn.nanmedian(thiscube, axis=0)
         # Get detector to determine x limits.
         det = utils.get_detector_name(datafiles[0])
-        if det == 'nrs1' and not isinstance(datafiles[0], datamodels.SlitModel):
+        if det == 'nrs1':
             xstart = 500
         else:
             xstart = 0
