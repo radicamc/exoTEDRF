@@ -17,7 +17,6 @@ import pastasoss
 from scipy.interpolate import interp1d
 from scipy.signal import butter, filtfilt
 from tqdm import tqdm
-import os
 
 from applesoss import applesoss
 
@@ -1047,7 +1046,7 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
     header_dict['Target'] = target_name[:-2]
     header_dict['Contents'] = 'Full resolution stellar spectra'
     header_dict['Method'] = extract_params['method']
-    header_dict['Width'] = extract_params['soss_width']
+    header_dict['Width'] = extract_params['extract_width']
     # Calculate the limits of each wavelength bin.
     nint = np.shape(flux_o1_clip)[0]
     wl1, wu1 = utils.get_wavebin_limits(wave1d_o1)

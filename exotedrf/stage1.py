@@ -1503,7 +1503,7 @@ def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
             # that as the 1/f + background level.
             elif method == 'slope':
                 # For group-level corrections.
-                if np.ndim(cube == 4):
+                if np.ndim(cube) == 4:
                     for xx in range(dimx):
                         xpos = np.arange(dimy)
                         ypos = cube[i][:, :, xx]

@@ -21,6 +21,8 @@ from scipy.ndimage import median_filter
 from tqdm import tqdm
 import warnings
 
+from jwst import datamodels
+
 from exotedrf import utils
 from exotedrf.utils import fancyprint
 
@@ -602,8 +604,8 @@ def make_linearity_plot(results, old_results, outfile=None, show_plot=True):
                 old_cube = datamodel.data
             else:
                 old_cube = np.concatenate([old_cube, datamodel.data])
-
     nint, ngroup, dimy, dimx = np.shape(cube)
+
     # Get bright pixels in the trace.
     stack = bn.nanmedian(cube[np.random.randint(0, nint, 25), -1], axis=0)
     ii = np.where((stack >= np.nanpercentile(stack, 80)) &
@@ -840,15 +842,13 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
             else:
                 old_cube = np.concatenate([old_cube, datamodel.data])
     old_cube = np.where(np.isnan(old_cube), np.nanmedian(old_cube), old_cube)
+    mask_cube = None
     if pixel_masks is not None:
         for i, data in enumerate(pixel_masks):
             if i == 0:
                 mask_cube = data
             else:
                 mask_cube = np.concatenate([mask_cube, data])
-
-    else:
-        mask_cube = None
 
     if np.ndim(cube) == 4:
         nints, ngroups, dimy, dimx = np.shape(cube)
@@ -857,6 +857,38 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
     baseline_ints = utils.format_out_frames(baseline_ints)
     old_deep = bn.nanmedian(old_cube[baseline_ints], axis=0)
     deep = bn.nanmedian(cube[baseline_ints], axis=0)
+
+    # Mask trace.
+    det = utils.get_detector_name(results[0])
+    if det == 'nrs1' and not isinstance(results[0], datamodels.SlitModel):
+        xstart = 500
+    else:
+        xstart = 0
+    if np.ndim(cube) == 4:
+        thisdeep = deep[:, -1]
+    else:
+        thisdeep = deep
+    centroids = utils.get_centroids_nirspec(thisdeep, xstart=xstart,
+                                            save_results=False)
+    xpos, ypos = centroids[0], centroids[1]
+
+    inst = utils.get_instrument_name(results[0])
+    if inst == 'NIRISS':
+        mask_width = 45
+    else:
+        mask_width = 16
+    low = np.max([np.zeros_like(ypos),
+                  ypos - mask_width / 2], axis=0).astype(int)
+    up = np.min([dimy * np.ones_like(ypos),
+                 ypos + mask_width / 2], axis=0).astype(int)
+    tracemask = np.zeros((dimy, dimx))
+    for i, x in enumerate(xpos):
+        tracemask[low[i]:up[i], int(x)] = 1
+    # Add the trace mask to the outliers cube.
+    if mask_cube is not None:
+        mask_cube = (mask_cube.astype(bool) | tracemask.astype(bool)).astype(int)
+    else:
+        mask_cube = np.repeat(tracemask[np.newaxis], nints, axis=0).astype(int)
 
     # Get smoothed light curve.
     if isinstance(timeseries, str):
