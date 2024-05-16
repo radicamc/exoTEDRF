@@ -344,14 +344,15 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
     return results
 
 
-def gen_ld_coefs(spectrace_ref, wavebin_low, wavebin_up, order, m_h, logg,
-                 teff, ld_data_path, model_type='stagger'):
+def gen_ld_coefs(wavebin_low, wavebin_up, order, m_h, logg, teff,
+                 ld_data_path, spectrace_ref=None, mode=None,
+                 model_type='stagger'):
     """Generate estimates of quadratic limb-darkening coefficients using the
     ExoTiC-LD package.
 
     Parameters
     ----------
-    spectrace_ref : str
+    spectrace_ref : str, None
         Path to spectrace reference file.
     wavebin_low : array-like[float]
         Lower edge of wavelength bins.
@@ -367,6 +368,8 @@ def gen_ld_coefs(spectrace_ref, wavebin_low, wavebin_up, order, m_h, logg,
         Stellar effective temperature in K.
     ld_data_path : str
         Path to ExoTiC-LD model data.
+    mode : str
+        ExoTiC-LD instrument mode identifier.
     model_type : str
         Identifier for type of stellar model to use. See
         https://exotic-ld.readthedocs.io/en/latest/views/supported_stellar_grids.html
@@ -383,12 +386,13 @@ def gen_ld_coefs(spectrace_ref, wavebin_low, wavebin_up, order, m_h, logg,
     # Set up the stellar model parameters - with specified model type.
     sld = StellarLimbDarkening(m_h, teff, logg, model_type, ld_data_path)
 
-    # Load the most up to date throughput info for SOSS
-    spec_trace = datamodels.SpecTraceModel(spectrace_ref)
-    wavelengths = spec_trace.trace[order-1].data['WAVELENGTH'] * 10000
-    throughputs = spec_trace.trace[order-1].data['THROUGHPUT']
-    # Note that custom throughputs are used.
-    mode = 'custom'
+    if spectrace_ref is not None:
+        # Load the most up to date throughput info for SOSS
+        spec_trace = datamodels.SpecTraceModel(spectrace_ref)
+        wavelengths = spec_trace.trace[order-1].data['WAVELENGTH'] * 10000
+        throughputs = spec_trace.trace[order-1].data['THROUGHPUT']
+        # Note that custom throughputs are used.
+        mode = 'custom'
 
     # Compute the LD coefficients over the given wavelength bins.
     c1s, c2s = [], []
@@ -396,8 +400,11 @@ def gen_ld_coefs(spectrace_ref, wavebin_low, wavebin_up, order, m_h, logg,
                        total=len(wavebin_low)):
         wr = [wl, wu]
         try:
-            c1, c2 = sld.compute_quadratic_ld_coeffs(wr, mode, wavelengths,
-                                                     throughputs)
+            if spectrace_ref is not None:
+                c1, c2 = sld.compute_quadratic_ld_coeffs(wr, mode, wavelengths,
+                                                         throughputs)
+            else:
+                c1, c2 = sld.compute_quadratic_ld_coeffs(wr, mode=mode)
         except ValueError:
             c1, c2 = np.nan, np.nan
         c1s.append(c1)

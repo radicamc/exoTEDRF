@@ -96,7 +96,10 @@ formatted_names = {'P_p1': r'$P$', 't0_p1': r'$T_0$', 'p_p1': r'$R_p/R_*$',
 
 # === Get Detrending Quantities ===
 # Get time axis
-t = fits.getdata(config['infile'], 9)
+if config['instrument'] == 'NIRISS':
+    t = fits.getdata(config['infile'], 9)
+else:
+    t = fits.getdata(config['infile'], 5)
 # Quantities against which to linearly detrend.
 if config['lm_file'] is not None:
     lm_data = pd.read_csv(config['lm_file'], comment='#')
@@ -126,16 +129,25 @@ baseline_ints = utils.format_out_frames(config['baseline_ints'])
 # === Fit Light Curves ===
 # Start the light curve fitting.
 results_dict = {}
+if config['instrument'] != 'NIRISS':
+    config['orders'] = [1]
 for order in config['orders']:
     first_time = True
     if config['do_plots'] is True:
-        expected_file = outdir + 'lightcurve_fit_order{0}{1}.pdf'.format(order, fit_suffix)
-        outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
+        if config['instrument'] == 'NIRISS':
+            expected_file = outdir + 'lightcurve_fit_order{0}{1}.pdf'.format(order, fit_suffix)
+            outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
+        else:
+            expected_file = outdir + 'lightcurve_fit_order{0}{1}.pdf'.format(config['detector'], fit_suffix)
+            outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
     else:
         outpdf = None
 
     # === Set Up Priors and Fit Parameters ===
-    fancyprint('Fitting order {} at {}.'.format(order, res_str))
+    if config['instrument'] == 'NIRISS':
+        fancyprint('Fitting order {} at {}.'.format(order, res_str))
+    else:
+        fancyprint('Fitting detector {} at {}.'.format(config['detector'], res_str))
     # Unpack wave, flux and error, cutting reference pixel columns.
     wave_low = fits.getdata(config['infile'],  1 + 4*(order - 1))[:, 5:-5]
     wave_up = fits.getdata(config['infile'], 2 + 4*(order - 1))[:, 5:-5]
@@ -146,6 +158,11 @@ for order in config['orders']:
     # For order 2, only fit wavelength bins between 0.6 and 0.85µm.
     if order == 2:
         ii = np.where((wave[0] >= 0.6) & (wave[0] <= 0.85))[0]
+        flux, err = flux[:, ii], err[:, ii]
+        wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
+    # For NRS1, only fit wavelengths > 3µm.
+    if config['detector'] == 'NRS1' and config['instrument'].upper() == 'NIRSPEC':
+        ii = np.where(wave[0] >= 3.0)[0]
         flux, err = flux[:, ii], err[:, ii]
         wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
 
@@ -205,10 +222,11 @@ for order in config['orders']:
             msg = 'All stellar parameters must be provided to calculate ' \
                   'limb-darkening coefficients.'
             assert np.all(np.array([m_h, logg, teff]) != None), msg
-            c1, c2 = stage4.gen_ld_coefs(config['spectrace_ref'], wave_low,
-                                         wave_up, order, m_h, logg, teff,
-                                         config['ld_data_path'],
-                                         model_type=config['ld_model_type'])
+            c1, c2 = stage4.gen_ld_coefs(wave_low, wave_up, order, m_h, logg,
+                                         teff, config['ld_data_path'],
+                                         model_type=config['ld_model_type'],
+                                         spectrace_ref=config['spectrace_ref'],
+                                         mode=config['mode'])
             q1, q2 = juliet.reverse_q_coeffs('quadratic', c1, c2)
             # Save calculated coefficients.
             target = fits.getheader(config['infile'], 0)['TARGET']
@@ -413,7 +431,11 @@ if config['occultation_type'] == 'transit':
     spec_type = 'transmission'
 else:
     spec_type = 'emission'
-filename = target + '_NIRISS_SOSS_' + spec_type + '_spectrum' + fit_suffix + '.csv'
+if config['instrument'] == 'NIRISS':
+    inst = '_NIRISS_SOSS_'
+else:
+    inst = '_NIRSpec_G395H_' + config['detector'] + '_'
+filename = target + inst + spec_type + '_spectrum' + fit_suffix + '.csv'
 # Get fit metadata.
 # Include fixed parameter values.
 fit_metadata = '#\n# Fit Metadata\n'

@@ -7,7 +7,11 @@
 output_tag : ''
 # File containing light curves to fit.
 infile : ''
-# Orders to fit.
+# Instrument used.
+instrument : 'NIRISS'
+# (NIRSpec only) Detector used.
+detector : 'NRS1'
+# (SOSS only) Orders to fit.
 orders : [1, 2]
 # Suffix to apply to fit output files.
 fit_suffix : ''
@@ -66,7 +70,9 @@ ld_data_path :
 # Stellar models to use for limb-darkening calculation.
 # See ExoTiC-LD documentation for more info.
 ld_model_type : 'stagger'
-# Path to JWST spectrace Reference File
+# (NIRSpec only) ExoTiC-LD instrument mode identifier.
+mode : 'JWST_NIRSpec_G395H'
+# (SOSS only) Path to JWST spectrace Reference File
 # Will be in crds_cache with file name like jwst_niriss_spectrace_XXXX.fits
 spectrace_ref : './crds_cache/references/jwst/niriss/jwst_niriss_spectrace_0023.fits'
 # Paths to files containing model limb-darkening coefficients.
