@@ -21,6 +21,8 @@ from scipy.ndimage import median_filter
 from tqdm import tqdm
 import warnings
 
+from jwst import datamodels
+
 from exotedrf import utils
 from exotedrf.utils import fancyprint
 
@@ -412,12 +414,8 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
                                      fill=False)
                     ax.add_patch(marker)
 
-            if dimy == 96:
-                ax.text(30, 80, '({0}, {1})'.format(i, g), c='white',
-                        fontsize=12)
-            else:
-                ax.text(30, 230, '({0}, {1})'.format(i, g), c='white',
-                        fontsize=12)
+            ax.text(30, 0.9 * dimy, '({0}, {1})'.format(i, g), c='white',
+                    fontsize=12)
             if j != 0:
                 ax.yaxis.set_major_formatter(plt.NullFormatter())
             else:
@@ -602,8 +600,8 @@ def make_linearity_plot(results, old_results, outfile=None, show_plot=True):
                 old_cube = datamodel.data
             else:
                 old_cube = np.concatenate([old_cube, datamodel.data])
-
     nint, ngroup, dimy, dimx = np.shape(cube)
+
     # Get bright pixels in the trace.
     stack = bn.nanmedian(cube[np.random.randint(0, nint, 25), -1], axis=0)
     ii = np.where((stack >= np.nanpercentile(stack, 80)) &
@@ -1063,7 +1061,7 @@ def make_superbias_plot(results, outfile=None, show_plot=True):
 
 
 def make_2d_lightcurve_plot(wave1, flux1, wave2=None, flux2=None, outpdf=None,
-                            title='', **kwargs):
+                            title='', instrument='NIRISS', **kwargs):
     """Plot 2D spectroscopic light curves.
     """
 
@@ -1093,7 +1091,10 @@ def make_2d_lightcurve_plot(wave1, flux1, wave2=None, flux2=None, outpdf=None,
                          fontsize=16)
         ax1.set_ylabel('Wavelength [µm]', fontsize=16)
         ax1.set_xlabel('Integration Number', fontsize=16)
-        plt.title('Order 1' + title, fontsize=18)
+        if instrument.upper() == 'NIRISS':
+            plt.title('Order 1' + title, fontsize=18)
+        elif instrument.upper() == 'NIRSPEC':
+            plt.title('NRS1' + title, fontsize=18)
         plt.xticks(fontsize=12)
         plt.yticks(fontsize=12)
 
@@ -1108,7 +1109,10 @@ def make_2d_lightcurve_plot(wave1, flux1, wave2=None, flux2=None, outpdf=None,
             cb.set_label('Normalized Flux', labelpad=15, rotation=270,
                          fontsize=16)
             ax2.set_xlabel('Integration Number', fontsize=16)
-            plt.title('Order 2' + title, fontsize=18)
+            if instrument.upper() == 'NIRISS':
+                plt.title('Order 2' + title, fontsize=18)
+            elif instrument.upper() == 'NIRSPEC':
+                plt.title('NRS2' + title, fontsize=18)
             plt.xticks(fontsize=12)
             plt.yticks(fontsize=12)
 

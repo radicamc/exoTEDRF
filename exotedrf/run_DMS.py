@@ -56,10 +56,12 @@ f.close()
 
 # Unpack all files in the input directory.
 input_files = unpack_input_dir(config['input_dir'],
+                               mode=config['observing_mode'],
                                filetag=config['input_filetag'],
-                               exposure_type=config['exposure_type'])
-fancyprint('Identified {0} {1} exposure '
-           'segments'.format(len(input_files), config['exposure_type']))
+                               filter_detector=config['filter_detector'])
+fancyprint('Identified {0} {1} {2} observation '
+           'segment(s)'.format(len(input_files), config['filter_detector'],
+                               config['observing_mode']))
 for file in input_files:
     fancyprint(' ' + file)
 
@@ -77,12 +79,12 @@ if 1 in config['run_stages']:
             else:
                 stage1_skip.append(step)
     # Run stage 1.
-    stage1_results = run_stage1(input_files,
-                                background_model=config['background_file'],
+    stage1_results = run_stage1(input_files, mode=config['observing_mode'],
+                                soss_background_model=config['soss_background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 oof_method=config['oof_method'],
-                                inner_mask_width=config['inner_mask_width'],
-                                outer_mask_width=config['outer_mask_width'],
+                                soss_timeseries=config['soss_timeseries'],
+                                soss_timeseries_o2=config['soss_timeseries_o2'],
                                 save_results=config['save_results'],
                                 pixel_masks=config['outlier_maps'],
                                 force_redo=config['force_redo'],
@@ -93,8 +95,9 @@ if 1 in config['run_stages']:
                                 output_tag=config['output_tag'],
                                 skip_steps=stage1_skip,
                                 do_plot=config['do_plots'],
-                                timeseries=config['timeseries'],
-                                timeseries_o2=config['timeseries_o2'],
+                                soss_inner_mask_width=config['soss_inner_mask_width'],
+                                soss_outer_mask_width=config['soss_outer_mask_width'],
+                                nirspec_mask_width=config['nirspec_mask_width'],
                                 centroids=config['centroids'],
                                 **config['stage1_kwargs'])
 else:
@@ -103,9 +106,9 @@ else:
 # ===== Run Stage 2 =====
 if 2 in config['run_stages']:
     # Determine which steps to run and which to skip.
-    steps = ['AssignWCSStep', 'SourceTypeStep', 'FlatFieldStep',
-             'OneOverFStep_int', 'BackgroundStep', 'TracingStep',
-             'BadPixStep']
+    steps = ['AssignWCSStep', 'Extract2DStep', 'SourceTypeStep',
+             'WaveCorrStep', 'FlatFieldStep', 'OneOverFStep_int',
+             'BackgroundStep', 'TracingStep', 'BadPixStep']
     stage2_skip = []
     for step in steps:
         if config[step] == 'skip':
@@ -114,8 +117,8 @@ if 2 in config['run_stages']:
             else:
                 stage2_skip.append(step)
     # Run stage 2.
-    stage2_results = run_stage2(stage1_results,
-                                background_model=config['background_file'],
+    stage2_results = run_stage2(stage1_results, mode=config['observing_mode'],
+                                soss_background_model=config['soss_background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 save_results=config['save_results'],
                                 force_redo=config['force_redo'],
@@ -123,20 +126,21 @@ if 2 in config['run_stages']:
                                 time_thresh=config['time_outlier_threshold'],
                                 calculate_stability=config['calculate_stability'],
                                 pca_components=config['pca_components'],
-                                timeseries=config['timeseries'],
-                                timeseries_o2=config['timeseries_o2'],
+                                soss_timeseries=config['soss_timeseries'],
+                                soss_timeseries_o2=config['soss_timeseries_o2'],
                                 oof_method=config['oof_method'],
                                 output_tag=config['output_tag'],
                                 smoothing_scale=config['smoothing_scale'],
                                 skip_steps=stage2_skip,
                                 generate_lc=config['generate_lc'],
-                                inner_mask_width=config['inner_mask_width'],
-                                outer_mask_width=config['outer_mask_width'],
-                                centroids=config['centroids'],
+                                soss_inner_mask_width=config['soss_inner_mask_width'],
+                                soss_outer_mask_width=config['soss_outer_mask_width'],
+                                nirspec_mask_width=config['nirspec_mask_width'],
                                 pixel_masks=config['outlier_maps'],
                                 generate_order0_mask=config['generate_order0_mask'],
                                 f277w=config['f277w'],
                                 do_plot=config['do_plots'],
+                                centroids=config['centroids'],
                                 **config['stage2_kwargs'])
 else:
     stage2_results = input_files
@@ -147,9 +151,9 @@ if 3 in config['run_stages']:
                                 save_results=config['save_results'],
                                 force_redo=config['force_redo'],
                                 extract_method=config['extract_method'],
-                                soss_width=config['soss_width'],
-                                specprofile=config['specprofile'],
+                                soss_specprofile=config['soss_specprofile'],
                                 centroids=config['centroids'],
+                                extract_width=config['extract_width'],
                                 st_teff=config['st_teff'],
                                 st_logg=config['st_logg'],
                                 st_met=config['st_met'],

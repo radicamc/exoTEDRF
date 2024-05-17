@@ -1,7 +1,7 @@
 exoTEDRF Usage Guide
 ====================
 
-Currently supported instruments/modes: **NIRISS/SOSS**, **NIRSpec/BOTS** (coming soon), **MIRI/LRS** (in development).
+Currently supported instruments/modes: **NIRISS/SOSS** and **NIRSpec/BOTS**. **MIRI/LRS** is in development.
 
 The pipeline is divided into four stages, which closely mirror the STScI pipeline:
 
@@ -20,6 +20,7 @@ Below are several tutorials that will walk you through the basics of JWST data a
    :maxdepth: 2
 
    notebooks/tutorial_niriss-soss
+   notebooks/tutorial_nirspec-g395h
    notebooks/tutorial_light-curve-fitting
 
 

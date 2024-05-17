@@ -20,7 +20,7 @@ from scipy.signal import medfilt
 import warnings
 import yaml
 
-from applesoss.edgetrigger_centroids import get_soss_centroids
+import applesoss.edgetrigger_centroids as apl
 from jwst import datamodels
 
 
@@ -157,7 +157,7 @@ def format_out_frames(out_frames):
 
     Parameters
     ----------
-    out_frames : int, array-like[int]
+    out_frames : array-like[int], int
         Integration numbers of ingress and/or egress.
 
     Returns
@@ -216,6 +216,25 @@ def get_default_header():
                        'Width': 'Box width'}
 
     return header_dict, header_comments
+
+
+def get_detector_name(datafile):
+    """Get name of detector.
+
+    Parameters
+    ----------
+    datafile : str, datamodel
+        Path to datafile or datafile itself.
+
+    Returns
+    -------
+    detector : str
+        Name of detector.
+    """
+
+    with datamodels.open(datafile) as d:
+        detector = d.meta.instrument.detector.lower()
+    return detector
 
 
 def get_dq_flag_metrics(dq_map, flags):
@@ -354,6 +373,25 @@ def get_filename_root_noseg(fileroots):
     return fileroot_noseg
 
 
+def get_instrument_name(datafile):
+    """Get name of instrument.
+
+    Parameters
+    ----------
+    datafile : str, datamodel
+        Path to datafile or datafile itself.
+
+    Returns
+    -------
+    instrument : str
+        Name of instrument.
+    """
+
+    with datamodels.open(datafile) as d:
+        instrument = d.meta.instrument.name
+    return instrument
+
+
 def get_interp_box(data, box_size, i, j, dimx):
     """Get median and standard deviation of a box centered on a specified
     pixel.
@@ -444,9 +482,68 @@ def get_stellar_param_grid(st_teff, st_logg, st_met):
     return teffs, loggs, mets
 
 
-def get_trace_centroids(deepframe, tracetable, subarray, save_results=True,
-                        save_filename=''):
-    """Get the trace centroids for all three orders via the edgetrigger method.
+def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
+                          save_filename=''):
+    """Get the NIRSpec trace centroids via the edgetrigger method.
+
+    Parameters
+    ----------
+    deepframe : array-like[float]
+        Median stack.
+    xstart : int
+        Starting x-pixel position on the frame.
+    xend : int, None
+        Ending x-pixel position on the frame.
+    save_results : bool
+        If True, save results to file.
+    save_filename : str
+        Filename of save file.
+
+    Returns
+    -------
+    cens : array-like[float]
+        X and Y centroids.
+    """
+
+    dimy, dimx = np.shape(deepframe)
+    if xend is None:
+        xend = dimx
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore')
+        cens = apl.get_centroids_edgetrigger(deepframe[:, xstart:xend],
+                                             mode='mean', poly_order=2,
+                                             halfwidth=3)
+
+    x1, y1 = cens[0]+xstart, cens[1]
+    ii = np.where((x1 >= xstart) & (x1 <= xend - 1))
+    # Interpolate onto native pixel grid
+    xx1 = np.linspace(xstart, xend-1, (xend-1)-xstart+1)
+    yy1 = np.interp(xx1, x1[ii], y1[ii])
+
+    if save_results is True:
+        centroids_dict = {'xpos': xx1, 'ypos': yy1}
+        df = pd.DataFrame(data=centroids_dict)
+        if save_filename[-1] != '_':
+            save_filename += '_'
+        outfile_name = save_filename + 'centroids.csv'
+        outfile = open(outfile_name, 'w')
+        outfile.write('# File Contents: Edgetrigger trace centroids\n')
+        outfile.write('# File Creation Date: {}\n'.format(
+            datetime.utcnow().replace(microsecond=0).isoformat()))
+        outfile.write('# File Author: MCR\n')
+        df.to_csv(outfile, index=False)
+        outfile.close()
+        fancyprint('Centroids saved to {}'.format(outfile_name))
+
+    cens = np.array([xx1, yy1])
+
+    return cens
+
+
+def get_centroids_soss(deepframe, tracetable, subarray, save_results=True,
+                       save_filename=''):
+    """Get the SOSS trace centroids for all three orders via the edgetrigger
+    method.
 
     Parameters
     ----------
@@ -474,8 +571,8 @@ def get_trace_centroids(deepframe, tracetable, subarray, save_results=True,
     dimy, dimx = np.shape(deepframe)
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        cens = get_soss_centroids(deepframe, tracetable,
-                                  subarray=subarray)
+        cens = apl.get_soss_centroids(deepframe, tracetable,
+                                      subarray=subarray)
 
     x1, y1 = cens['order 1']['X centroid'], cens['order 1']['Y centroid']
     ii = np.where((x1 >= 0) & (y1 <= dimx - 1))
@@ -697,7 +794,8 @@ def open_filetype(datafile):
     if isinstance(datafile, str):
         data = datamodels.open(datafile)
     elif isinstance(datafile, (datamodels.CubeModel, datamodels.RampModel,
-                               datamodels.MultiSpecModel)):
+                               datamodels.MultiSpecModel,
+                               datamodels.SlitModel)):
         data = datafile
     else:
         raise ValueError('Invalid filetype: {}'.format(type(datafile)))
@@ -738,33 +836,20 @@ def parse_config(config_file):
     return config
 
 
-def save_extracted_spectra(filename, wl1, wu1, f1, e1, wl2, wu2, f2, e2, t,
-                           header_dict=None, header_comments=None,
-                           save_results=True):
+def save_extracted_spectra(filename, data, names, units, header_dict=None,
+                           header_comments=None, save_results=True):
     """Pack stellar spectra into a fits file.
 
     Parameters
     ----------
     filename : str
         File to which to save results.
-    wl1 : array-like[float]
-        Order 1 wavelength bin lower limits.
-    wu1 : array-like[float]
-        Order 1 wavelength bin upper limits.
-    f1 : array-like[float]
-        Order 1 flux.
-    e1 : array-like[float]
-        Order 1 flux error.
-    wl2 : array-like[float]
-        Order 2 wavelength bin lower limits.
-    wu2 : array-like[float]
-        Order 2 wavelength bin upper limits.
-    f2 : array-like[float]
-        Order 2 flux.
-    e2 : array-like[float]
-        Order 2 flux error.
-    t : array-like[float]
-        Time axis.
+    data : array-like[float]
+        Data to save.
+    names : array-like[str]
+        Names of data.
+    units : array-like[str]
+        Units of dat.
     header_dict : dict
         Header keywords and values.
     header_comments : dict
@@ -787,57 +872,21 @@ def save_extracted_spectra(filename, wl1, wu1, f1, e1, wl2, wu2, f2, e2, t,
                 hdr.comments[key] = header_comments[key]
     hdu1 = fits.PrimaryHDU(header=hdr)
 
-    # Pack order 1 values.
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Wave Low O1"
-    hdr['UNITS'] = "Micron"
-    hdu2 = fits.ImageHDU(wl1, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Wave Up O1"
-    hdr['UNITS'] = "Micron"
-    hdu3 = fits.ImageHDU(wu1, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Flux O1"
-    hdr['UNITS'] = "DN/s"
-    hdu4 = fits.ImageHDU(f1, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Flux Err O1"
-    hdr['UNITS'] = "DN/s"
-    hdu5 = fits.ImageHDU(e1, header=hdr)
-
-    # Pack order 2 values.
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Wave Low O2"
-    hdr['UNITS'] = "Micron"
-    hdu6 = fits.ImageHDU(wl2, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Wave Up O2"
-    hdr['UNITS'] = "Micron"
-    hdu7 = fits.ImageHDU(wu2, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Flux O2"
-    hdr['UNITS'] = "DN/s"
-    hdu8 = fits.ImageHDU(f2, header=hdr)
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Flux Err O2"
-    hdr['UNITS'] = "DN/s"
-    hdu9 = fits.ImageHDU(e2, header=hdr)
-
-    # Pack time axis.
-    hdr = fits.Header()
-    hdr['EXTNAME'] = "Time"
-    hdr['UNITS'] = "MJD"
-    hdu10 = fits.ImageHDU(t, header=hdr)
+    hdulist = [hdu1]
+    param_dict = {}
+    assert len(data) == len(names) == len(units)
+    # Pack data.
+    for d, n, u in zip(data, names, units):
+        hdr = fits.Header()
+        hdr['EXTNAME'] = n
+        hdr['UNITS'] = u
+        hdulist.append(fits.ImageHDU(d, header=hdr))
+        param_dict[n] = d
 
     if save_results is True:
         fancyprint('Spectra saved to {}'.format(filename))
-        hdul = fits.HDUList([hdu1, hdu2, hdu3, hdu4, hdu5, hdu6, hdu7, hdu8,
-                             hdu9, hdu10])
+        hdul = fits.HDUList(hdulist)
         hdul.writeto(filename, overwrite=True)
-
-    param_dict = {'Wave Low O1': wl1, 'Wave Up O1': wu1, 'Flux O1': f1,
-                  'Flux Err O1': e1, 'Wave Low O2': wl2, 'Wave Up O2': wu2,
-                  'Flux O2': f2, 'Flux Err O2': e2, 'Time': t}
 
     return param_dict
 
@@ -916,6 +965,9 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
     flux_clipped = np.copy(flux)
     nints, nwaves = np.shape(flux)
     flux_filt = medfilt(flux, (window, 1))
+    ii = window//2
+    flux_filt[:ii] = np.median(flux_filt[ii:(ii+window)], axis=0)
+    flux_filt[-ii:] = np.median(flux_filt[-(ii+1+window):-(ii+1)], axis=0)
 
     # Check along the time axis for outlier pixels.
     std_dev = np.median(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)
@@ -997,7 +1049,7 @@ def unpack_atoca_spectra(datafile,
     return all_spec
 
 
-def unpack_input_dir(indir, filetag='', exposure_type='CLEAR'):
+def unpack_input_dir(indir, mode, filter_detector, filetag=''):
     """Get all segment files of a specified exposure type from an input data
      directory.
 
@@ -1005,14 +1057,18 @@ def unpack_input_dir(indir, filetag='', exposure_type='CLEAR'):
     ----------
     indir : str
         Path to input directory.
+    mode : str
+        Instrument mode. Currently tested are "NIRISS/SOSS" and
+        "NIRSpec/G395H". Though other NIRSpec gratings are also supported.
+    filter_detector : str
+        Filter or detector used. For SOSS, either "CLEAR" or "F277W". For
+        NIRSpec, either "NRS1" or "NRS2".
     filetag : str
         File name extension of files to unpack.
-    exposure_type : str
-        Either 'CLEAR' or 'F277W'; unpacks the corresponding exposure type.
 
     Returns
     -------
-    segments: array-like[str]
+    segments: ndarray[str]
         File names of the requested exposure and file tag in chronological
         order.
     """
@@ -1021,6 +1077,9 @@ def unpack_input_dir(indir, filetag='', exposure_type='CLEAR'):
         indir += '/'
     all_files = glob.glob(indir + '*')
     segments = []
+
+    instrument = mode.split('/')[0]
+    exposure_type = mode.split('/')[1]
 
     # Check all files in the input directory to see if they match the
     # specified exposure type and file tag.
@@ -1032,9 +1091,17 @@ def unpack_input_dir(indir, filetag='', exposure_type='CLEAR'):
             continue
         # Keep files of the correct exposure with the correct tag.
         try:
-            if header['FILTER'] == exposure_type:
-                if filetag in file:
-                    segments.append(file)
+            if header['INSTRUME'] == instrument.upper() and instrument == 'NIRISS':
+                if header['EXP_TYPE'].split('_')[1] == exposure_type:
+                    if header['FILTER'] == filter_detector:
+                        if filetag in file:
+                            segments.append(file)
+            elif header['INSTRUME'] == instrument.upper() and instrument == 'NIRSpec':
+                if header['EXP_TYPE'] == 'NRS_BRIGHTOBJ':
+                    if header['GRATING'] == exposure_type:
+                        if header['DETECTOR'] == filter_detector:
+                            if filetag in file:
+                                segments.append(file)
             else:
                 continue
         except KeyError:
