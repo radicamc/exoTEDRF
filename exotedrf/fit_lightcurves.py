@@ -160,9 +160,9 @@ for order in config['orders']:
         ii = np.where((wave[0] >= 0.6) & (wave[0] <= 0.85))[0]
         flux, err = flux[:, ii], err[:, ii]
         wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
-    # For NRS1, only fit wavelengths > 3µm.
+    # For NRS1, only fit wavelengths > 2.9µm.
     if config['detector'] == 'NRS1' and config['instrument'].upper() == 'NIRSPEC':
-        ii = np.where(wave[0] >= 3.0)[0]
+        ii = np.where(wave[0] >= 2.9)[0]
         flux, err = flux[:, ii], err[:, ii]
         wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
 

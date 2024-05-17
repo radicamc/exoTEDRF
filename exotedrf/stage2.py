@@ -621,8 +621,8 @@ class TracingStep:
     """
 
     def __init__(self, input_data, deepframe, output_dir='./',
-                 generate_order0_mask=True, f277w=None,
-                 calculate_stability=True, generate_lc=True,
+                 generate_order0_mask=False, f277w=None,
+                 calculate_stability=True, generate_lc=False,
                  baseline_ints=None):
         """Step initializer.
 
