@@ -1041,9 +1041,9 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
         x1d_flux = np.nansum(flux_o1, axis=0)
         x1d_err = np.sqrt(np.nansum(ferr_o1**2, axis=0))
         wave_shift = do_ccf(wave1d_o1, x1d_flux, x1d_err, mod_flux)
-        fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
-        wave1d_o1 += wave_shift
-        wave1d_o2 += wave_shift
+        fancyprint('Found a wavelength shift of {}um'.format(-1*wave_shift))
+        wave1d_o1 -= wave_shift
+        wave1d_o2 -= wave_shift
 
     # Clip remaining 5-sigma outliers.
     flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1)
