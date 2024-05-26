@@ -1373,15 +1373,9 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
         if instrument == 'NIRSPEC':
             suffix = suffix.replace('.csv', '_{}.csv'.format(det))
         if os.path.exists(output_dir + fileroot_noseg + suffix):
-            old_data = pd.read_csv(output_dir + fileroot_noseg + suffix,
-                                   comment='#')
-            for key in stability_results.keys():
-                old_data[key] = stability_results[key]
             os.remove(output_dir + fileroot_noseg + suffix)
-            old_data.to_csv(output_dir + fileroot_noseg + suffix, index=False)
-        else:
-            df = pd.DataFrame(data=stability_results)
-            df.to_csv(output_dir + fileroot_noseg + suffix, index=False)
+        df = pd.DataFrame(data=stability_results)
+        df.to_csv(output_dir + fileroot_noseg + suffix, index=False)
 
     # ===== PART 4: Calculate a smoothed light curve =====
     # If requested, generate a smoothed estimate of the order 1 white light
