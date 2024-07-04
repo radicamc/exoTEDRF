@@ -10,7 +10,7 @@ Custom JWST DMS pipeline steps for Stage 4 (lightcurve fitting).
 
 from datetime import datetime
 from exotic_ld import StellarLimbDarkening
-import juliet
+import exouprf.fit as fit
 import numpy as np
 import os
 import pandas as pd
@@ -256,8 +256,9 @@ def bin_at_resolution(inwave_low, inwave_up, flux, flux_err, res,
 
 
 @ray.remote
-def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins):
-    """Functional wrapper around run_juliet to make it compatible for
+def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins,
+             lc_model_type, ld_model):
+    """Functional wrapper around run_uporf to make it compatible for
     multiprocessing with ray.
     """
 
@@ -266,10 +267,11 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins):
     # Get key names.
     all_keys = list(data_dictionary.keys())
 
-    # Unpack fitting arrays
+    # Unpack fitting arrays. SOSS is just a dummy name here because we really
+    # only should be fitting one dataset at a time with this code and the
+    # particular instrument isn't important.
     t = {'SOSS': data_dictionary['times']}
     flux = {'SOSS': data_dictionary['flux']}
-    flux_err = {'SOSS': data_dictionary['error']}
 
     # Initialize GP and linear model regressors.
     gp_regressors = None
@@ -279,36 +281,43 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins):
     if 'lm_parameters' in all_keys:
         linear_regressors = {'SOSS': data_dictionary['lm_parameters']}
 
-    fit_results = run_juliet(priors, t, flux, flux_err, output_dir,
-                             gp_regressors, linear_regressors)
+    fit_results = run_uporf(priors, t, flux, output_dir, gp_regressors,
+                            linear_regressors, lc_model_type, ld_model)
 
     return fit_results
 
 
 def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
-                    nthreads=4):
-    """Wrapper about both the juliet and ray libraries to parallelize juliet's
-    lightcurve fitting functionality.
+                    nthreads=4, observing_mode='NIRISS/SOSS',
+                    lc_model_type='transit', ld_model='quadratic'):
+    """Wrapper about both the exoUPRF and ray libraries to parallelize
+    exoUPRF's lightcurve fitting functionality.
 
     Parameters
     ----------
     data_dict : dict
-        Dictionary of fitting data: time, flux, and flu error.
+        Dictionary of fitting data: time and flux.
     prior_dict : dict
         Dictionary of fitting priors in juliet format.
     order : int
-        SOSS diffraction order.
+        SOSS diffraction order or NIRSpec detector.
     output_dir : str
         Path to directory to which to save results.
     fit_suffix : str
         String to label the results of this fit.
     nthreads : int
         Number of cores to use for multiprocessing.
+    observing_mode : str
+        Instrument identifier for data being fit.
+    lc_model_type : str
+        exoUPRF light curve model identifier.
+    ld_model : str
+        Limb darkening model identifier.
 
     Returns
     -------
-    results : juliet.fit object
-        The results of the juliet fit.
+    results : exouprf.dataset object
+        The results of the exoUPRF fit.
     """
 
     # Initialize results dictionary and keynames.
@@ -323,16 +332,22 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
     ray.shutdown()
     ray.init(num_cpus=nthreads)
 
-    # Set juliet fits as remotes to run parallel with ray.
+    # Set exoUPRF fits as remotes to run parallel with ray.
     all_fits = []
     num_bins = np.arange(len(keynames))+1
     for i, keyname in enumerate(keynames):
-        outdir = output_dir + 'speclightcurve{2}/order{0}_{1}'.format(order, keyname, fit_suffix)
+        if observing_mode.upper() == 'NIRISS/SOSS':
+            order = 'order{}'.format(order)
+        elif observing_mode.split('/')[0].upper() == 'NIRSPEC':
+            order = 'NRS{}'.format(order)
+        outdir = output_dir + 'speclightcurve{2}/{0}_{1}'.format(order, keyname, fit_suffix)
         all_fits.append(fit_data.remote(data_dict[keyname],
                                         prior_dict[keyname],
                                         output_dir=outdir,
                                         bin_no=num_bins[i],
-                                        num_bins=len(num_bins)))
+                                        num_bins=len(num_bins),
+                                        lc_model_type=lc_model_type,
+                                        ld_model=ld_model))
     # Run the fits.
     ray_results = ray.get(all_fits)
 
@@ -345,21 +360,21 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
 
 
 def gen_ld_coefs(wavebin_low, wavebin_up, order, m_h, logg, teff,
-                 ld_data_path, spectrace_ref=None, mode=None,
-                 model_type='stagger'):
+                 ld_data_path, mode, ld_model_type, spectrace_ref=None,
+                 stellar_model_type='stagger'):
     """Generate estimates of quadratic limb-darkening coefficients using the
     ExoTiC-LD package.
 
     Parameters
     ----------
     spectrace_ref : str, None
-        Path to spectrace reference file.
+        Path to spectrace reference file. Only necesary for SOSS.
     wavebin_low : array-like[float]
         Lower edge of wavelength bins.
     wavebin_up: array-like[float]
         Upper edge of wavelength bins.
     order : int
-        SOSS diffraction order.
+        SOSS diffraction order. Only necessary for SOSS.
     m_h : float
         Stellar metallicity as [M/H].
     logg : float
@@ -370,21 +385,29 @@ def gen_ld_coefs(wavebin_low, wavebin_up, order, m_h, logg, teff,
         Path to ExoTiC-LD model data.
     mode : str
         ExoTiC-LD instrument mode identifier.
-    model_type : str
+    ld_model_type : str
+        Limb darkening model identifier. One of 'linear', 'quadratic',
+        'quadratic-kipping', 'square-root', or 'nonlinear'.
+    stellar_model_type : str
         Identifier for type of stellar model to use. See
         https://exotic-ld.readthedocs.io/en/latest/views/supported_stellar_grids.html
         for supported grids.
 
     Returns
     -------
-    c1s : array-like[float]
-        c1 parameter for the quadratic limb-darkening law.
-    c2s : array-like[float]
-        c2 parameter for the quadratic limb-darkening law.
+    ld_values : list[float]
+        Model estimates for ld parameters.
     """
 
     # Set up the stellar model parameters - with specified model type.
-    sld = StellarLimbDarkening(m_h, teff, logg, model_type, ld_data_path)
+    sld = StellarLimbDarkening(m_h, teff, logg, stellar_model_type,
+                               ld_data_path)
+
+    calls = {'linear': sld.compute_linear_ld_coeffs,
+             'quadratic': sld.compute_quadratic_ld_coeffs,
+             'quadratic-kipping': sld.compute_kipping_ld_coeffs,
+             'square-root': sld.compute_squareroot_ld_coeffs,
+             'nonlinear': sld.compute_4_parameter_non_linear_ld_coeffs}
 
     if spectrace_ref is not None:
         # Load the most up to date throughput info for SOSS
@@ -395,30 +418,34 @@ def gen_ld_coefs(wavebin_low, wavebin_up, order, m_h, logg, teff,
         mode = 'custom'
 
     # Compute the LD coefficients over the given wavelength bins.
-    c1s, c2s = [], []
+    u1s, u2s, u3s, u4s = [], [], [], []
     for wl, wu in tqdm(zip(wavebin_low * 10000, wavebin_up * 10000),
                        total=len(wavebin_low)):
         wr = [wl, wu]
         try:
             if spectrace_ref is not None:
-                c1, c2 = sld.compute_quadratic_ld_coeffs(wr, mode, wavelengths,
-                                                         throughputs)
+                out = calls[ld_model_type](wr, mode, wavelengths,
+                                           throughputs)
             else:
-                c1, c2 = sld.compute_quadratic_ld_coeffs(wr, mode=mode)
+                out = calls[ld_model_type](wr, mode)
         except ValueError:
-            c1, c2 = np.nan, np.nan
-        c1s.append(c1)
-        c2s.append(c2)
-    c1s = np.array(c1s)
-    c2s = np.array(c2s)
+            out = [np.nan, np.nan, np.nan, np.nan]
+        u1s.append(out[0])
+        if ld_model_type != 'linear':
+            u2s.append(out[1])
+        if ld_model_type == 'nonlinear':
+            u3s.append(out[2])
+            u4s.append(out[3])
 
-    return c1s, c2s
+    ld_values = [u1s, u2s, u3s, u4s]
+
+    return ld_values
 
 
-def read_ld_coefs(filename, wavebin_low, wavebin_up, ld_model='quadratic'):
+def read_ld_coefs(filename, wavebin_low, wavebin_up):
     """Unpack limb darkening coefficients and interpolate to the wavelength
-    grid of data being fit. File must be comma separated with three columns:
-    wavelength c1 and c2.
+    grid of data being fit. File must be comma-separated, with the first
+    column wavelength, and all subsequent columns LD coefficients.
 
     Parameters
     ----------
@@ -428,28 +455,20 @@ def read_ld_coefs(filename, wavebin_low, wavebin_up, ld_model='quadratic'):
         Lower edge of wavelength bins being fit.
     wavebin_up : array-like[float]
         Upper edge of wavelength bins being fit.
-    ld_model : str
-        Limb darkening model.
 
     Returns
     -------
-    prior_q1 : array-like[float]
-        Model estimates for q1 parameter.
-    prior_q2 : array-like[float]
-        Model estimates for q2 parameter.
+    ld_values : list[float]
+        Model estimates for ld parameters.
     """
 
-    # Open the LD model file and convert c1 and c2 parameters to q1 and q2 of
-    # the Kipping (2013) parameterization.
-    ld = pd.read_csv(filename, comment='#', sep=',')
-    q1s, q2s = juliet.reverse_q_coeffs(ld_model, ld['c1'].values,
-                                       ld['c2'].values)
+    # Open the LD model file.
+    ld = pd.read_csv(filename, comment='#')
 
     # Get model wavelengths and sort in increasing order.
-    waves = ld['wave'].values
+    waves = ld['wavelength'].values
     ii = np.argsort(waves)
     waves = waves[ii]
-    q1s, q2s = q1s[ii], q2s[ii]
 
     # Check that coeffs in file span the wavelength range of the observations
     # with at least the same resolution.
@@ -462,64 +481,71 @@ def read_ld_coefs(filename, wavebin_low, wavebin_up, ld_model='quadratic'):
               'the observations.'
         raise ValueError(msg)
 
-    prior_q1, prior_q2 = [], []
     # Loop over all fitting bins. Calculate mean of model LD coefs within that
     # range.
-    for wl, wu in zip(wavebin_low, wavebin_up):
-        current_q1, current_q2 = [], []
-        for w, q1, q2 in zip(waves, q1s, q2s):
-            if wl < w <= wu:
-                current_q1.append(q1)
-                current_q2.append(q2)
-            # Since LD model wavelengths are sorted in increasing order, once
-            # we are above the upper edge of the bin, we can stop.
-            elif w > wu:
-                prior_q1.append(np.nanmean(current_q1))
-                prior_q2.append(np.nanmean(current_q2))
-                break
+    ld_values = []
+    for col in ld.keys():
+        if col == 'wavelength':
+            continue
+        thiscol = []
+        for wl, wu in zip(wavebin_low, wavebin_up):
+            current_val = []
+            us = ld[col].values[ii]
+            for w, u in zip(waves, us):
+                if wl < w <= wu:
+                    current_val.append(u)
+                # Since LD model wavelengths are sorted in increasing order,
+                # once we are above the upper edge of the bin, we can stop.
+                elif w > wu:
+                    thiscol.append(np.nanmean(current_val))
+                    break
+        ld_values.append(thiscol)
 
-    return prior_q1, prior_q2
+    return ld_values
 
 
-def run_juliet(priors, t_lc, y_lc, yerr_lc, out_folder,
-               gp_regressors_lc, linear_regressors_lc):
-    """Wrapper around the lightcurve fitting functionality of the juliet
+def run_uporf(priors, time, flux, out_folder, gp_regressors,
+              linear_regressors, lc_model_type, ld_model):
+    """Wrapper around the lightcurve fitting functionality of the exoUPRF
     package.
 
     Parameters
     ----------
     priors : dict
         Dictionary of fitting priors.
-    t_lc : dict
+    time : dict
         Time axis.
-    y_lc : dict
+    flux : dict
         Normalized lightcurve flux values.
-    yerr_lc : dict
-        Errors associated with each flux value.
     out_folder : str
         Path to folder to which to save results.
-    gp_regressors_lc : dict
+    gp_regressors : dict
         GP regressors to fit, if any.
-    linear_regressors_lc : dict
+    linear_regressors : dict
         Linear model regressors, if any.
+    lc_model_type : str
+        exoUPRF light curve model identifier.
+    ld_model : str
+        Limb darkening model identifier.
 
     Returns
     -------
-    res : juliet.fit object
-        Results of juliet fit.
+    res : exouprf.dataset object
+        Results of exoUPRF fit.
     """
 
-    if np.isfinite(y_lc['SOSS']).all():
+    if np.isfinite(flux['inst']).all():
         # Load in all priors and data to be fit.
-        dataset = juliet.load(priors=priors, t_lc=t_lc, y_lc=y_lc,
-                              yerr_lc=yerr_lc, out_folder=out_folder,
-                              GP_regressors_lc=gp_regressors_lc,
-                              linear_regressors_lc=linear_regressors_lc)
-        kwargs = {'print_progress': False}
+        lc_model = {'inst': lc_model_type}
+        dataset = fit.Dataset(input_parameters=priors, t=time,
+                              ld_model=ld_model, lc_model_type=lc_model,
+                              linear_regressors=linear_regressors,
+                              gp_regressors=gp_regressors, observations=flux,
+                              silent=True)
 
         # Run the fit.
         try:
-            res = dataset.fit(sampler='dynesty', **kwargs)
+            res = dataset.fit(output_file=out_folder, sampler='NestedSampling')
         except KeyboardInterrupt as err:
             raise err
         except:
@@ -536,7 +562,8 @@ def run_juliet(priors, t_lc, y_lc, yerr_lc, out_folder,
 
 def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
                                filename, target, extraction_type, resolution,
-                               fit_meta='', occultation_type='transit'):
+                               observing_mode, fit_meta='',
+                               occultation_type='transit'):
     """Write a transmission/emission spectrum to file.
 
     Parameters
@@ -561,6 +588,8 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
         Type of extraction: either box or atoca.
     resolution: int, str
         Spectral resolution of spectrum.
+    observing_mode : str
+        Observing mode identifier.
     fit_meta: str
         Fitting metadata.
     occultation_type : str
@@ -575,8 +604,9 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
     dd = {'wave': wave,
           'wave_err': wave_err,
           'dppm': dppm,
-          'dppm_err': dppm_err,
-          'order': order}
+          'dppm_err': dppm_err}
+    if observing_mode == 'NIRISS/SOSS':
+        dd['order'] = order
     # Save the dictionary as a csv.
     df = pd.DataFrame(data=dd)
     if os.path.exists(outdir + filename):
@@ -585,8 +615,9 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
     # Re-open the csv and append some critical info the header.
     f = open(outdir + filename, 'w')
     f.write('# Target: {}\n'.format(target))
-    f.write('# Instrument: NIRISS/SOSS\n')
+    f.write('# Instrument: {}\n'.format(observing_mode))
     f.write('# Pipeline: exoTEDRF\n')
+    f.write('# Fitting: exoUPRF\n')
     f.write('# 1D Extraction: {}\n'.format(extraction_type))
     f.write('# Spectral Resolution: {}\n'.format(resolution))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
@@ -600,7 +631,8 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
     else:
         f.write('# Column dppm: (Fp/F*) (ppm)\n')
         f.write('# Column dppm_err: Error in (Fp/F*) (ppm)\n')
-    f.write('# Column order: SOSS diffraction order\n')
+    if observing_mode == 'NIRISS/SOSS':
+        f.write('# Column order: SOSS diffraction order\n')
     f.write('#\n')
     df.to_csv(f, index=False)
     f.close()

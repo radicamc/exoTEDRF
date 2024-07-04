@@ -891,7 +891,8 @@ def save_extracted_spectra(filename, data, names, units, header_dict=None,
     return param_dict
 
 
-def save_ld_priors(wave, c1, c2, order, target, m_h, teff, logg, outdir):
+def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir,
+                   ld_model_type, observing_mode):
     """Write model limb darkening parameters to a file to be used as priors
     for light curve fitting.
 
@@ -899,10 +900,8 @@ def save_ld_priors(wave, c1, c2, order, target, m_h, teff, logg, outdir):
     ----------
     wave : array-like[float]
         Wavelength axis.
-    c1 : array-like[float]
-        c1 parameter for two-parameter limb darkening law.
-    c2 : array-like[float]
-        c2 parameter for two-parameter limb darkening law.
+    ld : list[float]
+        Model limb darkening values.
     order : int
         SOSS order.
     target : str
@@ -915,30 +914,55 @@ def save_ld_priors(wave, c1, c2, order, target, m_h, teff, logg, outdir):
         Host star gravity.
     outdir : str
         Directory to which to save file.
+    ld_model_type : str
+        Limb darkening model identifier.
+    observing_mode : str
+        Observing mode identifier.
     """
 
     # Create dictionary with model LD info.
-    dd = {'wave': wave, 'c1': c1, 'c2': c2}
+    dd = {'wave': wave}
+    if ld_model_type == 'quadratic-kipping':
+        dd['q1'] = ld[0]
+        dd['q2'] = ld[1]
+    else:
+        dd['u1'] = ld[0]
+        if ld_model_type != 'linear':
+            dd['u2'] = ld[1]
+        if ld_model_type == 'nonlinear':
+            dd['u3'] = ld[2]
+            dd['u4'] = ld[3]
     df = pd.DataFrame(data=dd)
     # Remove old LD file if one exists.
-    filename = target+'_order' + str(order) + '_exotic-ld_quadratic.csv'
+    if observing_mode == 'NIRISS/SOSS':
+        filename = target+'_order' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type)
+    else:
+        filename = target + '_NRS' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type)
     if os.path.exists(outdir + filename):
         os.remove(outdir + filename)
     # Add header info.
     f = open(outdir + filename, 'a')
     f.write('# Target: {}\n'.format(target))
-    f.write('# Instrument: NIRISS/SOSS\n')
-    f.write('# Order: {}\n'.format(order))
+    f.write('# Instrument: {}\n'.format(observing_mode))
+    f.write('# SOSS Order/NRS Detector: {}\n'.format(order))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
     f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0).isoformat()))
     f.write('# Stellar M/H: {}\n'.format(m_h))
     f.write('# Stellar log g: {}\n'.format(logg))
     f.write('# Stellar Teff: {}\n'.format(teff))
     f.write('# Algorithm: ExoTiC-LD\n')
-    f.write('# Limb Darkening Model: quadratic\n')
+    f.write('# Limb Darkening Model: {}\n'.format(ld_model_type))
     f.write('# Column wave: Central wavelength of bin (micron)\n')
-    f.write('# Column c1: Quadratic Coefficient 1\n')
-    f.write('# Column c2: Quadratic Coefficient 2\n')
+    if ld_model_type == 'quadratic-kipping':
+        f.write('# Column q1: Quadratic Coefficient 1\n')
+        f.write('# Column q2: Quadratic Coefficient 2\n')
+    else:
+        f.write('# Column u1: {} Coefficient 1\n'.format(ld_model_type))
+        if ld_model_type != 'linear':
+            f.write('# Column u2: {} Coefficient 1\n'.format(ld_model_type))
+        if ld_model_type == 'nonlinear':
+            f.write('# Column u3: {} Coefficient 1\n'.format(ld_model_type))
+            f.write('# Column u4: {} Coefficient 1\n'.format(ld_model_type))
     f.write('#\n')
     df.to_csv(f, index=False)
     f.close()
