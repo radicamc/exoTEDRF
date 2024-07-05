@@ -5,7 +5,7 @@ Created on Wed Jul 27 14:35 2022
 
 @author: MCR
 
-Juliet light curve fitting script.
+Script to fit simple transit and eclipse light curves with exoUPRF.
 """
 
 from astropy.io import fits
@@ -82,7 +82,7 @@ f.write('\nRun at {}.'.format(time))
 f.close()
 
 # Formatted parameter names for plotting.
-formatted_names = {'per_p1': r'$P$', 't0_p1': r'$T_0$', 'rp_p1': r'$R_p/R_*$',
+formatted_names = {'per_p1': r'$P$', 't0_p1': r'$T_0$', 'rp_p1_inst': r'$R_p/R_*$',
                    'inc_p1': r'$i$', 'u1_inst': r'$u_1$', 'u2_inst': r'$u_2$',
                    'ecc_p1': r'$e$', 'w_p1': r'$\Omega$',
                    'a_p1': r'$a/R_*$', 'sigma_inst': r'$\sigma$',
@@ -97,23 +97,22 @@ formatted_names = {'per_p1': r'$P$', 't0_p1': r'$T_0$', 'rp_p1': r'$R_p/R_*$',
 
 # === Get Detrending Quantities ===
 # Get time axis
-if config['observing_model'] == 'NIRISS/SOSS':
+if config['observing_mode'] == 'NIRISS/SOSS':
     t = fits.getdata(config['infile'], 9)
 else:
     t = fits.getdata(config['infile'], 5)
 # Quantities against which to linearly detrend.
 if config['lm_file'] is not None:
     lm_data = pd.read_csv(config['lm_file'], comment='#')
-    lm_quantities = np.zeros((len(t), len(config['lm_parameters'])+1))
-    lm_quantities[:, 0] = np.ones_like(t)
+    lm_quantities = np.zeros((len(config['lm_parameters'])+1, len(t)))
+    lm_quantities[0] = np.ones_like(t)
     for i, key in enumerate(config['lm_parameters']):
-        i += 1
         lm_param = lm_data[key]
-        lm_quantities[:, i] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
+        lm_quantities[i+1] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
 # Eclipses must fit for a baseline, which is done via the linear detrending.
 # So add this term to the fits if not already included.
 if config['lm_file'] is None and config['lc_model_type'] == 'eclipse':
-    lm_quantities = np.zeros((len(t), 1))
+    lm_quantities = np.zeros((1, len(t)))
     lm_quantities[:, 0] = np.ones_like(t)
     config['params'].append('theta0_inst')
     config['dists'].append('uniform')
@@ -279,7 +278,7 @@ for order in config['orders']:
         # For transit only; update the LD prior for this bin if available.
         # For prior: set prior width to 0.2 around the model value - based on
         # findings of Patel & Espinoza 2022.
-        if config['lc_model_type'] == 'transit':
+        if config['lc_model_type'] == 'transit' and config['ld_fit_type'] != 'free':
             if config['ld_model_type'] == 'quadratic-kipping':
                 low_lim = 0.0
             else:
@@ -350,20 +349,20 @@ for order in config['orders']:
         # If not skipped, append median and 1-sigma bounds.
         else:
             results_dict = fit_results[wavebin].get_results_from_fit()
-            if config['occultation_type'] == 'transit':
-                md = results_dict['rp_p1']['median']
-                up = results_dict['rp_p1']['up_1sigma']
-                lw = results_dict['rp_p1']['low_1sigma']
+            if config['lc_model_type'] == 'transit':
+                md = results_dict['rp_p1_inst']['median']
+                up = results_dict['rp_p1_inst']['up_1sigma']
+                lw = results_dict['rp_p1_inst']['low_1sigma']
                 order_results['dppm'].append((md**2)*1e6)
-                err_low = (md**2 - lw**2)*1e6
-                err_up = (up**2 - md**2)*1e6
+                err_low = (md**2 - (md - lw)**2)*1e6
+                err_up = ((up + md)**2 - md**2)*1e6
             else:
-                md = results_dict['fp_p1']['median']
-                up = results_dict['fp_p1']['up_1sigma']
-                lw = results_dict['fp_p1']['low_1sigma']
+                md = results_dict['fp_p1_inst']['median']
+                up = results_dict['fp_p1_inst']['up_1sigma']
+                lw = results_dict['fp_p1_inst']['low_1sigma']
                 order_results['dppm'].append(md*1e6)
-                err_low = (md - lw)*1e6
-                err_up = (up - md)*1e6
+                err_low = (md**2 - (md - lw)**2)*1e6
+                err_up = ((up + md)**2 - md**2)*1e6
             order_results['dppm_err'].append(np.max([err_up, err_low]))
 
         # Make summary plots.
@@ -371,26 +370,34 @@ for order in config['orders']:
             # Get dictionary of best-fitting parameters from fit.
             param_dict = fit_results[wavebin].get_param_dict_from_fit()
             # Calculate best-fitting light curve model.
+            thislm, thisgp = None, None
+            if config['lm_file'] is not None:
+                thislm = {'inst': data_dict[wavebin]['lm_parameters']}
+            if config['gp_file'] is not None:
+                thisgp = {'inst': data_dict[wavebin]['GP_parameters']}
+            thislcmod = {'inst': {'p1': config['lc_model_type']}}
             result = model.LightCurveModel(param_dict,
                                            t={'inst': data_dict[wavebin]['times']},
-                                           linear_regressors={'inst': data_dict[wavebin]['lm_parameters']},
-                                           gp_regressors={'inst': data_dict[wavebin]['GP_parameters']},
+                                           linear_regressors=thislm,
+                                           gp_regressors=thisgp,
                                            observations={'inst': data_dict[wavebin]['flux']},
                                            ld_model=config['ld_model_type'],
                                            silent=True)
-            result.compute_lightcurves(lc_model_type=config['lc_model_type'])
+            result.compute_lightcurves(lc_model_type=thislcmod)
 
             # Plot transit model and residuals.
             scatter = param_dict['sigma_inst']['value']
             nfit = len(np.where(config['dists'] != 'fixed')[0])
             t0_loc = np.where(np.array(config['params']) == 't0_p1')[0][0]
             if config['dists'][t0_loc] == 'fixed':
-                t0 = config['hyperps'][t0_loc]
+                t0 = config['values'][t0_loc]
             else:
                 t0 = param_dict['t0_p1']['value']
 
             # Get systematics and transit models.
             transit_model = result.flux['inst']
+            systematics = None
+            gp_model, lm_model = None, None
             if config['lm_file'] is not None or config['gp_file'] is not None:
                 systematics = np.zeros_like(transit_model)
                 if config['lm_file'] is not None:
@@ -399,9 +406,6 @@ for order in config['orders']:
                 if config['gp_file'] is not None:
                     gp_model = result.flux_decomposed['inst']['gp']['total']
                     systematics += gp_model
-            else:
-                systematics = None
-                gp_model = None
 
             make_lightcurve_plot(t=(t - t0)*24, data=norm_flux[:, i],
                                  model=transit_model, scatter=scatter,
@@ -476,7 +480,7 @@ orders = np.concatenate([2*np.ones_like(results_dict['order 2']['dppm']),
 infile_header = fits.getheader(config['infile'], 0)
 extract_type = infile_header['METHOD']
 target = infile_header['TARGET'] + config['planet_letter']
-if config['occultation_type'] == 'transit':
+if config['lc_model_type'] == 'transit':
     spec_type = 'transmission'
 else:
     spec_type = 'emission'
@@ -516,7 +520,7 @@ stage4.save_transmission_spectrum(waves, wave_errors, depths, errors, orders,
                                   extraction_type=extract_type,
                                   resolution=config['res'],
                                   fit_meta=fit_metadata,
-                                  occultation_type=config['occultation_type'],
+                                  occultation_type=config['lc_model_type'],
                                   observing_mode=config['observing_mode'])
 fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir+filename))
 

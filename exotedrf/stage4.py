@@ -267,19 +267,19 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins,
     # Get key names.
     all_keys = list(data_dictionary.keys())
 
-    # Unpack fitting arrays. SOSS is just a dummy name here because we really
+    # Unpack fitting arrays. inst is just a dummy name here because we really
     # only should be fitting one dataset at a time with this code and the
     # particular instrument isn't important.
-    t = {'SOSS': data_dictionary['times']}
-    flux = {'SOSS': data_dictionary['flux']}
+    t = {'inst': data_dictionary['times']}
+    flux = {'inst': {'flux': data_dictionary['flux']}}
 
     # Initialize GP and linear model regressors.
     gp_regressors = None
     linear_regressors = None
     if 'GP_parameters' in all_keys:
-        gp_regressors = {'SOSS': data_dictionary['GP_parameters']}
+        gp_regressors = {'inst': data_dictionary['GP_parameters']}
     if 'lm_parameters' in all_keys:
-        linear_regressors = {'SOSS': data_dictionary['lm_parameters']}
+        linear_regressors = {'inst': data_dictionary['lm_parameters']}
 
     fit_results = run_uporf(priors, t, flux, output_dir, gp_regressors,
                             linear_regressors, lc_model_type, ld_model)
@@ -337,10 +337,10 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
     num_bins = np.arange(len(keynames))+1
     for i, keyname in enumerate(keynames):
         if observing_mode.upper() == 'NIRISS/SOSS':
-            order = 'order{}'.format(order)
+            order_txt = 'order{}'.format(order)
         elif observing_mode.split('/')[0].upper() == 'NIRSPEC':
-            order = 'NRS{}'.format(order)
-        outdir = output_dir + 'speclightcurve{2}/{0}_{1}'.format(order, keyname, fit_suffix)
+            order_txt = 'NRS{}'.format(order)
+        outdir = output_dir + 'speclightcurve{2}/{0}_{1}'.format(order_txt, keyname, fit_suffix)
         all_fits.append(fit_data.remote(data_dict[keyname],
                                         prior_dict[keyname],
                                         output_dir=outdir,
@@ -534,9 +534,9 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors,
         Results of exoUPRF fit.
     """
 
-    if np.isfinite(flux['inst']).all():
+    if np.all(np.isfinite(flux['inst']['flux'])):
         # Load in all priors and data to be fit.
-        lc_model = {'inst': lc_model_type}
+        lc_model = {'inst': {'p1': lc_model_type}}
         dataset = fit.Dataset(input_parameters=priors, t=time,
                               ld_model=ld_model, lc_model_type=lc_model,
                               linear_regressors=linear_regressors,
@@ -545,7 +545,8 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors,
 
         # Run the fit.
         try:
-            res = dataset.fit(output_file=out_folder, sampler='NestedSampling')
+            dataset.fit(output_file=out_folder, sampler='NestedSampling')
+            res = dataset
         except KeyboardInterrupt as err:
             raise err
         except:
@@ -617,7 +618,7 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
     f.write('# Target: {}\n'.format(target))
     f.write('# Instrument: {}\n'.format(observing_mode))
     f.write('# Pipeline: exoTEDRF\n')
-    f.write('# Fitting: exoUPRF\n')
+    f.write('# Light Curve Fitting: exoUPRF\n')
     f.write('# 1D Extraction: {}\n'.format(extraction_type))
     f.write('# Spectral Resolution: {}\n'.format(resolution))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
