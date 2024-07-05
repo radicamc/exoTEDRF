@@ -24,15 +24,6 @@ The default pip installation only includes Stages 1 to 3. Stage 4 can be include
     pip install exotedrf[stage4]
 
 
-.. attention::
-    The `radvel <https://github.com/California-Planet-Search/radvel>`_ package may fail to build during the installation of Stage 4. If so, simply run:
-
-    .. code-block:: bash
-
-        pip install cython
-
-    and then proceed with the **exoTEDRF** installation as before.
-
 Alternatively, the package can be grabbed from GitHub (inlcludes all pipeline stages as well as tutorial notebooks, etc.) via:
 
 .. code-block:: bash

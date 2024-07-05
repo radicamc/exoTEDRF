@@ -3,7 +3,7 @@ exoTEDRF Usage Guide
 
 Currently supported instruments/modes: **NIRISS/SOSS** and **NIRSpec/BOTS**. **MIRI/LRS** is in development.
 
-The pipeline is divided into four stages, which closely mirror the STScI pipeline:
+The pipeline is divided into four stages, which closely mirror the STScI JWST calibration pipeline:
 
  * Stage 1: Detector-Level Processing
  * Stage 2: Spectroscopic Processing
@@ -21,8 +21,10 @@ Below are several tutorials that will walk you through the basics of JWST data a
 
    notebooks/tutorial_niriss-soss
    notebooks/tutorial_nirspec-g395h
-   notebooks/tutorial_light-curve-fitting
 
+exoTEDRF also has the capabilities for basic transit and eclipse light curve fitting in Stage4 through the exoUPRF library.
+If you are looking for some guidance on basic light curve fitting for JWST data, you can check out the exoUPRF tutorial notebooks
+`here <https://exouprf.readthedocs.io/en/latest/content/usage.html#tutorial-notebooks>`_.
 
 Scripting
 ---------
