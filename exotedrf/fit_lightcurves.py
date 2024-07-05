@@ -291,7 +291,7 @@ for order in config['orders']:
                     dist = 'fixed'
                     vals = u1[wavebin]
                 prior_dict[thisbin]['u1_inst']['distribution'] = dist
-                prior_dict[thisbin]['u1_inst']['hyperparameters'] = vals
+                prior_dict[thisbin]['u1_inst']['value'] = vals
             if config['ld_model_type'] != 'linear':
                 if config['ld_fit_type'] == 'prior':
                     dist = 'truncated_normal'
@@ -300,7 +300,7 @@ for order in config['orders']:
                     dist = 'fixed'
                     vals = u2[wavebin]
                 prior_dict[thisbin]['u2_inst']['distribution'] = dist
-                prior_dict[thisbin]['u2_inst']['hyperparameters'] = vals
+                prior_dict[thisbin]['u2_inst']['value'] = vals
             if config['ld_model_type'] == 'nonlinear':
                 if config['ld_fit_type'] == 'prior':
                     dist = 'truncated_normal'
@@ -311,9 +311,9 @@ for order in config['orders']:
                     vals3 = u3[wavebin]
                     vals4 = u4[wavebin]
                 prior_dict[thisbin]['u3_inst']['distribution'] = dist
-                prior_dict[thisbin]['u3_inst']['hyperparameters'] = vals
+                prior_dict[thisbin]['u3_inst']['value'] = vals
                 prior_dict[thisbin]['u4_inst']['distribution'] = dist
-                prior_dict[thisbin]['u4_inst']['hyperparameters'] = vals
+                prior_dict[thisbin]['u4_inst']['value'] = vals
 
     # === Do the Fit ===
     # Fit each light curve

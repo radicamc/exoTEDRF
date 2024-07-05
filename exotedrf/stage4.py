@@ -298,7 +298,7 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
     data_dict : dict
         Dictionary of fitting data: time and flux.
     prior_dict : dict
-        Dictionary of fitting priors in juliet format.
+        Dictionary of fitting priors in exoUPRF format.
     order : int
         SOSS diffraction order or NIRSpec detector.
     output_dir : str
