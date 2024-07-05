@@ -138,7 +138,7 @@ for order in config['orders']:
             expected_file = outdir + 'lightcurve_fit_order{0}{1}.pdf'.format(order, fit_suffix)
             outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
         else:
-            expected_file = outdir + 'lightcurve_fit_order{0}{1}.pdf'.format(config['detector'], fit_suffix)
+            expected_file = outdir + 'lightcurve_fit_{0}{1}.pdf'.format(config['detector'], fit_suffix)
             outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
     else:
         outpdf = None
@@ -380,7 +380,7 @@ for order in config['orders']:
                                            t={'inst': data_dict[wavebin]['times']},
                                            linear_regressors=thislm,
                                            gp_regressors=thisgp,
-                                           observations={'inst': data_dict[wavebin]['flux']},
+                                           observations={'inst': {'flux': data_dict[wavebin]['flux']}},
                                            ld_model=config['ld_model_type'],
                                            silent=True)
             result.compute_lightcurves(lc_model_type=thislcmod)
@@ -416,7 +416,8 @@ for order in config['orders']:
             # Corner plot for fit.
             if config['include_corner'] is True:
                 posterior_names = []
-                for param, dist in zip(config['params'], config['dists']):
+                for param in prior_dict[wavebin].keys():
+                    dist = prior_dict[wavebin][param]['distribution']
                     if dist != 'fixed':
                         if param in formatted_names.keys():
                             posterior_names.append(formatted_names[param])
