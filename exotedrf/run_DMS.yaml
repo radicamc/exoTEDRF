@@ -9,6 +9,11 @@ crds_cache_path : './crds_cache/'
 input_dir : 'DMS_uncal/'
 # Input file tag.
 input_filetag : 'uncal'
+# Instrument mode used. Currently tested are 'NIRISS/SOSS' and 'NIRSpec/G395H', though other NIRSpec gratings are
+# also supported.
+observing_mode : 'NIRISS/SOSS'
+# Type of filter or detector used. For SOSS, either 'CLEAR' or 'F277W'. For NIRSpec, either 'NRS1' or 'NRS2'.
+filter_detector : 'CLEAR'
 
 # ===== Stage 1 Input Files & Parameters =====
 # List of stage 1 steps to run or skip.
@@ -22,21 +27,25 @@ LinearityStep : 'run'
 JumpStep : 'run'
 RampFitStep : 'run'
 GainScaleStep : 'run'
-# Background model. Default model available here:
+# (SOSS only) Background model for NIRISS/SOSS. Default model available here:
 # https://jwst-docs.stsci.edu/jwst-near-infrared-imager-and-slitless-spectrograph/niriss-observing-strategies/niriss-soss-recommended-strategies
-background_file : 'model_background256.npy'
-# 1/f correction method; either 'scale-achromatic', 'scale-achromatic-window', 'scale-chromatic', or 'solve'.
+soss_background_file : 'model_background256.npy'
+# 1/f correction method. For SOSS, options are 'scale-achromatic', 'scale-achromatic-window', 'scale-chromatic', or
+# 'solve'. For NIRSpec, options are 'median', or 'slope'.
 oof_method : 'scale-achromatic'
-# For 1/f correction; estimate of 1D or 2D timeseries for order 1 (optional).
-timeseries : None
-# For 1/f correction; estimate of 2D timeseries for order 2. Only necessary if oof_method is "scale-chromatic".
-timeseries_o2 : None
+# (SOSS only) For 1/f correction; estimate of 1D or 2D timeseries for order 1 (optional).
+soss_timeseries : None
+# (SOSS only) For 1/f correction; estimate of 2D timeseries for order 2. Only necessary if oof_method is
+# 'scale-chromatic'.
+soss_timeseries_o2 : None
 # For 1/f correction; outlier pixel maps (optional).
 outlier_maps : None
-# Width, in pixels, of inner trace mask.
-inner_mask_width : 40
-# Width, in pixels, of outer trace mask.
-outer_mask_width : 70
+# (SOSS only) For 1/f correction; width, in pixels, of inner trace mask.
+soss_inner_mask_width : 40
+# (SOSS only) For 1/f correction; width, in pixels, of outer trace mask.
+soss_outer_mask_width : 70
+# (NIRSpec only) For 1/f correction; width, in pixels, of trace mask.
+nirspec_mask_width : 16
 # For jump detection; whether to flag outliers up-the-ramp (jwst default).
 flag_up_ramp : False
 # For jump detection; sigma threshold for a pixel to be flagged as an outlier.
@@ -51,9 +60,11 @@ stage1_kwargs : {}
 # ===== Stage 2 Input Files & Parameters =====
 # List of stage 2 steps to run or skip.
 AssignWCSStep : 'run'
+Extract2DStep : 'skip'     # NIRSpec only
 SourceTypeStep: 'run'
-FlatFieldStep : 'run'
-BackgroundStep : 'run'
+WaveCorrStep : 'skip'      # NIRSpec only
+FlatFieldStep : 'run'      # SOSS only
+BackgroundStep : 'run'     # SOSS only
 OneOverFStep_int : 'skip'
 BadPixStep : 'run'
 TracingStep : 'run'
@@ -65,26 +76,26 @@ time_outlier_threshold : 10
 calculate_stability : True
 # Number of principle components to extract. Only necessary if calculate_stability is True.
 pca_components : 10
-# If True, generate a smoothed estimate of the order 1 white light curve.
+# (SOSS only) If True, generate a smoothed estimate of the order 1 white light curve.
 generate_lc : True
-# Timescale on which to smooth lightcurve estimate (optional).
+# (SOSS only) Timescale on which to smooth lightcurve estimate (optional).
 smoothing_scale : None
-# If True, use an F277W filter exposure to create a mask of background order 0s.
+# (SOSS only) If True, use an F277W filter exposure to create a mask of background order 0s.
 generate_order0_mask : False
-# Path to a processed (superbias and background subtracted) F277W exposure data frame (optional). Only necessary if
-# generate_order0_mask is True.
+# (SOSS only) Path to a processed (superbias and background subtracted) F277W exposure data frame (optional). Only
+# necessary if generate_order0_mask is True.
 f277w : None
 # DMS Stage 2 kwargs. Format should be: {'step_name': {'kwd': value}}.
 stage2_kwargs : {}
 
 # ===== Stage 3 Input Files & Parameters =====
-# Extraction method: box or atoca.
+# Extraction method. For SOSS, options are 'box' or 'atoca'. For NIRSpec, only 'box' is offered.
 extract_method : 'box'
 # Box width to extract around the trace center. Passing 'optimize' will find and use the aperture width that minimizes
 # the white light curve scatter.
-soss_width : 35
-# Specprofile reference file for ATOCA (optional).
-specprofile : None
+extract_width : 35
+# (SOSS only) Specprofile reference file for ATOCA (optional).
+soss_specprofile : None
 # Stellar effective temperature in K for wavelength calibration (optional).
 st_teff : None
 # Stellar log surface gravity for wavelength calibration (optional).
@@ -101,15 +112,13 @@ stage3_kwargs : {}
 output_tag : ''
 # Pipeline stages to run.
 run_stages : [1, 2, 3]
-# Type of exposure; either CLEAR or F277W.
-exposure_type : 'CLEAR'
 # Save results of each intermediate step to file.
 save_results : True
 # Force redo of steps which have already been completed.
 force_redo : False
 # Integrations of ingress and/or egress.
 baseline_ints : [50, -50]
-# File with centroids for all three orders for box extraction and 1/f correction (optional).
+# File with trace centroids for box extraction and 1/f correction (optional).
 centroids : None
 # If True, make diagnostic plots.
 do_plots : True

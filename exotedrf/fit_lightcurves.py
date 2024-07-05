@@ -5,14 +5,15 @@ Created on Wed Jul 27 14:35 2022
 
 @author: MCR
 
-Juliet light curve fitting script.
+Script to fit simple transit and eclipse light curves with exoUPRF.
 """
 
 from astropy.io import fits
 import copy
 from datetime import datetime
+import exouprf.light_curve_models as model
+from exouprf.plotting import make_lightcurve_plot
 import glob
-import juliet
 import matplotlib.backends.backend_pdf
 import numpy as np
 import os
@@ -81,37 +82,39 @@ f.write('\nRun at {}.'.format(time))
 f.close()
 
 # Formatted parameter names for plotting.
-formatted_names = {'P_p1': r'$P$', 't0_p1': r'$T_0$', 'p_p1': r'$R_p/R_*$',
-                   'b_p1': r'$b$', 'q1_SOSS': r'$q_1$', 'q2_SOSS': r'$q_2$',
-                   'ecc_p1': r'$e$', 'omega_p1': r'$\Omega$',
-                   'a_p1': r'$a/R_*$', 'sigma_w_SOSS': r'$\sigma_w$',
-                   'theta0_SOSS': r'$\theta_0$', 'theta1_SOSS': r'$\theta_1$',
-                   'theta2_SOSS': r'$\theta_2$', 'theta3_SOSS': r'$\theta_3$',
-                   'theta4_SOSS': r'$\theta_4$', 'theta5_SOSS': r'$\theta_5$',
-                   'GP_sigma_SOSS': r'$GP \sigma$',
-                   'GP_rho_SOSS': r'$GP \rho$', 'GP_S0_SOSS': r'$GP S0$',
-                   'GO_omega0_SOSS': r'$GP \Omega_0$', 'GP_Q_SOSS': r'$GP Q$',
-                   'rho': r'$\rho$', 't_secondary_p1': r'$T_{sec}$',
-                   'fp_p1': r'$F_p/F_*$'}
+formatted_names = {'per_p1': r'$P$', 't0_p1': r'$T_0$', 'rp_p1_inst': r'$R_p/R_*$',
+                   'inc_p1': r'$i$', 'u1_inst': r'$u_1$', 'u2_inst': r'$u_2$',
+                   'ecc_p1': r'$e$', 'w_p1': r'$\Omega$',
+                   'a_p1': r'$a/R_*$', 'sigma_inst': r'$\sigma$',
+                   'theta0_inst': r'$\theta_0$', 'theta1_inst': r'$\theta_1$',
+                   'theta2_inst': r'$\theta_2$', 'theta3_inst': r'$\theta_3$',
+                   'theta4_inst': r'$\theta_4$', 'theta5_inst': r'$\theta_5$',
+                   'GP_sigma_inst': r'$GP \sigma$',
+                   'GP_rho_inst': r'$GP \rho$', 'GP_S0_inst': r'$GP S0$',
+                   'GO_omega0_inst': r'$GP \Omega_0$', 'GP_Q_inst': r'$GP Q$',
+                   'rho': r'$\rho$', 'tsec_p1': r'$T_{sec}$',
+                   'fp_p1_inst': r'$F_p/F_*$'}
 
 # === Get Detrending Quantities ===
 # Get time axis
-t = fits.getdata(config['infile'], 9)
+if config['observing_mode'] == 'NIRISS/SOSS':
+    t = fits.getdata(config['infile'], 9)
+else:
+    t = fits.getdata(config['infile'], 5)
 # Quantities against which to linearly detrend.
 if config['lm_file'] is not None:
     lm_data = pd.read_csv(config['lm_file'], comment='#')
-    lm_quantities = np.zeros((len(t), len(config['lm_parameters'])+1))
-    lm_quantities[:, 0] = np.ones_like(t)
+    lm_quantities = np.zeros((len(config['lm_parameters'])+1, len(t)))
+    lm_quantities[0] = np.ones_like(t)
     for i, key in enumerate(config['lm_parameters']):
-        i += 1
         lm_param = lm_data[key]
-        lm_quantities[:, i] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
+        lm_quantities[i+1] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
 # Eclipses must fit for a baseline, which is done via the linear detrending.
 # So add this term to the fits if not already included.
-if config['lm_file'] is None and config['occultation_type'] == 'eclipse':
-    lm_quantities = np.zeros((len(t), 1))
+if config['lm_file'] is None and config['lc_model_type'] == 'eclipse':
+    lm_quantities = np.zeros((1, len(t)))
     lm_quantities[:, 0] = np.ones_like(t)
-    config['params'].append('theta0_SOSS')
+    config['params'].append('theta0_inst')
     config['dists'].append('uniform')
     config['hyperps'].append([-10, 10])
 
@@ -126,16 +129,25 @@ baseline_ints = utils.format_out_frames(config['baseline_ints'])
 # === Fit Light Curves ===
 # Start the light curve fitting.
 results_dict = {}
+if config['observing_mode'] != 'NIRISS/SOSS':
+    config['orders'] = [1]
 for order in config['orders']:
     first_time = True
     if config['do_plots'] is True:
-        expected_file = outdir + 'lightcurve_fit_order{0}{1}.pdf'.format(order, fit_suffix)
-        outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
+        if config['observing_mode'] == 'NIRISS/SOSS':
+            expected_file = outdir + 'lightcurve_fit_order{0}{1}.pdf'.format(order, fit_suffix)
+            outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
+        else:
+            expected_file = outdir + 'lightcurve_fit_{0}{1}.pdf'.format(config['detector'], fit_suffix)
+            outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
     else:
         outpdf = None
 
     # === Set Up Priors and Fit Parameters ===
-    fancyprint('Fitting order {} at {}.'.format(order, res_str))
+    if config['observing_mode'] == 'NIRISS/SOSS':
+        fancyprint('Fitting order {} at {}.'.format(order, res_str))
+    else:
+        fancyprint('Fitting detector {} at {}.'.format(config['detector'], res_str))
     # Unpack wave, flux and error, cutting reference pixel columns.
     wave_low = fits.getdata(config['infile'],  1 + 4*(order - 1))[:, 5:-5]
     wave_up = fits.getdata(config['infile'], 2 + 4*(order - 1))[:, 5:-5]
@@ -146,6 +158,11 @@ for order in config['orders']:
     # For order 2, only fit wavelength bins between 0.6 and 0.85µm.
     if order == 2:
         ii = np.where((wave[0] >= 0.6) & (wave[0] <= 0.85))[0]
+        flux, err = flux[:, ii], err[:, ii]
+        wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
+    # For NRS1, only fit wavelengths > 2.9µm.
+    if config['detector'] == 'NRS1' and config['observing_mode'].upper() == 'NIRSPEC/G395H':
+        ii = np.where(wave[0] >= 2.9)[0]
         flux, err = flux[:, ii], err[:, ii]
         wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
 
@@ -178,21 +195,27 @@ for order in config['orders']:
 
     # Set up priors
     priors = {}
-    for param, dist, hyperp in zip(config['params'], config['dists'], config['hyperps']):
+    for param, dist, hyperp in zip(config['params'], config['dists'], config['values']):
         priors[param] = {}
         priors[param]['distribution'] = dist
-        priors[param]['hyperparameters'] = hyperp
+        priors[param]['value'] = hyperp
 
     # For transit fits, calculate LD coefficients from stellar models.
-    if config['occultation_type'] == 'transit' and config['ld_fit_type'] != 'free':
+    if config['lc_model_type'] == 'transit' and config['ld_fit_type'] != 'free':
         calculate = True
         # First check if LD coefficient files have been provided.
-        if config['ldcoef_file_o{}'.format(order)] is not None:
+        if config['ldcoef_file{}'.format(order)] is not None:
             calculate = False
             fancyprint('Reading limb-darkening coefficient file.')
             try:
-                q1, q2 = stage4.read_ld_coefs(config['ldcoef_file_o{}'.format(order)],
-                                              wave_low, wave_up)
+                ld = stage4.read_ld_coefs(config['ldcoef_file{}'.format(order)],
+                                          wave_low, wave_up)
+                u1 = np.array(ld[0])
+                if config['ld_model_type'] != 'linear':
+                    u2 = np.array(ld[1])
+                if config['ld_model_type'] == 'nonlinear':
+                    u3 = np.array(ld[2])
+                    u4 = np.array(ld[3])
             except ValueError:
                 msg = 'LD coefficient file could not be correctly parsed. ' \
                       'Falling back onto LD calculation.'
@@ -205,17 +228,35 @@ for order in config['orders']:
             msg = 'All stellar parameters must be provided to calculate ' \
                   'limb-darkening coefficients.'
             assert np.all(np.array([m_h, logg, teff]) != None), msg
-            c1, c2 = stage4.gen_ld_coefs(config['spectrace_ref'], wave_low,
-                                         wave_up, order, m_h, logg, teff,
-                                         config['ld_data_path'],
-                                         model_type=config['ld_model_type'])
-            q1, q2 = juliet.reverse_q_coeffs('quadratic', c1, c2)
+            # Get ExoTiC-LD instrument mode identifier.
+            modes = {'NIRISS/SOSS': 'JWST_NIRISS_SOSSo1',
+                     'NIRSpec/PRISM': 'JWST_NIRSpec_Prism',
+                     'NIRSpec/G395H': 'JWST_NIRSpec_G395H',
+                     'NIRSpec/G395M': 'JWST_NIRSpec_G395M',
+                     'NIRSpec/G235H': 'JWST_NIRSpec_G235H',
+                     'NIRSpec/G235M': 'JWST_NIRSpec_G235M',
+                     'NIRSpec/G140H': 'JWST_NIRSpec_G140H',
+                     'NIRSpec/G140M': 'JWST_NIRSpec_G140M'}
+            ld = stage4.gen_ld_coefs(wave_low, wave_up, order, m_h, logg,
+                                     teff, config['ld_data_path'],
+                                     stellar_model_type=config['stellar_model_type'],
+                                     spectrace_ref=config['spectrace_ref'],
+                                     mode=modes[config['observing_mode']],
+                                     ld_model_type=config['ld_model_type'])
+            u1 = np.array(ld[0])
+            if config['ld_model_type'] != 'linear':
+                u2 = np.array(ld[1])
+            if config['ld_model_type'] == 'nonlinear':
+                u3 = np.array(ld[2])
+                u4 = np.array(ld[3])
+
             # Save calculated coefficients.
             target = fits.getheader(config['infile'], 0)['TARGET']
             outdir_ld = outdir + 'speclightcurve{}/'.format(fit_suffix)
             utils.verify_path(outdir_ld)
-            utils.save_ld_priors(wave, c1, c2, order, target, m_h, teff, logg,
-                                 outdir=outdir_ld)
+            utils.save_ld_priors(wave, ld, order, target, m_h, teff, logg,
+                                 outdir_ld, config['ld_model_type'],
+                                 config['observing_mode'])
 
     # Pack fitting arrays and priors into dictionaries.
     data_dict, prior_dict = {}, {}
@@ -223,8 +264,7 @@ for order in config['orders']:
         # Data dictionaries, including linear model and GP regressors.
         thisbin = 'wavebin' + str(wavebin)
         bin_dict = {'times': t,
-                    'flux': norm_flux[:, wavebin],
-                    'error': np.zeros_like(norm_err[:, wavebin])}
+                    'flux': norm_flux[:, wavebin]}
         # If linear models are to be included.
         if config['lm_file'] is not None:
             bin_dict['lm_parameters'] = lm_quantities
@@ -236,31 +276,54 @@ for order in config['orders']:
         # Prior dictionaries.
         prior_dict[thisbin] = copy.deepcopy(priors)
         # For transit only; update the LD prior for this bin if available.
-        if config['occultation_type'] == 'transit':
-            if config['ld_fit_type'] == 'prior':
-                # Set prior width to 0.2 around the model value - based on
-                # findings of Patel & Espinoza 2022.
-                if np.isfinite(q1[wavebin]):
-                    prior_dict[thisbin]['q1_SOSS']['distribution'] = 'truncatednormal'
-                    prior_dict[thisbin]['q1_SOSS']['hyperparameters'] = [q1[wavebin], 0.2, 0.0, 1.0]
-                if np.isfinite(q2[wavebin]):
-                    prior_dict[thisbin]['q2_SOSS']['distribution'] = 'truncatednormal'
-                    prior_dict[thisbin]['q2_SOSS']['hyperparameters'] = [q2[wavebin], 0.2, 0.0, 1.0]
-            elif config['ld_fit_type'] == 'fixed':
-                # Fix LD to model values.
-                if np.isfinite(q1[wavebin]):
-                    prior_dict[thisbin]['q1_SOSS']['distribution'] = 'fixed'
-                    prior_dict[thisbin]['q1_SOSS']['hyperparameters'] = q1[wavebin]
-                if np.isfinite(q2[wavebin]):
-                    prior_dict[thisbin]['q2_SOSS']['distribution'] = 'fixed'
-                    prior_dict[thisbin]['q2_SOSS']['hyperparameters'] = q2[wavebin]
+        # For prior: set prior width to 0.2 around the model value - based on
+        # findings of Patel & Espinoza 2022.
+        if config['lc_model_type'] == 'transit' and config['ld_fit_type'] != 'free':
+            if config['ld_model_type'] == 'quadratic-kipping':
+                low_lim = 0.0
+            else:
+                low_lim = -1.0
+            if np.isfinite(u1[wavebin]):
+                if config['ld_fit_type'] == 'prior':
+                    dist = 'truncated_normal'
+                    vals = [u1[wavebin], 0.2, low_lim, 1.0]
+                elif config['ld_fit_type'] == 'fixed':
+                    dist = 'fixed'
+                    vals = u1[wavebin]
+                prior_dict[thisbin]['u1_inst']['distribution'] = dist
+                prior_dict[thisbin]['u1_inst']['value'] = vals
+            if config['ld_model_type'] != 'linear':
+                if config['ld_fit_type'] == 'prior':
+                    dist = 'truncated_normal'
+                    vals = [u2[wavebin], 0.2, low_lim, 1.0]
+                elif config['ld_fit_type'] == 'fixed':
+                    dist = 'fixed'
+                    vals = u2[wavebin]
+                prior_dict[thisbin]['u2_inst']['distribution'] = dist
+                prior_dict[thisbin]['u2_inst']['value'] = vals
+            if config['ld_model_type'] == 'nonlinear':
+                if config['ld_fit_type'] == 'prior':
+                    dist = 'truncated_normal'
+                    vals3 = [u3[wavebin], 0.2, low_lim, 1.0]
+                    vals4 = [u4[wavebin], 0.2, low_lim, 1.0]
+                elif config['ld_fit_type'] == 'fixed':
+                    dist = 'fixed'
+                    vals3 = u3[wavebin]
+                    vals4 = u4[wavebin]
+                prior_dict[thisbin]['u3_inst']['distribution'] = dist
+                prior_dict[thisbin]['u3_inst']['value'] = vals
+                prior_dict[thisbin]['u4_inst']['distribution'] = dist
+                prior_dict[thisbin]['u4_inst']['value'] = vals
 
     # === Do the Fit ===
     # Fit each light curve
     fit_results = stage4.fit_lightcurves(data_dict, prior_dict, order=order,
                                          output_dir=outdir,
                                          nthreads=config['ncores'],
-                                         fit_suffix=fit_suffix)
+                                         fit_suffix=fit_suffix,
+                                         observing_mode=config['observing_mode'],
+                                         lc_model_type=config['lc_model_type'],
+                                         ld_model=config['ld_model_type'])
 
     # === Summarize Fit Results ===
     # Loop over results for each wavebin, extract best-fitting parameters and
@@ -285,80 +348,83 @@ for order in config['orders']:
             order_results['dppm_err'].append(np.nan)
         # If not skipped, append median and 1-sigma bounds.
         else:
-            post_samples = fit_results[wavebin].posteriors['posterior_samples']
-            if config['occultation_type'] == 'transit':
-                md, up, lw = juliet.utils.get_quantiles(post_samples['p_p1'])
+            results_dict = fit_results[wavebin].get_results_from_fit()
+            if config['lc_model_type'] == 'transit':
+                md = results_dict['rp_p1_inst']['median']
+                up = results_dict['rp_p1_inst']['up_1sigma']
+                lw = results_dict['rp_p1_inst']['low_1sigma']
                 order_results['dppm'].append((md**2)*1e6)
-                err_low = (md**2 - lw**2)*1e6
-                err_up = (up**2 - md**2)*1e6
+                err_low = (md**2 - (md - lw)**2)*1e6
+                err_up = ((up + md)**2 - md**2)*1e6
             else:
-                md, up, lw = juliet.utils.get_quantiles(post_samples['fp_p1'])
+                md = results_dict['fp_p1_inst']['median']
+                up = results_dict['fp_p1_inst']['up_1sigma']
+                lw = results_dict['fp_p1_inst']['low_1sigma']
                 order_results['dppm'].append(md*1e6)
-                err_low = (md - lw)*1e6
-                err_up = (up - md)*1e6
+                err_low = (md**2 - (md - lw)**2)*1e6
+                err_up = ((up + md)**2 - md**2)*1e6
             order_results['dppm_err'].append(np.max([err_up, err_low]))
 
         # Make summary plots.
         if skip is False and config['do_plots'] is True:
-            # Plot transit model and residuals.
+            # Get dictionary of best-fitting parameters from fit.
+            param_dict = fit_results[wavebin].get_param_dict_from_fit()
+            # Calculate best-fitting light curve model.
+            thislm, thisgp = None, None
+            if config['lm_file'] is not None:
+                thislm = {'inst': data_dict[wavebin]['lm_parameters']}
             if config['gp_file'] is not None:
-                # Hack to get around weird bug where ray fits with GPs end
-                # up being read only.
-                outdir_i = outdir + 'speclightcurve{2}/order{0}_{1}'.format(order, wavebin, fit_suffix)
-                dataset = juliet.load(priors=prior_dict[wavebin],
-                                      t_lc={'SOSS': data_dict[wavebin]['times']},
-                                      y_lc={'SOSS': data_dict[wavebin]['flux']},
-                                      yerr_lc={'SOSS': data_dict[wavebin]['error']},
-                                      GP_regressors_lc={'SOSS': data_dict[wavebin]['GP_parameters']},
-                                      out_folder=outdir_i)
-                results = dataset.fit(sampler='dynesty')
-                transit_model, comp = results.lc.evaluate('SOSS',
-                                                          GPregressors=t,
-                                                          return_components=True)
-            else:
-                transit_model, comp = fit_results[wavebin].lc.evaluate('SOSS', return_components=True)
-            scatter = np.median(fit_results[wavebin].posteriors['posterior_samples']['sigma_w_SOSS'])
+                thisgp = {'inst': data_dict[wavebin]['GP_parameters']}
+            thislcmod = {'inst': {'p1': config['lc_model_type']}}
+            result = model.LightCurveModel(param_dict,
+                                           t={'inst': data_dict[wavebin]['times']},
+                                           linear_regressors=thislm,
+                                           gp_regressors=thisgp,
+                                           observations={'inst': {'flux': data_dict[wavebin]['flux']}},
+                                           ld_model=config['ld_model_type'],
+                                           silent=True)
+            result.compute_lightcurves(lc_model_type=thislcmod)
+
+            # Plot transit model and residuals.
+            scatter = param_dict['sigma_inst']['value']
             nfit = len(np.where(config['dists'] != 'fixed')[0])
             t0_loc = np.where(np.array(config['params']) == 't0_p1')[0][0]
             if config['dists'][t0_loc] == 'fixed':
-                t0 = config['hyperps'][t0_loc]
+                t0 = config['values'][t0_loc]
             else:
-                t0 = np.median(fit_results[wavebin].posteriors['posterior_samples']['t0_p1'])
+                t0 = param_dict['t0_p1']['value']
 
             # Get systematics and transit models.
-            if config['lm_file'] is not None:
+            transit_model = result.flux['inst']
+            systematics = None
+            gp_model, lm_model = None, None
+            if config['lm_file'] is not None or config['gp_file'] is not None:
+                systematics = np.zeros_like(transit_model)
+                if config['lm_file'] is not None:
+                    lm_model = result.flux_decomposed['inst']['lm']['total']
+                    systematics += lm_model
                 if config['gp_file'] is not None:
-                    gp_model = transit_model - comp['transit'] - comp['lm']
-                    systematics = gp_model + comp['lm']
-                else:
-                    systematics = comp['lm']
-                    gp_model = None
-            else:
-                systematics = None
-                gp_model = None
+                    gp_model = result.flux_decomposed['inst']['gp']['total']
+                    systematics += gp_model
 
-            plotting.make_lightcurve_plot(t=(t - t0)*24,
-                                          data=norm_flux[:, i],
-                                          model=transit_model,
-                                          scatter=scatter,
-                                          errors=norm_err[:, i],
-                                          outpdf=outpdf, nfit=nfit,
-                                          title='bin {0} | {1:.3f}µm'.format(i, wave[i]),
-                                          systematics=systematics,
-                                          rasterized=True)
+            make_lightcurve_plot(t=(t - t0)*24, data=norm_flux[:, i],
+                                 model=transit_model, scatter=scatter,
+                                 errors=norm_err[:, i], outpdf=outpdf,
+                                 title='bin {0} | {1:.3f}µm'.format(i, wave[i]),
+                                 systematics=systematics, nbin=int(len(t)/35),
+                                 rasterized=True, nfit=nfit)
             # Corner plot for fit.
             if config['include_corner'] is True:
-                fit_params, posterior_names = [], []
-                for param, dist in zip(config['params'], config['dists']):
+                posterior_names = []
+                for param in prior_dict[wavebin].keys():
+                    dist = prior_dict[wavebin][param]['distribution']
                     if dist != 'fixed':
-                        fit_params.append(param)
                         if param in formatted_names.keys():
                             posterior_names.append(formatted_names[param])
                         else:
                             posterior_names.append(param)
-                plotting.make_corner_plot(fit_params, fit_results[wavebin],
-                                          posterior_names=posterior_names,
-                                          outpdf=outpdf)
+                fit_results[wavebin].make_corner_plot(labels=posterior_names,
+                                                      outpdf=outpdf)
 
             data[:, i] = norm_flux[:, i]
             models[0, :, i] = transit_model
@@ -370,9 +436,15 @@ for order in config['orders']:
             residuals[:, i] = norm_flux[:, i] - transit_model
 
     results_dict['order {}'.format(order)] = order_results
+
     # Save best-fitting light curve models.
+    if config['observing_mode'].upper() == 'NIRISS/SOSS':
+        order_txt = 'order{}'.format(order)
+    else:
+        order_txt = config['detector']
     np.save(outdir + 'speclightcurve{0}/'
-                     '_models_order{1}.npy'.format(fit_suffix, order), models)
+                     '_models_{1}.npy'.format(fit_suffix, order_txt), models)
+
     # Plot 2D lightcurves.
     if config['do_plots'] is True:
         plotting.make_2d_lightcurve_plot(wave, data, outpdf=outpdf,
@@ -385,7 +457,7 @@ for order in config['orders']:
 
 # === Transmission Spectrum ===
 # Save the transmission spectrum.
-fancyprint('Writing transmission spectrum.')
+fancyprint('Writing spectrum to file.')
 for order in ['1', '2']:
     if 'order '+order not in results_dict.keys():
         order_results = {'dppm': [], 'dppm_err': [], 'wave': [],
@@ -409,20 +481,25 @@ orders = np.concatenate([2*np.ones_like(results_dict['order 2']['dppm']),
 infile_header = fits.getheader(config['infile'], 0)
 extract_type = infile_header['METHOD']
 target = infile_header['TARGET'] + config['planet_letter']
-if config['occultation_type'] == 'transit':
+if config['lc_model_type'] == 'transit':
     spec_type = 'transmission'
 else:
     spec_type = 'emission'
-filename = target + '_NIRISS_SOSS_' + spec_type + '_spectrum' + fit_suffix + '.csv'
+inst = '_'
+for chunk in config['observing_mode'].split('/'):
+    inst += '{}_'.format(chunk)
+if config['observing_mode'][-1] == 'H':
+    inst += '{}_'.format(config['detector'])
+filename = target + inst + spec_type + '_spectrum' + fit_suffix + '.csv'
 # Get fit metadata.
 # Include fixed parameter values.
 fit_metadata = '#\n# Fit Metadata\n'
-for param, dist, hyper in zip(config['params'], config['dists'], config['hyperps']):
-    if dist == 'fixed' and param not in ['mdilution_SOSS', 'mflux_SOSS']:
+for param, dist, value in zip(config['params'], config['dists'], config['values']):
+    if dist == 'fixed':
         try:
-            fit_metadata += '# {}: {}\n'.format(formatted_names[param], hyper)
+            fit_metadata += '# {}: {}\n'.format(formatted_names[param], value)
         except KeyError:
-            fit_metadata += '# {}: {}\n'.format(param, hyper)
+            fit_metadata += '# {}: {}\n'.format(param, value)
 # Append info on detrending via linear models or GPs.
 if len(config['lm_parameters']) != 0:
     fit_metadata += '# Linear Model: '
@@ -444,7 +521,8 @@ stage4.save_transmission_spectrum(waves, wave_errors, depths, errors, orders,
                                   extraction_type=extract_type,
                                   resolution=config['res'],
                                   fit_meta=fit_metadata,
-                                  occultation_type=config['occultation_type'])
+                                  occultation_type=config['lc_model_type'],
+                                  observing_mode=config['observing_mode'])
 fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir+filename))
 
 fancyprint('Done')

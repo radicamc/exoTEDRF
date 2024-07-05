@@ -1,7 +1,9 @@
 Citations
 ==========
 
-If you make use of this code in your work, please cite `Radica et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023MNRAS.524..835R/abstract>`_ and `Feinstein et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023Natur.614..670F/abstract>`_.
+If you make use of this code in your work, please cite `Radica (2024) <xxx>`_, as well as `Radica et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023MNRAS.524..835R/abstract>`_ and `Feinstein et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023Natur.614..670F/abstract>`_ for its first uses.
+
+For NIRSpec capabilities, please also cite `PLACEHOLDER <xxx>`_.
 
 Additional Citations
 --------------------
@@ -9,10 +11,9 @@ If you use the ATOCA extraction algorithm for NIRISS/SOSS, please also cite `Rad
 and `Darveau-Bernier et al. (2022) <https://ui.adsabs.harvard.edu/abs/2022PASP..134i4502D/abstract>`_.
 
 If you make use of the light curve fitting routines, also include the following citations for
-`juliet <https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.2262E/abstract>`_,
-`batman <https://ui.adsabs.harvard.edu/abs/2015PASP..127.1161K/abstract>`_,
-`dynesty <https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S/abstract>`_, and
-`Kipping et al. (2013) <https://ui.adsabs.harvard.edu/abs/2013MNRAS.435.2152K/abstract>`_ for the limb-darkening sampling.
+`exoUPRF <https://zenodo.org/records/12628067>`_,
+`batman <https://ui.adsabs.harvard.edu/abs/2015PASP..127.1161K/abstract>`_, and
+`dynesty <https://ui.adsabs.harvard.edu/abs/2020MNRAS.493.3132S/abstract>`_.
 
 If you use Gaussian Processes please cite `celerite <https://ui.adsabs.harvard.edu/abs/2017AJ....154..220F/abstract>`_,
 and if you use ExoTiC-LD for limb darkening priors cite `Grant & Wakeford (2022) <https://doi.org/10.5281/zenodo.7437681>`_.
