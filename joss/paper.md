@@ -70,6 +70,7 @@ Suggestions for additional features are always welcome!
 
 # Similar Tools
 The following is a list of other open source pipelines tailored to exoplanet observations with JWST, some of which general purpose, and others which are more tailored to specific instruments:
+
 - General purpose: `Eureka!` [@bell_eureka_2022], `jwst` [@bushouse_howard_2022_7038885], `transitspectroscopy` [@espinoza_nestor_2022_6960924]
 - NIRISS specific: `nirHiss` [@nirhiss2022]
 - NIRCam specific: `tshirt` [@tshirt2022]
