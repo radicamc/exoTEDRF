@@ -1,6 +1,20 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [2.0.0] -- 2024-07-05
+#### Added
+- Support for NIRSpec/BOTS observations. 
+- Functions to refine SOSS timestamps for limb asymmetry studies.
+- Light curve fitting with exoUPRF.
+- Updates to documentation.
+- NIRSpec/G395H reduction tutorial. 
+- Misc. bug fixes.
+
+#### Removed
+- Light curve plotting routines
+- juliet dependencies. 
+- Light curve fitting tutorial.
+
 ### [1.4.0] -- 2024-03-08
 #### Added
 - Package name changed to exoTEDRF.
