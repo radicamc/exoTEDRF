@@ -14,6 +14,7 @@ Currently supported instruments/modes are: **NIRISS/SOSS** and **NIRSpec/BOTS**.
    content/installation
    content/usage
    content/citations
+   content/contributions
    api/api
 
 *Happy Analyzing!*
