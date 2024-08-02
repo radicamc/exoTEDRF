@@ -16,6 +16,11 @@ Tutorial Notebooks
 
 Below are several tutorials that will walk you through the basics of JWST data analysis using exoTEDRF.
 
+.. note::
+    Be aware that TSO data is large, and reducing it is both memory and storage intensive.
+    Particularly for NIRISS, individual segments can be upwards of 8Gb, and a laptop computer will likely be insufficient to run the tutorial notebooks (or process any other observations).
+    We are working on decreasing the memory requirements of **exoTEDRF** where possible, but it is always preferrable to reduce your observations on a cluster.
+
 .. toctree::
    :maxdepth: 2
 
