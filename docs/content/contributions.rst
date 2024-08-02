@@ -1,4 +1,4 @@
-Citations
+Contributing to exoTEDRF
 ==========
 
 Whether you just want a bug fixed or want to design a whole new feature, here you'll find some useful information if you'd like to contribute to **exoTEDRF**.
