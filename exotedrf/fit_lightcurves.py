@@ -348,18 +348,18 @@ for order in config['orders']:
             order_results['dppm_err'].append(np.nan)
         # If not skipped, append median and 1-sigma bounds.
         else:
-            results_dict = fit_results[wavebin].get_results_from_fit()
+            this_result = fit_results[wavebin].get_results_from_fit()
             if config['lc_model_type'] == 'transit':
-                md = results_dict['rp_p1_inst']['median']
-                up = results_dict['rp_p1_inst']['up_1sigma']
-                lw = results_dict['rp_p1_inst']['low_1sigma']
+                md = this_result['rp_p1_inst']['median']
+                up = this_result['rp_p1_inst']['up_1sigma']
+                lw = this_result['rp_p1_inst']['low_1sigma']
                 order_results['dppm'].append((md**2)*1e6)
                 err_low = (md**2 - (md - lw)**2)*1e6
                 err_up = ((up + md)**2 - md**2)*1e6
             else:
-                md = results_dict['fp_p1_inst']['median']
-                up = results_dict['fp_p1_inst']['up_1sigma']
-                lw = results_dict['fp_p1_inst']['low_1sigma']
+                md = this_result['fp_p1_inst']['median']
+                up = this_result['fp_p1_inst']['up_1sigma']
+                lw = this_result['fp_p1_inst']['low_1sigma']
                 order_results['dppm'].append(md*1e6)
                 err_low = (md**2 - (md - lw)**2)*1e6
                 err_up = ((up + md)**2 - md**2)*1e6
