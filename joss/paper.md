@@ -31,7 +31,7 @@ Finally, `exoTEDRF` has also been designed to be run in "batch" mode: simultaneo
 
 
 # Overview of exoTEDRF Stages
-Like similar pipelines (`Eureka!` [@bell_eureka_2022], `jwst` [@bushouse_howard_2022_7038885], etc.)
+Like similar pipelines [e.g. `Eureka!`, @bell_eureka_2022; `jwst`, @bushouse_howard_2022_7038885]
 `exoTEDRF` is divided up into four major stages which are summarized below:
 
 - Stage 1, Detector-level processing: Converts raw, 4D (integrations, groups, $x$-pixel, $y$-pixel) data frames to 3D (integrations, $x$-pixel, $y$-pixel) slope images. Steps include superbias subtractions, correction of 1/$f$ noise, ramp fitting, etc. 
@@ -39,7 +39,7 @@ Like similar pipelines (`Eureka!` [@bell_eureka_2022], `jwst` [@bushouse_howard_
 - Stage 3, Spectral extraction: Extract the 2D stellar spectra from the 3D slope images.
 - Stage 4, Light curve fitting: An optional stage for the fitting of extracted light curves.
 
-In `exoTEDRF`, Stage 4 is an optional installation which is currently built around the `exoUPRF` library [@michael_radica_2024_12628066], and incorporates tools such as `ExoTiC-LD` [@david_grant_2022_7437681] for the estimation of stellar limb darkening parameters. 
+In `exoTEDRF`, Stage 4 is an optional installation which is currently built around the `exoUPRF` library [@michael_radica_2024_12628066], and incorporates tools such as `ExoTiC-LD` [@david_grant_2022_7437681] for the estimation of stellar limb-darkening parameters. 
 In certain places (e.g., superbias subtraction, flat field correction), `exoTEDRF` simply provides a wrapper around the existing functionalities of the `jwst` package maintained by the Space Telescope Science Institute. 
 
 
@@ -86,7 +86,7 @@ The foundations of `exoTEDRF` are built upon many wonderful Python libraries, in
 MR acknowledges funding from the Natural Sciences and Engineering Research Council of Canada,
 the Fonds de Recherche du Québec -- Nature et Technologies, and the Trottier Institute for Research on Exoplanets. 
 He would also like to thank the JWST Transiting Exoplanet Community Early Release Science program for providing the 
-forum where much of the development of this pipeline occured, and in particular, Adina Feinstein, Louis-Philippe 
+forum where much of the development of this pipeline occurred, and in particular, Adina Feinstein, Louis-Philippe 
 Coulombe, Néstor Espinoza, and Lili Alderson for many helpful conversations. 
 
 
