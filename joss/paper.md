@@ -31,7 +31,7 @@ Finally, `exoTEDRF` has also been designed to be run in "batch" mode: simultaneo
 
 
 # Overview of exoTEDRF Stages
-Like similar pipelines [e.g. `Eureka!`, @bell_eureka_2022; `jwst`, @bushouse_howard_2022_7038885]
+Like similar pipelines [e.g. `Eureka!`, @bell_eureka_2022; `jwst`, @bushouse_howard_2022_7038885],
 `exoTEDRF` is divided up into four major stages which are summarized below:
 
 - Stage 1, Detector-level processing: Converts raw, 4D (integrations, groups, $x$-pixel, $y$-pixel) data frames to 3D (integrations, $x$-pixel, $y$-pixel) slope images. Steps include superbias subtractions, correction of 1/$f$ noise, ramp fitting, etc. 
