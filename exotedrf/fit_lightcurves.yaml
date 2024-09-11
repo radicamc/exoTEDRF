@@ -12,6 +12,9 @@ infile : ''
 observing_mode : 'NIRISS/SOSS'
 # (NIRSpec only) Detector used.
 detector : 'NRS1'
+# (NIRSpec only) blue wavelength cutoff for NRS1.
+# Note: ignore if using pre-binned data.
+nrs1_blue : 2.8
 # (SOSS only) Orders to fit.
 orders : [1, 2]
 # Suffix to apply to fit output files.
@@ -28,6 +31,7 @@ include_corner : False
 # Number of cores for multiprocessing.
 ncores : 4
 # Spectral resolution at which to fit light curves.
+# Note: if using pre-binned light curves, specify 'prebin' here.
 res : 'pixel'
 # Alternatively, number of pixel columns to bin before light curve fitting
 npix : None

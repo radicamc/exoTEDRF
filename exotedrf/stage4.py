@@ -21,6 +21,61 @@ from jwst import datamodels
 from exotedrf.utils import fancyprint
 
 
+def bin_at_bins(flux, err, inwave_low, inwave_up, outwave_low, outwave_up):
+    """Similar to both other binning functions, except this one will bin the
+    flux data to preset bin edges.
+
+    Parameters
+    ----------
+    flux : array-like(float)
+        2D Flux to bin.
+    err : array-like(float)
+        2D Flux error to bin.
+    inwave_low : array-like(float)
+        Lower edge of flux wavelength bins.
+    inwave_up : array-like(float)
+        Upper edge of flux wavelength bins.
+    outwave_low : array-like(float)
+        Lower edge of bins to which to bin flux.
+    outwave_up : array-like(float)
+        Upper edge of bins to which to bin flux.
+
+    Returns
+    -------
+    binlow : ndarray(float)
+        Lower edge of wavelength bins.
+    binup : ndarray(float)
+        Upper edge of wavelength bins.
+    binspec : ndarray(float)
+        Binned flux.
+    binerr : ndarray(float)
+        Binner errors.
+    """
+
+    nints, ncols = np.shape(flux)
+    wave = np.nanmean([inwave_low, inwave_up], axis=0)
+
+    # Set up output arrays.
+    binspec = np.zeros((nints, len(outwave_up)))
+    binerr = np.zeros((nints, len(outwave_up)))
+
+    # Loop over all input wavelength bins and bin to output bins.
+    for j in range(len(outwave_up)):
+        low = outwave_low[j]
+        up = outwave_up[j]
+        for i in range(ncols):
+            w = wave[i]
+            if low <= w < up:
+                binspec[:, j] += flux[:, i]
+                binerr[:, j] += err[:, i]
+
+    # Broadcast to 2D.
+    binlow = np.repeat(outwave_low[np.newaxis, :], nints, axis=0)
+    binup = np.repeat(outwave_up[np.newaxis, :], nints, axis=0)
+
+    return binlow, binup, binspec, binerr
+
+
 def bin_at_pixel(flux, error, wave, npix):
     """Similar to bin_at_resolution, but will bin in widths of a set number of
     pixels instead of at a fixed resolution.

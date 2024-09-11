@@ -52,6 +52,9 @@ if config['res'] is not None:
     if config['res'] == 'pixel':
         fit_suffix += '_pixel'
         res_str = 'pixel resolution'
+    elif config['res'] == 'prebin':
+        fit_suffix += '_prebin'
+        res_str = 'custom prebinned resolution'
     else:
         fit_suffix += '_R{}'.format(config['res'])
         res_str = 'R = {}'.format(config['res'])
@@ -148,27 +151,35 @@ for order in config['orders']:
         fancyprint('Fitting order {} at {}.'.format(order, res_str))
     else:
         fancyprint('Fitting detector {} at {}.'.format(config['detector'], res_str))
-    # Unpack wave, flux and error, cutting reference pixel columns.
-    wave_low = fits.getdata(config['infile'],  1 + 4*(order - 1))[:, 5:-5]
-    wave_up = fits.getdata(config['infile'], 2 + 4*(order - 1))[:, 5:-5]
+    # Unpack wave, flux and error.
+    wave_low = fits.getdata(config['infile'],  1 + 4*(order - 1))
+    wave_up = fits.getdata(config['infile'], 2 + 4*(order - 1))
+    flux = fits.getdata(config['infile'], 3 + 4*(order - 1))
+    err = fits.getdata(config['infile'], 4 + 4*(order - 1))
+    # Cut reference pixel columns if data is not prebinned.
+    if config['res'] != 'prebin':
+        wave_low = wave_low[:, 5:-5]
+        wave_up = wave_up[:, 5:-5]
+        flux = flux[:, 5:-5]
+        err = err[:, 5:-5]
     wave = np.nanmean(np.stack([wave_low, wave_up]), axis=0)
-    flux = fits.getdata(config['infile'], 3 + 4*(order - 1))[:, 5:-5]
-    err = fits.getdata(config['infile'], 4 + 4*(order - 1))[:, 5:-5]
 
     # For order 2, only fit wavelength bins between 0.6 and 0.85µm.
     if order == 2:
         ii = np.where((wave[0] >= 0.6) & (wave[0] <= 0.85))[0]
         flux, err = flux[:, ii], err[:, ii]
         wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
-    # For NRS1, only fit wavelengths > 2.9µm.
+    # For NRS1, only fit wavelengths larger than blue cutoff.
     if config['detector'] == 'NRS1' and config['observing_mode'].upper() == 'NIRSPEC/G395H':
-        ii = np.where(wave[0] >= 2.9)[0]
-        flux, err = flux[:, ii], err[:, ii]
-        wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
+        if config['res'] != 'prebin':
+            ii = np.where(wave[0] >= config['nrs1_blue'])[0]
+            flux, err = flux[:, ii], err[:, ii]
+            wave_low, wave_up = wave_low[:, ii], wave_up[:, ii]
+            wave = wave[:, ii]
 
     # Bin input spectra to desired resolution.
     if config['res'] is not None:
-        if config['res'] == 'pixel':
+        if config['res'] == 'pixel' or config['res'] == 'prebin':
             wave, wave_low, wave_up = wave[0], wave_low[0], wave_up[0]
         else:
             binned_vals = stage4.bin_at_resolution(wave_low[0], wave_up[0],
