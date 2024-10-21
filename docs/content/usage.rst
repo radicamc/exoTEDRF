@@ -48,7 +48,7 @@ The NIRSpec 1/f correction also serves as the bacground subtraction!
 
 :sup:`[1]`: X is user-defined with ``nirspec_mask_width`` in run_DMS.yaml or the ``OneOverFstep``.
 
-** NIRISS **
+**NIRISS**
 
 NIRISS/SOSS observations are, unfortunately, more complicated to deal with than NIRSpec. Due to the defocusing lens, the target trace is so wide on the detector that there are virtually no unilluminated pixels to use similar 1/f correction methods to NIRSpec.
 As a result, we create *difference images* to identify the 1/f contributions. This generally involves subtracting some sort of scaled median stack of the TSO from each frame to remove the target trace and reveal the 1/f noise.
