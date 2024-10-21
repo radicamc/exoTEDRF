@@ -41,7 +41,7 @@ Below, you will find a brief description of what how each method works.
 
 The NIRSpec target trace is sufficiently thin on the detector that there are generally a sufficient amount of unilluminated pixels to directly estimate the 1/f noise from a given frame.
 (Note though that this assumption may not hold if using e.g., the SUB512S subarray).
-The NIRSpec 1/f correction also serves as the bacground subtraction!
+The NIRSpec 1/f correction also serves as the background subtraction!
 
     - ``median``: Use the median of all (unmasked) pixels in a column :math:`\pm` X pixels :sup:`[1]` away from the target trace as the 1/f value for that column.
     - ``slope``: Fit a line to all (unmasked) pixels in a column :math:`\pm` X pixels :sup:`[1]` away from the target trace, and subtract this as the 1/f value.
