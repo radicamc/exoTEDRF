@@ -832,21 +832,31 @@ def backgroundstep(datafiles, background_model, baseline_ints, output_dir='./',
             output_dir += '/'
 
     datafiles = np.atleast_1d(datafiles)
-    # Load in each of the datafiles.
-    for i, file in enumerate(datafiles):
+
+    # Format baseline frame integrations.
+    with utils.open_filetype(datafiles[0]) as currentfile:
+        nints = currentfile.meta.exposure.nints
+    baseline_ints = utils.format_out_frames_2(baseline_ints, nints)
+
+    # Create stack of baseline integrations.
+    firsttime = True
+    for file in datafiles:
         with utils.open_filetype(file) as currentfile:
-            # To create the deepstack, join all segments together.
-            if i == 0:
-                cube = currentfile.data
+            start = currentfile.meta.exposure.integration_start
+            end = currentfile.meta.exposure.integration_end
+            ints = np.linspace(start - 1, end - 1, end - start + 1)
+            ii = np.where((ints < baseline_ints[0]) | (ints >= baseline_ints[-1]))[0]
+            if firsttime:
+                cube = currentfile.data[ii]
+                firsttime = False
             else:
-                cube = np.concatenate([cube, currentfile.data], axis=0)
+                cube = np.concatenate([cube, currentfile.data[ii]])
 
     # Make median stack of all integrations to use for background scaling.
     # This is to limit the influence of cosmic rays, which can greatly effect
     # the background scaling factor calculated for an individual integration.
     fancyprint('Generating a median stack using baseline integrations.')
-    baseline_ints = utils.format_out_frames(baseline_ints)
-    stack = utils.make_deepstack(cube[baseline_ints])
+    stack = utils.make_deepstack(cube)
     # If applied at the integration level, reshape median stack to 3D.
     if np.ndim(stack) != 3:
         dimy, dimx = np.shape(stack)
@@ -949,6 +959,7 @@ def backgroundstep(datafiles, background_model, baseline_ints, output_dir='./',
     results = []
     for i, file in enumerate(datafiles):
         with utils.open_filetype(file) as thisfile:
+            fancyprint('Processing file: {}.'.format(thisfile.meta.filename))
             currentfile = copy.deepcopy(thisfile)
 
         # Subtract the scaled background model.
@@ -964,6 +975,8 @@ def backgroundstep(datafiles, background_model, baseline_ints, output_dir='./',
                 first_time = False
             # Background subtracted data.
             currentfile.write(output_dir + fileroots[i] + 'backgroundstep.fits')
+            fancyprint('File saved to: {}.'
+                       ''.format(fileroots[i] + 'backgroundstep.fits'))
 
         results.append(currentfile)
 

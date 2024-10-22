@@ -1374,6 +1374,7 @@ def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
     datafiles = np.atleast_1d(datafiles)
     for i, file in enumerate(datafiles):
         with utils.open_filetype(file) as currentfile:
+            fancyprint('Reading file {}.'.format(currentfile.meta.filename))
             if i == 0:
                 cube = currentfile.data
             else:
@@ -1537,6 +1538,7 @@ def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
     # Save 1/f corrected data.
     for n, file in enumerate(datafiles):
         with utils.open_filetype(file) as thisfile:
+            fancyprint('Processing file: {}.'.format(thisfile.meta.filename))
             currentfile = thisfile.copy()
             nints = np.shape(currentfile.data)[0]
             currentfile.data = cube_corr[current_int:(current_int + nints)]
@@ -1544,8 +1546,9 @@ def oneoverfstep_nirspec(datafiles, output_dir=None, save_results=True,
             if save_results is True:
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore')
-                    currentfile.write(
-                        output_dir + fileroots[n] + 'oneoverfstep.fits')
+                    currentfile.write( output_dir + fileroots[n] + 'oneoverfstep.fits')
+                    fancyprint('File saved to: {}.'
+                               ''.format(fileroots[n] + 'oneoverfstep.fits'))
             results.append(currentfile)
 
     return results
@@ -1629,6 +1632,7 @@ def oneoverfstep_scale(datafiles, baseline_ints, inner_mask_width=40,
     datafiles = np.atleast_1d(datafiles)
     for i, file in enumerate(datafiles):
         with utils.open_filetype(file) as currentfile:
+            fancyprint('Reading file {}.'.format(currentfile.meta.filename))
             # FULL frame uses multiple amplifiers and probably has to be
             # treated differently. Break if we encounter a FULL frame exposure.
             if currentfile.meta.subarray.name == 'FULL':
@@ -1919,6 +1923,7 @@ def oneoverfstep_scale(datafiles, baseline_ints, inner_mask_width=40,
     # Save 1/f corrected data.
     for n, file in enumerate(datafiles):
         with utils.open_filetype(file) as thisfile:
+            fancyprint('Processing file: {}.'.format(thisfile.meta.filename))
             currentfile = thisfile.copy()
             nints = np.shape(currentfile.data)[0]
             currentfile.data = cube_corr[current_int:(current_int + nints)]
@@ -1927,6 +1932,8 @@ def oneoverfstep_scale(datafiles, baseline_ints, inner_mask_width=40,
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore')
                     currentfile.write(output_dir + fileroots[n] + 'oneoverfstep.fits')
+                    fancyprint('File saved to: {}.'
+                               ''.format(fileroots[n] + 'oneoverfstep.fits'))
             results.append(currentfile)
 
     return results
@@ -1991,6 +1998,7 @@ def oneoverfstep_solve(datafiles, baseline_ints, trace_width=70,
     # Load in datamodels from all segments.
     for i, file in enumerate(datafiles):
         with utils.open_filetype(file) as currentfile:
+            fancyprint('Reading file {}.'.format(currentfile.meta.filename))
             # FULL frame uses multiple amplifiers and probably has to be
             # treated differently. Break if we encounter a FULL frame exposure.
             if currentfile.meta.subarray.name == 'FULL':
@@ -2234,6 +2242,7 @@ def oneoverfstep_solve(datafiles, baseline_ints, trace_width=70,
     corrected_rampmodels = []
     current_int = 0
     for n, file in enumerate(datafiles):
+        fancyprint('Processing file: {}.'.format(file.meta.filename))
         file = utils.open_filetype(file)
         nint = np.shape(file.data)[0]
         newfile = file.copy()
@@ -2246,6 +2255,8 @@ def oneoverfstep_solve(datafiles, baseline_ints, trace_width=70,
         if save_results is True:
             suffix = 'oneoverfstep.fits'
             newfile.write(output_dir + fileroots[n] + suffix)
+            fancyprint('File saved to: {}.'
+                       ''.format(fileroots[n] + 'oneoverfstep.fits'))
 
     return corrected_rampmodels
 

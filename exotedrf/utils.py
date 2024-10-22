@@ -185,6 +185,39 @@ def format_out_frames(out_frames):
     return baseline_ints
 
 
+def format_out_frames_2(out_frames, max_nint):
+    """Format the indices of baseline frames.
+
+    Parameters
+    ----------
+    out_frames : array-like[int], int
+        Integration numbers of ingress and/or egress.
+    max_nint : int
+        Number of integrations in the exposure.
+
+    Returns
+    -------
+    baseline_ints : array-like[int]
+        Indicaes of baseline frames.
+    """
+
+    out_frames = np.atleast_1d(out_frames)
+    # For baseline just before ingress or after ingress.
+    if len(out_frames) == 1:
+        if out_frames[0] > 0:
+            baseline_ints = np.array([out_frames[0], -1])
+        else:
+            baseline_ints = np.array([0, max_nint + out_frames[0]])
+
+    # If baseline at both ingress and egress to be used.
+    elif len(out_frames) == 2:
+        baseline_ints = np.array([out_frames[0], max_nint + out_frames[-1]])
+    else:
+        raise ValueError('out_frames must have length 1 or 2.')
+
+    return baseline_ints
+
+
 def get_default_header():
     """Format the default header for the lightcurve file.
 
