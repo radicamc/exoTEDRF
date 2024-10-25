@@ -463,6 +463,25 @@ def get_interp_box(data, box_size, i, j, dimx):
     return box_properties
 
 
+def get_nirspec_grating(datafile):
+    """Get name of grating.
+
+    Parameters
+    ----------
+    datafile : str, datamodel
+        Path to datafile or datafile itself.
+
+    Returns
+    -------
+    grating : str
+        Name of grating.
+    """
+
+    with datamodels.open(datafile) as d:
+        grating = d.meta.instrument.grating.upper()
+    return grating
+
+
 def get_stellar_param_grid(st_teff, st_logg, st_met):
     """Given a set of stellar parameters, determine the neighbouring grid
     points based on the PHOENIX grid steps.

@@ -1325,7 +1325,11 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
         save_filename = output_dir + fileroot_noseg
         det = utils.get_detector_name(datafiles[0])
         if det == 'nrs1':
-            xstart = 500
+            grating = utils.get_nirspec_grating(datafiles[0])
+            if grating == 'G395H':
+                xstart = 500  # Trace starts at pixel ~500 for G395M
+            else:
+                xstart = 200  # Trace starts at pixel ~200 for G395M
         else:
             xstart = 0
         centroids = utils.get_centroids_nirspec(deepframe, xstart=xstart,
