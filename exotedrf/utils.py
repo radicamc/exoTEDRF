@@ -69,7 +69,7 @@ def do_replacement(frame, badpix_map, dq=None, box_size=5):
     return frame_out, dq_out
 
 
-def download_stellar_spectra(st_teff, st_logg, st_met, outdir):
+def download_stellar_spectra(st_teff, st_logg, st_met, outdir, silent=False):
     """Download a grid of PHOENIX model stellar spectra.
 
     Parameters
@@ -82,6 +82,8 @@ def download_stellar_spectra(st_teff, st_logg, st_met, outdir):
         Stellar metallicity as [Fe/H].
     outdir : str
         Output directory.
+    silent : bool
+        If True, do not show any prints.
 
     Returns
     -------
@@ -97,11 +99,13 @@ def download_stellar_spectra(st_teff, st_logg, st_met, outdir):
     wave_file = 'WAVE_PHOENIX-ACES-AGSS-COND-2011.fits'
     wfile = '{}/{}'.format(outdir, wave_file)
     if not os.path.exists(wfile):
-        fancyprint('Downloading file {}.'.format(wave_file))
+        if not silent:
+            fancyprint('Downloading file {}.'.format(wave_file))
         cmd = 'wget -q -O {0} {1}HiResFITS/{2}'.format(wfile, fpath, wave_file)
         os.system(cmd)
     else:
-        fancyprint('File {} already downloaded.'.format(wfile))
+        if not silent:
+            fancyprint('File {} already downloaded.'.format(wfile))
 
     # Get stellar spectrum grid points.
     teffs, loggs, mets = get_stellar_param_grid(st_teff, st_logg, st_met)
@@ -122,7 +126,8 @@ def download_stellar_spectra(st_teff, st_logg, st_met, outdir):
                 ffile = '{}/{}'.format(outdir, thisfile)
                 ffiles.append(ffile)
                 if not os.path.exists(ffile):
-                    fancyprint('Downloading file {}.'.format(thisfile))
+                    if not silent:
+                        fancyprint('Downloading file {}.'.format(thisfile))
                     if met > 0:
                         cmd = 'wget -q -O {0} {1}HiResFITS/PHOENIX-ACES-AGSS-COND-2011/Z+{2}/{3}'.format(ffile, fpath, met, thisfile)
                     elif met == 0:
@@ -131,7 +136,8 @@ def download_stellar_spectra(st_teff, st_logg, st_met, outdir):
                         cmd = 'wget -q -O {0} {1}HiResFITS/PHOENIX-ACES-AGSS-COND-2011/Z{2}/{3}'.format(ffile, fpath, met, thisfile)
                     os.system(cmd)
                 else:
-                    fancyprint('File {} already downloaded.'.format(ffile))
+                    if not silent:
+                        fancyprint('File {} already downloaded.'.format(ffile))
 
     return wfile, ffiles
 
