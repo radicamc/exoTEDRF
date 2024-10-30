@@ -799,6 +799,63 @@ def do_ccf(wave, flux, err, mod_flux, nsteps=1000):
     return shift
 
 
+def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path,
+                        orders=[1, 2]):
+    """Perform the flux calibration (to erg/s/cm^2/µm) for extracted SOSS
+    sepctra. Note that the spectra must have been extracted ith a box width of
+    40 pixels, and also that the rev2 photom referebce file produced by Kevin
+    Volk during commissioning should be used instead of the default one.
+
+    Parameters
+    ----------
+    spectrum_file : str
+        Path to extracted stellar spectra.
+    pwcpos : float
+        Observation pupil wheel position.
+    photom_path : str
+        Path to photom reference file.
+    spectrace_path : str
+        Path to spectra reference file.
+    orders : list(int)
+        SOSS order(s) to calibrate.
+    """
+
+    fancyprint('Starting SOSS flux calibration.')
+    fancyprint('Flux calibration is only valid for spectra extracted using '
+               'an aperture width of 40 pixels!', msg_type='WARNING')
+    fancyprint('Ensure to use the rev2 photom file and not the default crds '
+               'reference!', msg_type='WARNING')
+
+    # Get the extracted spectra and erorrs.
+    spec = fits.open(spectrum_file)
+    for order in orders:
+        if order == 1:
+            wave = np.mean([spec[1].data[0], spec[2].data[0]], axis=0)
+            fi, ei = 3, 4
+        else:
+            wave = np.mean([spec[5].data[0], spec[6].data[0]], axis=0)
+            fi, ei = 7, 8
+
+        # Calculate the ADU/s to Jy flux calibration.
+        flux_scaling = wave_and_flux_calibrations(pwcpos=pwcpos,
+                                                  obs_x_pixel=np.arange(2048),
+                                                  photom_path=photom_path,
+                                                  spectrace_path=spectrace_path,
+                                                  order=order)
+        # Apply the flux calibration.
+        spec[fi].data *= flux_scaling
+        spec[ei].data *= flux_scaling
+        # Convert to erg/s/cm2/µm.
+        spec[fi].data *= (1e-23 * (3e8 * 1e6) / wave ** 2)
+        spec[ei].data *= (1e-23 * (3e8 * 1e6) / wave ** 2)
+
+    newfile = spectrum_file[:-5] + '_FluxCalibrated.fits'
+    fancyprint('Flux calibrated spectra saved to {}'.format(newfile))
+    spec.writeto(newfile, overwrite=True)
+
+    return None
+
+
 def format_nirspec_spectra(datafiles, times, extract_params, target_name,
                            detector, st_teff=None, st_logg=None, st_met=None,
                            throughput=None, output_dir='./',
@@ -1117,6 +1174,98 @@ def get_soss_estimate(atoca_spectra, output_dir):
     estimate_filename = estimate.save(output_dir + 'soss_estimate.fits')
 
     return estimate_filename
+
+
+def wave_and_flux_calibrations(pwcpos, obs_x_pixel, photom_path,
+                               spectrace_path, order=1):
+    """This function wavelength and flux calibrates an input spectrum expressed
+    in adu per sec sampled at a detector x position in pixels. This uses the
+    DMS reference files  (assuming they are correct) and corrects  them using
+    the pwcpos keyword to shift the pixels by -11 pixel/degre. An important
+    limitation is that the reference flux calibration is applicable to spectra
+    extracted using a box aperture of 40 pixels. So the obs_flux_adusec must
+    have been extracted using that same box size otherwise the flux may be
+    systematically off.
+    Function originally by Loïc Albert and adapted by MCR.
+
+    Parameters
+    ----------
+    pwcpos : float
+        Observation pupil wheel position.
+    obs_x_pixel : array-like(float)
+        Pixel x-indices.
+    photom_path : str
+        Path to photom rev2 file
+    spectrace_path : str
+        Path to spectrace reference file.
+    order : int
+        SOSS order to calibrate
+
+    Returns
+    -------
+    obs_flux_scaling : array-like(float)
+        The ADU/s to Jy flux scaling.
+    """
+
+    # The jwst_niriss_photom_rev2.fits calibration was obtained for the
+    # PID 1091 obs 2 data set (BD+601758). So, return results based on that.
+    pwcpos_fluxcal = 245.7909
+
+    # The empirically determined relation between PWCPOS and movement of
+    # the traces along the x axis was obtained using the Tilt test fro CV3
+    # observations with a span of +/- 10 degrees of PWCPOS.
+    xoffset_perdeg = -11.0
+
+    # Use the photomstep ref file rev2 from Kevin
+    if order == 3:
+        m = 3
+    elif order == 2:
+        m = 2
+    else:
+        m = 1
+
+    # Read the flux scaling that needs to be applied to the uncalibrated input
+    # flux in adu/sec to output the calibrated flux in Jy.
+    # This scaling applies for an extraction aperture of 40 pixels.
+    # Its PWCPOS is 245.7909
+    hdu = fits.open(photom_path)
+    # Scaling to convert from adu/sec to Jy
+    w = hdu[1].data[m - 1]['wavelength']
+    scaling = hdu[1].data[m - 1]['relresponse'] * hdu[1].data[m - 1]['photmj']
+    # Remove zeros from both
+    ind = (w != 0) | (scaling != 0)
+    fluxcal_wave_micron = w[ind]
+    fluxcal_scaling = scaling[ind]
+    # The wavelength sampling is almost constant. It's bimodal alternating
+    # between 0.97 nm and 0.98 nm with excursions of 0.001 or 0.002 nm around
+    # each value. The sampling jumps from one mode the the other between
+    # consecutive samples. Weird. The sampling does not quite match the pixel
+    # sampling which is on everage ~0.97 nm/pixel but with gradual changes.
+
+    # The wavelength calibration reference file samples the wavelength at
+    # every 1 nm and gives the corresponding x pixel positions.
+    hdu = fits.open(spectrace_path)
+    wavecal_wave_micron = hdu[m].data['wavelength']
+    wavecal_x_pixel = hdu[m].data['x']
+
+    # Based on the current pwcpos, shift the wavelength solution by
+    # some x pixel offset. The pwcpos offset is relative to that of the flux
+    # calibration data set of BD+60.1758 with which these 2 calibrations
+    # have been made.
+    pwcpos_offset = pwcpos - pwcpos_fluxcal
+    x_offset = xoffset_perdeg * pwcpos_offset
+
+    # Directly interpolate the calibrations at the requested sampling
+    # Wavelength calibration
+    ind = np.argsort(wavecal_x_pixel)
+    obs_wave_micron = np.interp(obs_x_pixel, wavecal_x_pixel[ind] + x_offset,
+                                wavecal_wave_micron[ind])
+    # Flux calibration
+    ind = np.argsort(fluxcal_wave_micron)
+    obs_flux_scaling = np.interp(obs_wave_micron, fluxcal_wave_micron[ind],
+                                 fluxcal_scaling[ind])
+
+    return obs_flux_scaling
 
 
 def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
