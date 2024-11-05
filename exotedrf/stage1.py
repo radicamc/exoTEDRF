@@ -118,6 +118,9 @@ class DQInitStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 
@@ -191,6 +194,9 @@ class SaturationStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 
@@ -273,6 +279,9 @@ class SuperBiasStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
         # Do step plot if requested.
@@ -358,6 +367,9 @@ class RefPixStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 
@@ -431,6 +443,9 @@ class DarkCurrentStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 
@@ -912,6 +927,9 @@ class LinearityStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
         # Do step plot if requested.
@@ -1055,6 +1073,9 @@ class JumpStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
                 results.append(res)
 
@@ -1193,6 +1214,9 @@ class RampFitStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 
@@ -1263,6 +1287,9 @@ class GainScaleStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 

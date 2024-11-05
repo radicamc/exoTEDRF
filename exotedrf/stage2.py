@@ -103,6 +103,9 @@ class AssignWCSStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 
@@ -170,6 +173,9 @@ class Extract2DStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 
@@ -237,6 +243,9 @@ class SourceTypeStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 
@@ -304,6 +313,9 @@ class WaveCorrStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 
@@ -518,6 +530,9 @@ class FlatFieldStep:
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
 
