@@ -271,8 +271,13 @@ def get_detector_name(datafile):
         Name of detector.
     """
 
-    with datamodels.open(datafile) as d:
-        detector = d.meta.instrument.detector.lower()
+    if isinstance(datafile, str):
+        with fits.open(datafile) as file:
+            detector = file[0].header['DETECTOR'].lower()
+    else:
+        with datamodels.open(datafile) as d:
+            detector = d.meta.instrument.detector.lower()
+
     return detector
 
 
@@ -351,9 +356,9 @@ def get_filename_root(datafiles):
     fileroots = []
     # Open the datamodel.
     if isinstance(datafiles[0], str):
-        with datamodels.open(datafiles[0]) as data:
-            filename = data.meta.filename  # Get file name.
-            seg_start = data.meta.exposure.segment_number  # Starting segment.
+        with fits.open(datafiles[0]) as file:
+            filename = file[0].header['FILENAME']  # Get file name.
+            seg_start = file[0].header['EXSEGNUM']  # Starting segment.
     else:
         try:
             filename = datafiles[0].meta.filename
@@ -426,8 +431,13 @@ def get_instrument_name(datafile):
         Name of instrument.
     """
 
-    with datamodels.open(datafile) as d:
-        instrument = d.meta.instrument.name
+    if isinstance(datafile, str):
+        with fits.open(datafile) as file:
+            instrument = file[0].header['INSTRUME']
+    else:
+        with datamodels.open(datafile) as d:
+            instrument = d.meta.instrument.name
+
     return instrument
 
 
@@ -483,8 +493,12 @@ def get_nirspec_grating(datafile):
         Name of grating.
     """
 
-    with datamodels.open(datafile) as d:
-        grating = d.meta.instrument.grating.upper()
+    if isinstance(datafile, str):
+        grating = fits.getheader(datafile)['GRATING'].upper()
+    else:
+        with datamodels.open(datafile) as d:
+            grating = d.meta.instrument.grating.upper()
+
     return grating
 
 
@@ -762,7 +776,7 @@ def interpolate_stellar_model_grid(model_files, st_teff, st_logg, st_met):
 
 def line_mle(x, y, e):
     """Analytical solution for Chi^2 of fitting a straight line to data.
-    All inputs are assumed to be 3D (ints, dimy, dimx).
+    All inputs are assumed to be 2D (dimy, dimx).
 
     Parameters
     ----------
@@ -789,25 +803,114 @@ def line_mle(x, y, e):
     # Following "Numerical recipes in C. The art of scientific computing"
     # Press, William H. (1989)
     # pdf: https://www.grad.hr/nastava/gs/prg/NumericalRecipesinC.pdf S15.2
-    sx_e = np.nansum(x[:, ::2] / e[:, ::2]**2, axis=1)
-    sxx_e = np.nansum((x[:, ::2] / e[:, ::2])**2, axis=1)
-    sy_e = np.nansum(y[:, ::2] / e[:, ::2]**2, axis=1)
-    sxy_e = np.nansum(x[:, ::2] * y[:, ::2] / e[:, ::2]**2, axis=1)
-    s_e = np.nansum(1 / e[:, ::2]**2, axis=1)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', category=RuntimeWarning)
 
-    m_e = (s_e * sxy_e - sx_e * sy_e) / (s_e * sxx_e - sx_e**2)
-    b_e = (sy_e - m_e * sx_e) / s_e
+        sx_e = np.nansum(x[::2] / e[::2]**2, axis=0)
+        sxx_e = np.nansum((x[::2] / e[::2])**2, axis=0)
+        sy_e = np.nansum(y[::2] / e[::2]**2, axis=0)
+        sxy_e = np.nansum(x[::2] * y[::2] / e[::2]**2, axis=0)
+        s_e = np.nansum(1 / e[::2]**2, axis=0)
 
-    sx_o = np.nansum(x[:, 1::2] / e[:, 1::2]**2, axis=1)
-    sxx_o = np.nansum((x[:, 1::2] / e[:, 1::2])**2, axis=1)
-    sy_o = np.nansum(y[:, 1::2] / e[:, 1::2]**2, axis=1)
-    sxy_o = np.nansum(x[:, 1::2] * y[:, 1::2] / e[:, 1::2]**2, axis=1)
-    s_o = np.nansum(1 / e[:, 1::2]**2, axis=1)
+        m_e = (s_e * sxy_e - sx_e * sy_e) / (s_e * sxx_e - sx_e**2)
+        b_e = (sy_e - m_e * sx_e) / s_e
 
-    m_o = (s_o * sxy_o - sx_o * sy_o) / (s_o * sxx_o - sx_o**2)
-    b_o = (sy_o - m_o * sx_o) / s_o
+        sx_o = np.nansum(x[1::2] / e[1::2]**2, axis=0)
+        sxx_o = np.nansum((x[1::2] / e[1::2])**2, axis=0)
+        sy_o = np.nansum(y[1::2] / e[1::2]**2, axis=0)
+        sxy_o = np.nansum(x[1::2] * y[1::2] / e[1::2]**2, axis=0)
+        s_o = np.nansum(1 / e[1::2]**2, axis=0)
+
+        m_o = (s_o * sxy_o - sx_o * sy_o) / (s_o * sxx_o - sx_o**2)
+        b_o = (sy_o - m_o * sx_o) / s_o
 
     return m_e, b_e, m_o, b_o
+
+
+def make_baseline_stack_dm(datafiles, baseline_ints):
+    """For a given set of input files, make a deep stack of only the
+    integrations part of the timeseries baseline -- for datamodel inputs.
+
+    Parameters
+    ----------
+    datafiles : array-like(str), array-like(CubeModel), array-like(RampModel)
+        Input datafiles.
+    baseline_ints: array-like(int)
+        Integration numbers of the baseline.
+
+    Returns
+    -------
+    stack : np.ndarray(float)
+        Deep stack of the baseline integrations.
+    """
+
+    firsttime = True
+    # Go through all passed files and figure out which integrations
+    # correspond to the baseline.
+    for file in datafiles:
+        with open_filetype(file) as currentfile:
+            # Start and end integrations of current segment.
+            start = currentfile.meta.exposure.integration_start
+            end = currentfile.meta.exposure.integration_end
+            # Figure out which integrations (if any) are part of the
+            # baseline.
+            ints = np.linspace(start - 1, end - 1, end - start + 1)
+            ii = np.where(
+                (ints < baseline_ints[0]) | (ints >= baseline_ints[-1]))[0]
+            # Add only these integrations to the cube.
+            if firsttime:
+                cube = currentfile.data[ii]
+                firsttime = False
+            else:
+                cube = np.concatenate([cube, currentfile.data[ii]])
+
+    # Do the stacking.
+    stack = make_deepstack(cube)
+
+    return stack
+
+
+def make_baseline_stack_fits(datafiles, baseline_ints):
+    """For a given set of input files, make a deep stack of only the
+    integrations part of the timeseries baseline -- for fits file inputs.
+
+    Parameters
+    ----------
+    datafiles : array-like(str)
+        Input datafiles.
+    baseline_ints: array-like(int)
+        Integration numbers of the baseline.
+
+    Returns
+    -------
+    stack : np.ndarray(float)
+        Deep stack of the baseline integrations.
+    """
+
+    firsttime = True
+    # Go through all passed files and figure out which integrations
+    # correspond to the baseline.
+    for file in datafiles:
+        with fits.open(file) as thisfile:
+            # Start and end integrations of current segment.
+            start = thisfile[0].header['INTSTART']
+            end = thisfile[0].header['INTEND']
+            # Figure out which integrations (if any) are part of the
+            # baseline.
+            ints = np.linspace(start - 1, end - 1, end - start + 1)
+            ii = np.where(
+                (ints < baseline_ints[0]) | (ints >= baseline_ints[-1]))[0]
+            # Add only these integrations to the cube.
+            if firsttime:
+                cube = thisfile[1].data[ii]
+                firsttime = False
+            else:
+                cube = np.concatenate([cube, thisfile[1].data[ii]])
+
+    # Do the stacking.
+    stack = make_deepstack(cube)
+
+    return stack
 
 
 def make_deepstack(cube):
@@ -828,6 +931,48 @@ def make_deepstack(cube):
     deepstack = bn.nanmedian(cube, axis=0)
 
     return deepstack
+
+
+def make_soss_tracemask(xpix, ypix, mask_width, dimy, dimx, invert=False):
+    """Construct a mask of a SOSS trace where 1-valued pixels denote the trace
+    and 0-valued pixels not the trace.
+
+    Parameters
+    ----------
+    xpix : array-like(float)
+        X-positions of the trace.
+    ypix : array-like(float)
+        Y-position of trace.
+    mask_width : int
+        Full width of the trace mask.
+    dimy : int
+        Y-dimension of the mask.
+    dimx : int
+        X-dimension of the mask
+    invert : bool
+        If True, make 0-valued pixels the trace.
+
+    Returns
+    -------
+    mask : array-like(int)
+        SOSS trace mask.
+    """
+
+    # Define the upper and lower boundaries of the mask.
+    low = np.max([np.zeros_like(ypix),
+                  ypix - mask_width/2], axis=0).astype(int)
+    up = np.min([dimy * np.ones_like(ypix),
+                 ypix + mask_width/2], axis=0).astype(int)
+
+    # Add trace positions to mask.
+    mask = np.zeros((dimy, dimx))
+    for i, x in enumerate(xpix):
+        mask[low[i]:up[i], int(x)] = 1
+
+    if invert is True:
+        mask = (~mask.astype(bool)).astype(int)
+
+    return mask
 
 
 def open_filetype(datafile):

@@ -36,11 +36,15 @@ def make_background_row_plot(before, after, background_model, row_start=230,
     """Plot rows after background subtraction.
     """
 
-    # Open files.
-    with utils.open_filetype(before) as file:
-        bf = file.data
-    with utils.open_filetype(after) as file:
-        af = file.data
+    # Open files -- assume before and after are same file type.
+    if isinstance(before, str):
+        bf = fits.getdata(before, 1)
+        af = fits.getdata(after, 1)
+    else:
+        with utils.open_filetype(before) as file:
+            bf = file.data
+        with utils.open_filetype(after) as file:
+            af = file.data
     if isinstance(background_model, str):
         bkg = np.load(background_model)
     else:
@@ -85,69 +89,6 @@ def make_background_row_plot(before, after, background_model, row_start=230,
                  np.nanpercentile(bbefore, 95))
     plt.xlabel('Spectral Pixel', fontsize=12)
     plt.ylabel('Counts', fontsize=12)
-
-    if outfile is not None:
-        plt.savefig(outfile, bbox_inches='tight')
-        fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
-        plt.close()
-    else:
-        plt.show()
-
-
-def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None,
-                     show_plot=True):
-    """Show locations of interpolated pixels.
-    """
-
-    fancyprint('Doing diagnostic plot.')
-    # Plot the location of all jumps and hot pixels.
-    fig, ax = plt.subplots(figsize=(8, 5), facecolor='white')
-    plt.imshow(deep, aspect='auto', origin='lower', vmin=0,
-               vmax=np.nanpercentile(deep, 85))
-
-    # Show hot pixel locations.
-    first_time = True
-    for ypos, xpos in zip(hotpix[0], hotpix[1]):
-        if first_time is True:
-            marker = Ellipse((xpos, ypos), 21, 3, color='red',
-                             fill=False, label='Hot Pixel')
-            ax.add_patch(marker)
-            first_time = False
-        else:
-            marker = Ellipse((xpos, ypos), 21, 3, color='red',
-                             fill=False)
-            ax.add_patch(marker)
-
-    # Show negative locations.
-    first_time = True
-    for ypos, xpos in zip(nanpix[0], nanpix[1]):
-        if first_time is True:
-            marker = Ellipse((xpos, ypos), 21, 3, color='blue',
-                             fill=False, label='Negative')
-            ax.add_patch(marker)
-            first_time = False
-        else:
-            marker = Ellipse((xpos, ypos), 21, 3, color='blue',
-                             fill=False)
-            ax.add_patch(marker)
-
-    # Show 'other' locations.
-    first_time = True
-    for ypos, xpos in zip(otherpix[0], otherpix[1]):
-        if first_time is True:
-            marker = Ellipse((xpos, ypos), 21, 3, color='green',
-                             fill=False, label='Other')
-            ax.add_patch(marker)
-            first_time = False
-        else:
-            marker = Ellipse((xpos, ypos), 21, 3, color='green',
-                             fill=False)
-            ax.add_patch(marker)
-
-    plt.yticks(fontsize=10)
-    plt.xticks(fontsize=10)
-    plt.legend(loc=1)
 
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
@@ -335,12 +276,16 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
         for j in range(3):
             thisfile = files[counter]
             counter += 1
-            with utils.open_filetype(results[thisfile]) as datamodel:
-                cube = datamodel.data
-                pixeldq = datamodel.pixeldq
-                dqcube = datamodel.groupdq
-                ngroup = datamodel.meta.exposure.ngroups
-                nint = np.shape(cube)[0]
+            if isinstance(results[thisfile], str):
+                cube = fits.getdata(results[thisfile], 1)
+                pixeldq = fits.getdata(results[thisfile], 2)
+                dqcube = fits.getdata(results[thisfile], 3)
+            else:
+                with utils.open_filetype(results[thisfile]) as datamodel:
+                    cube = datamodel.data
+                    pixeldq = datamodel.pixeldq
+                    dqcube = datamodel.groupdq
+            nint, ngroup, _, _ = np.shape(cube)
 
             # Get random group and integration.
             i = np.random.randint(0, nint)
@@ -413,10 +358,14 @@ def make_linearity_plot(results, old_results, outfile=None, show_plot=True):
     results = np.atleast_1d(results)
     old_results = np.atleast_1d(old_results)
     # Just use first segment for a quick look.
-    with utils.open_filetype(results[0]) as datamodel:
-        cube = datamodel.data
-    with utils.open_filetype(old_results[0]) as datamodel:
-        old_cube = datamodel.data
+    if isinstance(results[0], str):
+        cube = fits.getdata(results[0], 1)
+        old_cube = fits.getdata(old_results[0], 1)
+    else:
+        with utils.open_filetype(results[0]) as datamodel:
+            cube = datamodel.data
+        with utils.open_filetype(old_results[0]) as datamodel:
+            old_cube = datamodel.data
 
     nint, ngroup, dimy, dimx = np.shape(cube)
 
@@ -477,10 +426,14 @@ def make_linearity_plot2(results, old_results, outfile=None, show_plot=True):
     results = np.atleast_1d(results)
     old_results = np.atleast_1d(old_results)
     # Just use first segment for a quick look.
-    with utils.open_filetype(results[0]) as datamodel:
-        cube = datamodel.data
-    with utils.open_filetype(old_results[0]) as datamodel:
-        old_cube = datamodel.data
+    if isinstance(results[0], str):
+        cube = fits.getdata(results[0], 1)
+        old_cube = fits.getdata(old_results[0], 1)
+    else:
+        with utils.open_filetype(results[0]) as datamodel:
+            cube = datamodel.data
+        with utils.open_filetype(old_results[0]) as datamodel:
+            old_cube = datamodel.data
 
     nint, ngroup, dimy, dimx = np.shape(cube)
     # Get bright pixels in the trace.
@@ -531,9 +484,6 @@ def make_oneoverf_chromatic_plot(m_e, m_o, b_e, b_o, ngroup, outfile=None,
     fancyprint('Doing diagnostic plot 3.')
 
     to_plot = [m_e, m_o, b_e, b_o]
-    for obj in to_plot:
-        obj = np.array(obj)
-        obj[np.isnan(obj)] = 0
     texts = ['m even', 'm odd', 'b even', 'b odd']
 
     fig = plt.figure(figsize=(8, 2*ngroup), facecolor='white')
@@ -541,15 +491,19 @@ def make_oneoverf_chromatic_plot(m_e, m_o, b_e, b_o, ngroup, outfile=None,
 
     for i in range(ngroup):
         for j, obj in enumerate(to_plot):
+            obj[obj == 0] = np.nan
+            if ngroup == 1:
+                nint, dimx = np.shape(obj)
+                obj = np.reshape(obj, (nint, 1, dimx))
             ax = fig.add_subplot(gs[i, j])
             if j < 2:
-                plt.imshow(obj[i], aspect='auto', origin='lower',
-                           vmin=np.nanpercentile(obj[i], 5),
-                           vmax=np.nanpercentile(obj[i], 95))
+                plt.imshow(obj[:, i], aspect='auto', origin='lower',
+                           vmin=np.nanpercentile(obj[:, i], 5),
+                           vmax=np.nanpercentile(obj[:, i], 95))
             else:
-                plt.imshow(obj[i], aspect='auto', origin='lower',
-                           vmin=np.nanpercentile(obj[i], 25),
-                           vmax=np.nanpercentile(obj[i], 75))
+                plt.imshow(obj[:, i], aspect='auto', origin='lower',
+                           vmin=np.nanpercentile(obj[:, i], 25),
+                           vmax=np.nanpercentile(obj[:, i], 75))
             if j != 0:
                 ax.yaxis.set_major_formatter(plt.NullFormatter())
             if i != ngroup-1:
@@ -571,33 +525,19 @@ def make_oneoverf_chromatic_plot(m_e, m_o, b_e, b_o, ngroup, outfile=None,
         plt.show()
 
 
-def make_oneoverf_plot(results, baseline_ints, timeseries=None,
-                       outfile=None, show_plot=True):
+def make_oneoverf_plot(results, deepstack, timeseries=None, outfile=None,
+                       show_plot=True):
     """make nine-panel plot of dataframes after 1/f correction.
     """
 
     fancyprint('Doing diagnostic plot 1.')
     results = np.atleast_1d(results)
     # Format baseline frame integrations.
-    with utils.open_filetype(results[0]) as currentfile:
-        nints = currentfile.meta.exposure.nints
-    baseline_ints = utils.format_out_frames_2(baseline_ints, nints)
-
-    # Create stack of baseline integrations.
-    firsttime = True
-    for file in results:
-        with utils.open_filetype(file) as currentfile:
-            start = currentfile.meta.exposure.integration_start
-            end = currentfile.meta.exposure.integration_end
-            ints = np.linspace(start - 1, end - 1, end - start + 1)
-            ii = np.where((ints < baseline_ints[0]) | (ints >= baseline_ints[-1]))[0]
-            if firsttime:
-                cube = currentfile.data[ii]
-                firsttime = False
-            else:
-                cube = np.concatenate([cube, currentfile.data[ii]])
-    # Make deepstack using baseline integrations.
-    deep = utils.make_deepstack(cube)
+    if isinstance(results[0], str):
+        nints = fits.getheader(results[0], 0)['NINTS']
+    else:
+        with utils.open_filetype(results[0]) as currentfile:
+            nints = currentfile.meta.exposure.nints
 
     # Get smoothed light curve.
     if isinstance(timeseries, str):
@@ -612,22 +552,28 @@ def make_oneoverf_plot(results, baseline_ints, timeseries=None,
     to_plot, to_write = [], []
     files = np.random.randint(0, len(results), 9)
     for f in files:
-        with utils.open_filetype(results[f]) as datamodel:
-            cube = datamodel.data
-            ngroup = datamodel.meta.exposure.ngroups
-            istart = datamodel.meta.exposure.integration_start
-            thisi = datamodel.meta.exposure.integration_end - istart
-            i = np.random.randint(0, thisi)
+        thisfile = results[f]
+        if isinstance(thisfile, str):
+            cube = fits.getdata(thisfile, 1)
+            ngroup = fits.getheader(thisfile, 0)['NGROUPS']
+            istart = fits.getheader(thisfile, 0)['INTSTART']
+            thisi = fits.getheader(thisfile, 0)['INTEND'] - istart
+        else:
+            cube = thisfile.data
+            ngroup = thisfile.meta.exposure.ngroups
+            istart = thisfile.meta.exposure.integration_start
+            thisi = thisfile.meta.exposure.integration_end - istart
 
-            if np.ndim(cube) == 4:
-                g = np.random.randint(0, ngroup)
-                diff = cube[i, g] - deep[g] * timeseries[i+istart]
-                to_plot.append(diff)
-                to_write.append('({0}, {1})'.format(i+istart, g))
-            else:
-                diff = cube[i] - deep * timeseries[i+istart]
-                to_plot.append(diff)
-                to_write.append('({0})'.format(i+istart))
+        i = np.random.randint(0, thisi)
+        if np.ndim(cube) == 4:
+            g = np.random.randint(0, ngroup)
+            diff = cube[i, g] - deepstack[g] * timeseries[i+istart]
+            to_plot.append(diff)
+            to_write.append('({0}, {1})'.format(i+istart, g))
+        else:
+            diff = cube[i] - deepstack * timeseries[i+istart]
+            to_plot.append(diff)
+            to_write.append('({0})'.format(i+istart))
 
     kwargs = {'vmin': np.nanpercentile(diff, 5),
               'vmax': np.nanpercentile(diff, 95)}
@@ -637,9 +583,9 @@ def make_oneoverf_plot(results, baseline_ints, timeseries=None,
         fancyprint('Plot saved to {}'.format(outfile))
 
 
-def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
-                      nsample=10,  pixel_masks=None, tframe=5.494, tpix=1e-5,
-                      tgap=1.2e-4, outfile=None, show_plot=True):
+def make_oneoverf_psd(results, old_results, deepstack, old_deepstack,
+                      timeseries, nsample=10,  pixel_masks=None, tframe=5.494,
+                      tpix=1e-5, tgap=1.2e-4, outfile=None, show_plot=True):
     """Make a PSD plot to see PSD of background before and after 1/f removal.
     """
 
@@ -647,41 +593,6 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
 
     results = np.atleast_1d(results)
     old_results = np.atleast_1d(old_results)
-
-    # Format baseline frame integrations.
-    with utils.open_filetype(results[0]) as currentfile:
-        nints = currentfile.meta.exposure.nints
-    baseline_ints = utils.format_out_frames_2(baseline_ints, nints)
-
-    # Create stack of baseline integrations -- new frames.
-    firsttime = True
-    for file in results:
-        with utils.open_filetype(file) as currentfile:
-            start = currentfile.meta.exposure.integration_start
-            end = currentfile.meta.exposure.integration_end
-            ints = np.linspace(start - 1, end - 1, end - start + 1)
-            ii = np.where((ints < baseline_ints[0]) | (ints >= baseline_ints[-1]))[0]
-            if firsttime:
-                cube = currentfile.data[ii]
-                firsttime = False
-            else:
-                cube = np.concatenate([cube, currentfile.data[ii]])
-    deep = bn.nanmedian(cube, axis=0)
-
-    # Create stack of baseline integrations -- old frames.
-    firsttime = True
-    for file in old_results:
-        with utils.open_filetype(file) as currentfile:
-            start = currentfile.meta.exposure.integration_start
-            end = currentfile.meta.exposure.integration_end
-            ints = np.linspace(start - 1, end - 1, end - start + 1)
-            ii = np.where((ints < baseline_ints[0]) | (ints >= baseline_ints[-1]))[0]
-            if firsttime:
-                old_cube = currentfile.data[ii]
-                firsttime = False
-            else:
-                cube = np.concatenate([old_cube, currentfile.data[ii]])
-    old_deep = bn.nanmedian(old_cube, axis=0)
 
     # Get smoothed light curve.
     if isinstance(timeseries, str):
@@ -691,24 +602,12 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
             timeseries = None
     # If no lightcurve is provided, use array of ones.
     if timeseries is None:
+        if isinstance(results[0], str):
+            nints = fits.getheader(results[0], 0)['NINTS']
+        else:
+            with utils.open_filetype(results[0]) as currentfile:
+                nints = currentfile.meta.exposure.nints
         timeseries = np.ones(nints)
-
-    # Get data frame dimensions.
-    if np.ndim(cube) == 4:
-        _, _, dimy, dimx = np.shape(cube)
-    else:
-        _, dimy, dimx = np.shape(cube)
-
-    # Generate array of timestamps for each pixel
-    pixel_ts = []
-    time1 = 0
-    for p in range(dimy * dimx):
-        ti = time1 + tpix
-        # If column is done, add gap time.
-        if p % dimy == 0 and p != 0:
-            ti += tgap
-        pixel_ts.append(ti)
-        time1 = ti
 
     # Generate psd frequency array
     freqs = np.logspace(np.log10(1 / tframe), np.log10(1 / tpix), 100)
@@ -719,16 +618,39 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
     # removal.
     files = np.random.randint(0, len(results), nsample)
     for s, f in enumerate(files):
-        # Corrected data
-        with utils.open_filetype(results[f]) as datamodel:
-            cube = datamodel.data
-            ngroup = datamodel.meta.exposure.ngroups
-            istart = datamodel.meta.exposure.integration_start
-            thisi = datamodel.meta.exposure.integration_end - istart
-            i = np.random.randint(0, thisi)
-        # Uncorrected data.
-        with utils.open_filetype(old_results[f]) as datamodel:
-            old_cube = datamodel.data
+        thisfile = results[f]
+        oldfile = old_results[f]
+        if isinstance(thisfile, str):
+            cube = fits.getdata(thisfile, 1)
+            ngroup = fits.getheader(thisfile, 0)['NGROUPS']
+            istart = fits.getheader(thisfile, 0)['INTSTART']
+            thisi = fits.getheader(thisfile, 0)['INTEND'] - istart
+            old_cube = fits.getdata(oldfile, 1)
+        else:
+            cube = thisfile.data
+            ngroup = thisfile.meta.exposure.ngroups
+            istart = thisfile.meta.exposure.integration_start
+            thisi = thisfile.meta.exposure.integration_end - istart
+            old_cube = oldfile.data
+        i = np.random.randint(0, thisi)
+
+        # Get data frame dimensions.
+        if np.ndim(cube) == 4:
+            _, _, dimy, dimx = np.shape(cube)
+        else:
+            _, dimy, dimx = np.shape(cube)
+
+        # Generate array of timestamps for each pixel
+        pixel_ts = []
+        time1 = 0
+        for p in range(dimy * dimx):
+            ti = time1 + tpix
+            # If column is done, add gap time.
+            if p % dimy == 0 and p != 0:
+                ti += tgap
+            pixel_ts.append(ti)
+            time1 = ti
+
         # Bad pixel maps
         if pixel_masks is not None:
             mask_cube = pixel_masks[f]
@@ -741,12 +663,12 @@ def make_oneoverf_psd(results, old_results, timeseries, baseline_ints,
         if np.ndim(cube) == 4:
             g = np.random.randint(0, ngroup)
             # Get difference images before and after 1/f removal.
-            diff_old = (old_cube[i, g] - old_deep[g] * timeseries[i+istart]).flatten('F')[::-1]
-            diff = (cube[i, g] - deep[g] * timeseries[i+istart]).flatten('F')[::-1]
+            diff_old = (old_cube[i, g] - old_deepstack[g] * timeseries[i+istart]).flatten('F')[::-1]
+            diff = (cube[i, g] - deepstack[g] * timeseries[i+istart]).flatten('F')[::-1]
         else:
             # Get difference images before and after 1/f removal.
-            diff_old = (old_cube[i] - old_deep * timeseries[i+istart]).flatten('F')[::-1]
-            diff = (cube[i] - deep * timeseries[i+istart]).flatten('F')[::-1]
+            diff_old = (old_cube[i] - old_deepstack * timeseries[i+istart]).flatten('F')[::-1]
+            diff = (cube[i] - deepstack * timeseries[i+istart]).flatten('F')[::-1]
 
         # Mask pixels which are not part of the background
         if mask_cube is None:
@@ -992,20 +914,27 @@ def basic_nine_panel_plot(results, outfile=None, show_plot=True, **kwargs):
 
     to_plot, to_write = [], []
     for f in files:
-        with utils.open_filetype(results[f]) as datamodel:
-            cube = datamodel.data
-            ngroup = datamodel.meta.exposure.ngroups
-            istart = datamodel.meta.exposure.integration_start
-            thisi = datamodel.meta.exposure.integration_end - istart
-            i = np.random.randint(0, thisi)
+        thisfile = results[f]
+        if isinstance(thisfile, str):
+            cube = fits.getdata(thisfile, 1)
+            ngroup = fits.getheader(thisfile, 0)['NGROUPS']
+            istart = fits.getheader(thisfile, 0)['INTSTART']
+            thisi = fits.getheader(thisfile, 0)['INTEND'] - istart
+        else:
+            cube = thisfile.data
+            ngroup = thisfile.meta.exposure.ngroups
+            istart = thisfile.meta.exposure.integration_start
+            thisi = thisfile.meta.exposure.integration_end - istart
 
-            if np.ndim(cube) == 4:
-                g = np.random.randint(0, ngroup)
-                to_plot.append(cube[i, g])
-                to_write.append('({0}, {1})'.format(i+istart, g))
-            else:
-                to_plot.append(cube[i])
-                to_write.append('({0})'.format(i+istart))
+        i = np.random.randint(0, thisi)
+        if np.ndim(cube) == 4:
+            g = np.random.randint(0, ngroup)
+            to_plot.append(cube[i, g])
+            to_write.append('({0}, {1})'.format(i+istart, g))
+        else:
+            to_plot.append(cube[i])
+            to_write.append('({0})'.format(i+istart))
+
     nine_panel_plot(to_plot, to_write, outfile=outfile, show_plot=show_plot,
                     **kwargs)
     if outfile is not None:

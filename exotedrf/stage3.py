@@ -46,13 +46,13 @@ class SpecProfileStep:
         self.output_dir = output_dir
 
         # Unpack input data files.
-        datafiles = utils.sort_datamodels(input_data)
-        self.datafiles = []
-        for file in datafiles:
-            self.datafiles.append(utils.open_filetype(file))
+        self.datafiles = utils.sort_datamodels(input_data)
 
         # Get subarray identifier.
-        self.subarray = self.datafiles[0].meta.subarray.name
+        if isinstance(self.datafiles[0], str):
+            self.subarray = fits.getheader(self.datafiles[0])['SUBARRAY']
+        else:
+            self.subarray = self.datafiles[0].meta.subarray.name
 
     def run(self, force_redo=False, empirical=True):
         """Method to run the step.
@@ -120,10 +120,7 @@ class Extract1DStep:
         self.output_dir = output_dir
 
         # Unpack input data files.
-        datafiles = utils.sort_datamodels(input_data)
-        self.datafiles = []
-        for file in datafiles:
-            self.datafiles.append(utils.open_filetype(file))
+        self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
         self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
 
@@ -319,7 +316,10 @@ def specprofilestep(datafiles, empirical=True, output_dir='./'):
 
     # Create a new deepstack but using all integrations, not just the baseline.
     for i, file in enumerate(datafiles):
-        data = datamodels.open(file)
+        if isinstance(file, str):
+            data = fits.getdata(file)
+        else:
+            data = datamodels.open(file)
         if i == 0:
             cube = data.data
         else:
@@ -370,7 +370,7 @@ def atoca_extract_soss(datafiles, specprofile, output_dir='./',
         Full extraction width, in pixels.
     soss_estimate : str, None
         Path to soss estimate file.
-    fileroots : list(str), None
+    fileroots : array-like(str), None
         Filename roots.
 
     Returns
@@ -494,13 +494,19 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False,
     det = utils.get_detector_name(datafiles[0])
     # Get flux and errors to extract.
     for i, file in enumerate(datafiles):
-        with utils.open_filetype(file) as datamodel:
-            if i == 0:
-                cube = datamodel.data
-                ecube = datamodel.err
-            else:
-                cube = np.concatenate([cube, datamodel.data])
-                ecube = np.concatenate([ecube, datamodel.err])
+        if isinstance(file, str):
+            data = fits.getdata(file)
+            err = fits.getdata(file, 4)
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+                err = datamodel.err
+        if i == 0:
+            cube = data
+            ecube = err
+        else:
+            cube = np.concatenate([cube, data])
+            ecube = np.concatenate([ecube, err])
 
     # Get centroid positions.
     x1, y1 = centroids['xpos'].values, centroids['ypos'].values
@@ -610,13 +616,19 @@ def box_extract_soss(datafiles, centroids, soss_width, do_plot=False,
     datafiles = np.atleast_1d(datafiles)
     # Get flux and errors to extract.
     for i, file in enumerate(datafiles):
-        with utils.open_filetype(file) as datamodel:
-            if i == 0:
-                cube = datamodel.data
-                ecube = datamodel.err
-            else:
-                cube = np.concatenate([cube, datamodel.data])
-                ecube = np.concatenate([ecube, datamodel.err])
+        if isinstance(file, str):
+            data = fits.getdata(file)
+            err = fits.getdata(file, 4)
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+                err = datamodel.err
+        if i == 0:
+            cube = data
+            ecube = err
+        else:
+            cube = np.concatenate([cube, data])
+            ecube = np.concatenate([ecube, err])
 
     # Get centroid positions.
     x1 = centroids['xpos'].values
