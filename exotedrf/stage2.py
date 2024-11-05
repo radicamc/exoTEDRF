@@ -373,7 +373,7 @@ class BackgroundStep:
         -------
         results : list(datamodel)
             Input data files processed through the step.
-        background_models : np.ndarray(float)
+        bkg_model : np.ndarray(float)
             Background model, scaled to the flux level of each group median.
         """
 
@@ -385,7 +385,7 @@ class BackgroundStep:
         fancyprint('BackgroundStep instance created.')
 
         all_files = glob.glob(self.output_dir + '*')
-        results, background_models = [], []
+        results = []
         first_time = True
         for i, segment in enumerate(self.datafiles):
             # If an output file for this segment already exists, skip the step.
@@ -435,7 +435,6 @@ class BackgroundStep:
                                                   **kwargs)
                     res, bkg_model = step_results
             results.append(res)
-            background_models.append(bkg_model)
 
         # Do step plot if requested.
         if do_plot is True:
@@ -455,7 +454,7 @@ class BackgroundStep:
 
         fancyprint('Step BackgroundStep done.')
 
-        return results, background_models
+        return results, bkg_model
 
 
 class FlatFieldStep:
