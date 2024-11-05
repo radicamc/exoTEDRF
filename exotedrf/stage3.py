@@ -496,7 +496,7 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False,
     for i, file in enumerate(datafiles):
         if isinstance(file, str):
             data = fits.getdata(file)
-            err = fits.getdata(file, 4)
+            err = fits.getdata(file, 2)
         else:
             with utils.open_filetype(file) as datamodel:
                 data = datamodel.data
@@ -618,7 +618,7 @@ def box_extract_soss(datafiles, centroids, soss_width, do_plot=False,
     for i, file in enumerate(datafiles):
         if isinstance(file, str):
             data = fits.getdata(file)
-            err = fits.getdata(file, 4)
+            err = fits.getdata(file, 2)
         else:
             with utils.open_filetype(file) as datamodel:
                 data = datamodel.data
