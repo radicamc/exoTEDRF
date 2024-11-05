@@ -448,7 +448,7 @@ class BackgroundStep:
                                           show_plot=show_plot)
             plotting.make_background_row_plot(self.datafiles[0],
                                               results[0],
-                                              background_models[0],
+                                              bkg_model,
                                               outfile=plot_file2,
                                               show_plot=show_plot)
 
@@ -555,7 +555,8 @@ class BadPixStep:
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, space_thresh=15, time_thresh=10, box_size=5,
-            save_results=True, force_redo=False):
+            save_results=True, force_redo=False, do_plot=False,
+            show_plot=False):
         """Method to run the step.
 
         Parameters
@@ -570,6 +571,10 @@ class BadPixStep:
             If True, save results.
         force_redo : bool
             If True, run step even if output files are detected.
+        do_plot : bool
+            If True, do step diagnostic plot.
+        show_plot : bool
+            If True, show the step diagnostic plot.
 
         Returns
         -------
@@ -582,53 +587,34 @@ class BadPixStep:
         fancyprint('BadPixStep instance created.')
 
         all_files = glob.glob(self.output_dir + '*')
+        do_step = 1
         results = []
-        first_time = True
-        for i, segment in enumerate(self.datafiles):
+        for i in range(len(self.datafiles)):
             # If an output file for this segment already exists, skip the step.
             expected_file = self.output_dir + self.fileroots[i] + self.tag
             expected_deep = self.output_dir + self.fileroot_noseg + 'deepframe.fits'
-            if expected_file in all_files and force_redo is False:
-                fancyprint('File {} already exists.'.format(expected_file))
-                fancyprint('Skipping Bad Pixel Correction Step.')
-                res = expected_file
-                deepframe = expected_deep
-            # If no output files are detected, run the step.
+            if expected_file not in all_files or expected_deep not in all_files:
+                do_step = 0
+                break
             else:
-                # Generate some necessary quantities -- only do this for
-                # the first segment being run.
-                if first_time:
-                    fancyprint('Creating reference deep stack.')
-                    # Format the baseline integrations -- for fits inputs.
-                    if isinstance(segment, str):
-                        nints = fits.getheader(segment)['NINTS']
-                        baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                  nints)
-                        # Generate the baseline stack.
-                        deepstack = utils.make_baseline_stack_fits(self.datafiles,
-                                                                   baseline_ints)
-                    # Format the baseline integrations -- using datamodels.
-                    else:
-                        with utils.open_filetype(segment) as file:
-                            nints = file.meta.exposure.nints
-                            baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                      nints)
-                            # Generate the baseline stack.
-                            deepstack = utils.make_baseline_stack_dm(self.datafiles,
-                                                                     baseline_ints)
-                    first_time = False
-
-                step_results = badpixstep(segment,
-                                          baseline_ints=self.baseline_ints,
-                                          output_dir=self.output_dir,
-                                          save_results=save_results,
-                                          fileroot=self.fileroots,
-                                          fileroot_noseg=self.fileroot_noseg,
-                                          space_thresh=space_thresh,
-                                          time_thresh=time_thresh,
-                                          box_size=box_size)
-                res, deepframe = step_results
-            results.append(res)
+                results.append(datamodels.open(expected_file))
+                deepframe = fits.getdata(expected_deep, 1)
+        if do_step == 1 and force_redo is False:
+            fancyprint('Output files already exist.')
+            fancyprint('Skipping Bad Pixel Correction Step.')
+        # If no output files are detected, run the step.
+        else:
+            step_results = badpixstep(self.datafiles,
+                                      baseline_ints=self.baseline_ints,
+                                      output_dir=self.output_dir,
+                                      save_results=save_results,
+                                      fileroots=self.fileroots,
+                                      fileroot_noseg=self.fileroot_noseg,
+                                      space_thresh=space_thresh,
+                                      time_thresh=time_thresh,
+                                      box_size=box_size, do_plot=do_plot,
+                                      show_plot=show_plot)
+            results, deepframe = step_results
 
         fancyprint('Step BadPixStep done.')
 
@@ -978,7 +964,8 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
 
 def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
                box_size=5, output_dir='./', save_results=True,
-               fileroots=None, fileroot_noseg=''):
+               fileroots=None, fileroot_noseg='', do_plot=False,
+               show_plot=False):
     """Identify and correct outlier pixels remaining in the dataset, using
     both a spatial and temporal approach. First, find spatial outlier pixels
     in the median stack and correct them in each integration via the median of
@@ -1005,6 +992,11 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
         Root names for output files.
     fileroot_noseg : str
         Root file name with no segment information.
+    do_plot : bool
+        If True, do the step diagnostic plot.
+    show_plot : bool
+        If True, show the step diagnostic plot instead of/in addition to
+        saving it to file.
 
     Returns
     -------
@@ -1196,6 +1188,22 @@ def badpixstep(datafiles, baseline_ints, space_thresh=15, time_thresh=10,
         hdul = fits.HDUList([hdu1, hdu2, hdu3])
         hdul.writeto(output_dir + fileroot_noseg + 'deepframe.fits',
                      overwrite=True)
+
+    if do_plot is True:
+        if save_results is True:
+            outfile = output_dir + 'badpixstep.png'
+            # Get proper detector names for NIRSpec.
+            instrument = utils.get_instrument_name(results[0])
+            if instrument == 'NIRSPEC':
+                det = utils.get_detector_name(results[0])
+                outfile = outfile.replace('.png', '_{}.png'.format(det))
+        else:
+            outfile = None
+        hotpix = np.where(hotpix != 0)
+        nanpix = np.where(nanpix != 0)
+        otherpix = np.where(otherpix != 0)
+        plotting.make_badpix_plot(deepframe_itl, hotpix, nanpix, otherpix,
+                                  outfile=outfile, show_plot=show_plot)
 
     return results, deepframe_fnl
 

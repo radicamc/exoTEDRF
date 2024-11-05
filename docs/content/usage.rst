@@ -17,9 +17,9 @@ Tutorial Notebooks
 Below are several tutorials that will walk you through the basics of JWST data analysis using exoTEDRF.
 
 .. note::
-    Be aware that TSO data is large, and reducing it is both memory and storage intensive, particularly for NIRISS where individual segments can be upwards of 8 Gb.
-    To run the tutorial notebooks, you will need ~50 Gb of memory (a 16 Gb laptop should be sufficient provided you have enough swap). To save all outputs, ~200 Gb of storage is required.
-    We are working on decreasing the memory & storage requirements of **exoTEDRF** where possible, but it is generally preferrable to reduce your observations on a cluster.
+    Be aware that TSO data is large, and reducing it is both memory and storage intensive, particularly for NIRISS.
+    For smaller datasets such as those featured in the tutorial notebooks, a full reduction is possible on a laptop, but it is generally preferrable to reduce your observations on a cluster.
+    For example: running the NIRISS tutorial notebook requires ~30Gb of memory, and ~200Gb of storage (to save all outputs).
 
 .. toctree::
    :maxdepth: 2

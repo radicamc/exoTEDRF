@@ -99,6 +99,69 @@ def make_background_row_plot(before, after, background_model, row_start=230,
         plt.show()
 
 
+def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None,
+                     show_plot=True):
+    """Show locations of interpolated pixels.
+    """
+
+    fancyprint('Doing diagnostic plot.')
+    # Plot the location of all jumps and hot pixels.
+    fig, ax = plt.subplots(figsize=(8, 5), facecolor='white')
+    plt.imshow(deep, aspect='auto', origin='lower', vmin=0,
+               vmax=np.nanpercentile(deep, 85))
+
+    # Show hot pixel locations.
+    first_time = True
+    for ypos, xpos in zip(hotpix[0], hotpix[1]):
+        if first_time is True:
+            marker = Ellipse((xpos, ypos), 21, 3, color='red',
+                             fill=False, label='Hot Pixel')
+            ax.add_patch(marker)
+            first_time = False
+        else:
+            marker = Ellipse((xpos, ypos), 21, 3, color='red',
+                             fill=False)
+            ax.add_patch(marker)
+
+    # Show negative locations.
+    first_time = True
+    for ypos, xpos in zip(nanpix[0], nanpix[1]):
+        if first_time is True:
+            marker = Ellipse((xpos, ypos), 21, 3, color='blue',
+                             fill=False, label='Negative')
+            ax.add_patch(marker)
+            first_time = False
+        else:
+            marker = Ellipse((xpos, ypos), 21, 3, color='blue',
+                             fill=False)
+            ax.add_patch(marker)
+
+    # Show 'other' locations.
+    first_time = True
+    for ypos, xpos in zip(otherpix[0], otherpix[1]):
+        if first_time is True:
+            marker = Ellipse((xpos, ypos), 21, 3, color='green',
+                             fill=False, label='Other')
+            ax.add_patch(marker)
+            first_time = False
+        else:
+            marker = Ellipse((xpos, ypos), 21, 3, color='green',
+                             fill=False)
+            ax.add_patch(marker)
+
+    plt.yticks(fontsize=10)
+    plt.xticks(fontsize=10)
+    plt.legend(loc=1)
+
+    if outfile is not None:
+        plt.savefig(outfile, bbox_inches='tight')
+        fancyprint('Plot saved to {}'.format(outfile))
+    if show_plot is False:
+        plt.close()
+    else:
+        plt.show()
+
+
 def make_compare_spectra_plot(spec1, spec2, title=None):
     """Make plot comparing two spectra.
     """

@@ -1383,6 +1383,7 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
         # Get start and end integrations for reset artifact masking.
         int_start = datafile[0].header['INTSTART']
         int_end = np.min([datafile[0].header['INTEND'], 256])
+        filename = datafile[0].header['FILENAME']
     else:
         datafile = utils.open_filetype(datafile)
         cube = datafile.data
@@ -1390,6 +1391,8 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
         # Get start and end integrations for reset artifact masking.
         int_start = datafile.meta.exposure.integration_start
         int_end = np.min([datafile.meta.exposure.integration_end, 256])
+        filename = datafile.meta.filename
+    fancyprint('Processing file {}.'.format(filename))
 
     nints, ngroups, dimy, dimx = np.shape(cube)
     # Mask the detector reset artifact which is picked up by this flagging.
