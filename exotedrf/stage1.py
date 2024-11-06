@@ -722,7 +722,7 @@ class OneOverFStep:
                               ''.format(self.method)
                         raise ValueError(msg)
 
-                    res = oneoverfstep_nirspec(self.datafiles,
+                    res = oneoverfstep_nirspec(segment,
                                                output_dir=self.output_dir,
                                                save_results=save_results,
                                                pixel_mask=thismask,
