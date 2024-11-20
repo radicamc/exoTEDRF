@@ -8,14 +8,14 @@ Created on Thurs Jul 21 17:33 2022
 Custom JWST DMS pipeline steps for Stage 3 (1D spectral extraction).
 """
 
-from astropy.convolution import Gaussian1DKernel, convolve
 from astropy.io import fits
 import glob
 import numpy as np
 import pandas as pd
 import pastasoss
 from scipy.interpolate import interp1d
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, filtfilt, correlate
+import spectres
 from tqdm import tqdm
 
 from applesoss import applesoss
@@ -255,27 +255,22 @@ class Extract1DStep:
                 else:
                     times = np.concatenate([times, this_time])
 
-            # Clip outliers and format extracted spectra.
+            # Clip outliers, refine wavelength solution, and format extracted
+            # spectra.
             st_teff, st_logg, st_met = self.stellar_params
             if self.instrument == 'NIRISS':
-                # Get throughput data.
-                step = calwebb_spec2.extract_1d_step.Extract1dStep()
-                thpt = step.get_reference_file(self.datafiles[0], 'spectrace')
-
                 spectra = format_soss_spectra(results, times, extract_params,
                                               self.pl_name, st_teff, st_logg,
-                                              st_met, throughput=thpt,
-                                              pwcpos=pwcpos,
+                                              st_met, pwcpos=pwcpos,
                                               output_dir=self.output_dir,
                                               save_results=save_results,
                                               use_pastasoss=use_pastasoss)
             else:
-                thpt = ''
                 detector = utils.get_detector_name(self.datafiles[0])
                 spectra = format_nirspec_spectra(results, times,
                                                  extract_params, self.pl_name,
                                                  detector, st_teff, st_logg,
-                                                 st_met, throughput=thpt,
+                                                 st_met,
                                                  output_dir=self.output_dir,
                                                  save_results=save_results)
 
@@ -753,7 +748,7 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0,
     return f, ferr
 
 
-def do_ccf(wave, flux, err, mod_flux, nsteps=1000):
+def do_ccf(wave, flux, mod_flux, oversample=5):
     """Perform a cross-correlation analysis between an extracted and model
     stellar spectrum to determine the appropriate wavelength shift between
     the two.
@@ -764,16 +759,14 @@ def do_ccf(wave, flux, err, mod_flux, nsteps=1000):
         Wavelength axis.
     flux : array-like[float]
         Extracted spectrum.
-    err : array-like[float]
-        Errors on extracted spectrum.
     mod_flux : array-like[float]
         Model spectrum.
-    nsteps : int
-        Number of wavelength steps to test.
+    oversample : int
+        Degree of oversampling for the cross correlation.
 
     Returns
     -------
-    shift : float
+    shift_wave : float
         Wavelength shift between the model and extracted spectrum in microns.
     """
 
@@ -783,32 +776,40 @@ def do_ccf(wave, flux, err, mod_flux, nsteps=1000):
         signal_filt = filtfilt(b, a, signal)
         return signal_filt
 
-    ccf = np.zeros(nsteps)
-    # Trim edges off of input data to avoid interplation errors.
-    wav_a, flux_a, ferr_a = wave[50:-50], flux[50:-50], err[50:-50]
-    # Max-value normalize the model spectrum and initialize interpolation.
-    mod_norm = mod_flux / np.max(mod_flux)
-    f = interp1d(wave, mod_norm, kind='cubic')
-    # Max-value normalize and high-pass filter the data.
-    data = highpass_filter(flux_a / np.max(flux_a))
-    error = ferr_a / np.max(flux_a)
+    # Ensure wavelengths are in ascending order
+    ii = np.argsort(wave)
+    thiswave = wave[ii]
+    thisflux = flux[ii]
+    thismod = mod_flux[ii]
 
-    # Perform the CCF.
-    for j, jj in enumerate(np.linspace(-0.01, 0.01, nsteps)):
-        # Calculate new wavelength axis.
-        new_wave = wav_a + jj
-        # Interpolate model onto new axis and high-pass filter.
-        model_interp = f(new_wave)
-        model_interp = highpass_filter(model_interp)
-        # Calculate the CCF at this step.
-        ccf[j] = np.nansum(model_interp * data / error ** 2)
+    # Interpolte both model and data onto a finer wavelength grid.
+    new_wave = []
+    for i in range(len(thiswave)):
+        new_wave.append(thiswave[i])
+        if i < len(thiswave) - 1:
+            step = thiswave[i + 1] - thiswave[i]
+            step /= oversample
+            for s in range(1, oversample):
+                new_wave.append(thiswave[i] + s * step)
+    thisflux = np.interp(new_wave, thiswave, thisflux)
+    thismod = np.interp(new_wave, thiswave, thismod)
 
-    # Determine the peak of the CCF for each integration to get the
-    # best-fitting shift.
-    maxval = np.argmax(ccf)
-    shift = np.linspace(-0.01, 0.01, nsteps)[maxval]
+    # Remove any nan pixels.
+    ii = np.where(np.isnan(thisflux))
+    thisflux = np.delete(thisflux, ii)
+    thismod = np.delete(thismod, ii)
 
-    return shift
+    # Cross-correlate the model and observed stellar spectrum.
+    ccf = correlate(highpass_filter(thisflux), highpass_filter(thismod))
+    # Determine how many wavelength steps corresponds to the CCF peak.
+    ll = len(thisflux)
+    steps = np.linspace(-ll+1, ll-1, 2*ll-1)
+    shift_steps = steps[np.argmax(ccf)]
+
+    # And get the wavelength shift.
+    shift_wave = -1*shift_steps*np.median(np.diff(new_wave))
+
+    return shift_wave
 
 
 def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path,
@@ -870,8 +871,7 @@ def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path,
 
 def format_nirspec_spectra(datafiles, times, extract_params, target_name,
                            detector, st_teff=None, st_logg=None, st_met=None,
-                           throughput=None, output_dir='./',
-                           save_results=True):
+                           output_dir='./', save_results=True):
     """Unpack the outputs of the 1D extraction and format them into
     lightcurves at the native detector resolution.
 
@@ -897,8 +897,6 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
         Stellar log surface gravity.
     st_met : float, None
         Stellar metallicity as [Fe/H].
-    throughput : str
-        Path to JWST spectrace reference file.
 
     Returns
     -------
@@ -920,38 +918,28 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
                    'Using default wavelength solution.', msg_type='WARNING')
     else:
         fancyprint('Refining the wavelength calibration.')
-        fancyprint('... is buggy and so wont be run!')
-        # # Create a grid of stellar parameters, and download PHOENIX spectra
-        # # for each grid point.
-        # thisout = output_dir + 'phoenix_models'
-        # utils.verify_path(thisout)
-        # res = utils.download_stellar_spectra(st_teff, st_logg, st_met,
-        #                                      outdir=thisout)
-        # wave_file, flux_files = res
-        # # Interpolate model grid to correct stellar parameters.
-        # mod_flux = utils.interpolate_stellar_model_grid(flux_files, st_teff,
-        #                                                 st_logg, st_met)
-        # mod_wave = fits.getdata(wave_file)/1e4
-        #
-        # # Convolve model to lower resolution and interpolate to data
-        # # wavelengths.
-        # gauss = Gaussian1DKernel(stddev=500)
-        # mod_flux = convolve(mod_flux, gauss)
-        # mod_flux = np.interp(wave1d, mod_wave, mod_flux)
-        # # Add throuput effects to model.
-        # thpt = fits.open(throughput)
-        # twave = thpt[1].data['WAVELENGTH']
-        # thpt = thpt[1].data['THROUGHPUT']
-        # thpt = np.interp(wave1d, twave, thpt)
-        # mod_flux *= thpt
-        #
-        # # Cross-correlate extracted spectrum with model to refine wavelength
-        # # calibration.
-        # x1d_flux = np.nansum(flux, axis=0)
-        # x1d_err = np.sqrt(np.nansum(ferr**2, axis=0))
-        # wave_shift = do_ccf(wave1d, x1d_flux, x1d_err, mod_flux)
-        # fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
-        # wave1d += wave_shift
+        # Create a grid of stellar parameters, and download PHOENIX spectra
+        # for each grid point.
+        thisout = output_dir + 'phoenix_models'
+        utils.verify_path(thisout)
+        res = utils.download_stellar_spectra(st_teff, st_logg, st_met,
+                                             outdir=thisout)
+        wave_file, flux_files = res
+        # Interpolate model grid to correct stellar parameters.
+        # Reverse direction of both arrays since SOSS is extracted red to blue.
+        mod_flux = utils.interpolate_stellar_model_grid(flux_files, st_teff,
+                                                        st_logg, st_met)
+        mod_wave = fits.getdata(wave_file) / 1e4
+
+        # Bin model down to data wavelengths.
+        mod_flux = spectres.spectres(wave1d, mod_wave, mod_flux)
+
+        # Cross-correlate extracted spectrum with model to refine wavelength
+        # calibration.
+        x1d_flux = np.nansum(flux, axis=0)
+        wave_shift = do_ccf(wave1d, x1d_flux, mod_flux)
+        fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
+        wave1d += wave_shift
 
     # Clip remaining 3-sigma outliers.
     flux_clip = utils.sigma_clip_lightcurves(flux, window=11, thresh=3)
@@ -984,8 +972,8 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
 
 def format_soss_spectra(datafiles, times, extract_params, target_name,
                         st_teff=None, st_logg=None, st_met=None,
-                        throughput=None, pwcpos=None, output_dir='./',
-                        save_results=True, use_pastasoss=False):
+                        pwcpos=None, output_dir='./', save_results=True,
+                        use_pastasoss=False):
     """Unpack the outputs of the 1D extraction and format them into
     lightcurves at the native detector resolution.
 
@@ -1009,8 +997,6 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
         Stellar log surface gravity.
     st_met : float, None
         Stellar metallicity as [Fe/H].
-    throughput : str
-        Path to JWST spectrace reference file.
     pwcpos : float
         Filter wheel position. Only necessary is use_pastasoss is True.
     use_pastasoss : bool
@@ -1101,26 +1087,16 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
                                                         st_logg, st_met)
         mod_wave = fits.getdata(wave_file)/1e4
 
-        # Convolve model to lower resolution and interpolate to data
-        # wavelengths.
-        gauss = Gaussian1DKernel(stddev=500)
-        mod_flux = convolve(mod_flux, gauss)
-        mod_flux = np.interp(wave1d_o1[::-1], mod_wave, mod_flux)[::-1]
-        # Add throuput effects to model.
-        thpt = fits.open(throughput)
-        twave = thpt[1].data['WAVELENGTH']
-        thpt = thpt[1].data['THROUGHPUT']
-        thpt = np.interp(wave1d_o1[::-1], twave, thpt)[::-1]
-        mod_flux *= thpt
+        # Bin model down to data wavelengths.
+        mod_flux = spectres.spectres(wave1d_o1[::-1], mod_wave, mod_flux)[:-1]
 
         # Cross-correlate extracted spectrum with model to refine wavelength
         # calibration.
         x1d_flux = np.nansum(flux_o1, axis=0)
-        x1d_err = np.sqrt(np.nansum(ferr_o1**2, axis=0))
-        wave_shift = do_ccf(wave1d_o1, x1d_flux, x1d_err, mod_flux)
-        fancyprint('Found a wavelength shift of {}um'.format(-1*wave_shift))
-        wave1d_o1 -= wave_shift
-        wave1d_o2 -= wave_shift
+        wave_shift = do_ccf(wave1d_o1, x1d_flux, mod_flux)
+        fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
+        wave1d_o1 += wave_shift
+        wave1d_o2 += wave_shift
 
     # Clip remaining 5-sigma outliers.
     flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1)
