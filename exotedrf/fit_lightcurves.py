@@ -107,13 +107,11 @@ else:
 # Quantities against which to linearly detrend.
 if config['lm_file'] is not None:
     lm_data = pd.read_csv(config['lm_file'], comment='#')
-    lm_quantities = np.zeros((len(config['lm_parameters'])+1, len(t)))
+    lm_quantities = np.zeros((len(config['lm_parameters']), len(t)))
     lm_quantities[0] = np.ones_like(t)
     for i, key in enumerate(config['lm_parameters']):
-        if key == '':
-            continue
         lm_param = lm_data[key]
-        lm_quantities[i+1] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
+        lm_quantities[i] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
 # Eclipses must fit for a baseline, which is done via the linear detrending.
 # So add this term to the fits if not already included.
 if config['lm_file'] is None and 'eclipse' in config['lc_model_type']:
@@ -327,6 +325,12 @@ for order in config['orders']:
                 prior_dict[thisbin]['u3_inst']['value'] = vals
                 prior_dict[thisbin]['u4_inst']['distribution'] = dist
                 prior_dict[thisbin]['u4_inst']['value'] = vals
+
+    # Get custom light curve function call if provided.
+    if config['custom_lc_function'] is not None:
+        custom_lc_function = getattr(model, config['custom_lc_function'])
+    else:
+        custom_lc_function = None
 
     # === Do the Fit ===
     # Fit each light curve

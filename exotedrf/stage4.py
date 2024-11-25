@@ -608,7 +608,8 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors,
 
         # Run the fit.
         try:
-            dataset.fit(output_file=out_folder, sampler='NestedSampling')
+            dataset.fit(output_file=out_folder, sampler='NestedSampling',
+                        force_redo=True)
             res = dataset
         except KeyboardInterrupt as err:
             raise err
