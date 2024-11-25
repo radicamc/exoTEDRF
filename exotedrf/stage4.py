@@ -596,7 +596,7 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors,
                               ld_model=ld_model, lc_model_type=lc_model,
                               linear_regressors=linear_regressors,
                               gp_regressors=gp_regressors, observations=flux,
-                              silent=Truez)
+                              silent=True)
 
         # Run the fit.
         try:
