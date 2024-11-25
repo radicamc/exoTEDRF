@@ -110,6 +110,8 @@ if config['lm_file'] is not None:
     lm_quantities = np.zeros((len(config['lm_parameters'])+1, len(t)))
     lm_quantities[0] = np.ones_like(t)
     for i, key in enumerate(config['lm_parameters']):
+        if key == '':
+            continue
         lm_param = lm_data[key]
         lm_quantities[i+1] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
 # Eclipses must fit for a baseline, which is done via the linear detrending.
