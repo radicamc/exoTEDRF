@@ -312,7 +312,7 @@ def bin_at_resolution(inwave_low, inwave_up, flux, flux_err, res,
 
 @ray.remote
 def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins,
-             lc_model_type, ld_model, lc_function_call):
+             lc_model_type, ld_model):
     """Functional wrapper around run_uporf to make it compatible for
     multiprocessing with ray.
     """
@@ -337,16 +337,14 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins,
         linear_regressors = {'inst': data_dictionary['lm_parameters']}
 
     fit_results = run_uporf(priors, t, flux, output_dir, gp_regressors,
-                            linear_regressors, lc_model_type, ld_model,
-                            lc_function_call)
+                            linear_regressors, lc_model_type, ld_model)
 
     return fit_results
 
 
 def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
                     nthreads=4, observing_mode='NIRISS/SOSS',
-                    lc_model_type='transit', ld_model='quadratic',
-                    lc_function_call=None):
+                    lc_model_type='transit', ld_model='quadratic'):
     """Wrapper about both the exoUPRF and ray libraries to parallelize
     exoUPRF's lightcurve fitting functionality.
 
@@ -370,8 +368,6 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
         exoUPRF light curve model identifier.
     ld_model : str
         Limb darkening model identifier.
-    lc_function_call : func, None
-        Function call for custom light curve model.
 
     Returns
     -------
@@ -406,8 +402,7 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
                                         bin_no=num_bins[i],
                                         num_bins=len(num_bins),
                                         lc_model_type=lc_model_type,
-                                        ld_model=ld_model,
-                                        lc_function_call=lc_function_call))
+                                        ld_model=ld_model))
     # Run the fits.
     ray_results = ray.get(all_fits)
 
@@ -565,7 +560,7 @@ def read_ld_coefs(filename, wavebin_low, wavebin_up):
 
 
 def run_uporf(priors, time, flux, out_folder, gp_regressors,
-              linear_regressors, lc_model_type, ld_model, lc_function_call):
+              linear_regressors, lc_model_type, ld_model):
     """Wrapper around the lightcurve fitting functionality of the exoUPRF
     package.
 
@@ -587,8 +582,6 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors,
         exoUPRF light curve model identifier.
     ld_model : str
         Limb darkening model identifier.
-    lc_function_call : func
-        Function call for custom light curve, if necessary.
 
     Returns
     -------
@@ -599,17 +592,15 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors,
     if np.all(np.isfinite(flux['inst']['flux'])):
         # Load in all priors and data to be fit.
         lc_model = {'inst': {'p1': lc_model_type}}
-        lc_function = {'inst': {'p1': lc_function_call}}
         dataset = fit.Dataset(input_parameters=priors, t=time,
                               ld_model=ld_model, lc_model_type=lc_model,
                               linear_regressors=linear_regressors,
                               gp_regressors=gp_regressors, observations=flux,
-                              silent=True, custom_lc_functions=lc_function)
+                              silent=Truez)
 
         # Run the fit.
         try:
-            dataset.fit(output_file=out_folder, sampler='NestedSampling',
-                        force_redo=True)
+            dataset.fit(output_file=out_folder, sampler='NestedSampling')
             res = dataset
         except KeyboardInterrupt as err:
             raise err

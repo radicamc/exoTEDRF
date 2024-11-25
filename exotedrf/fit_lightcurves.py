@@ -107,14 +107,14 @@ else:
 # Quantities against which to linearly detrend.
 if config['lm_file'] is not None:
     lm_data = pd.read_csv(config['lm_file'], comment='#')
-    lm_quantities = np.zeros((len(config['lm_parameters']), len(t)))
+    lm_quantities = np.zeros((len(config['lm_parameters'])+1, len(t)))
     lm_quantities[0] = np.ones_like(t)
     for i, key in enumerate(config['lm_parameters']):
         lm_param = lm_data[key]
-        lm_quantities[i] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
+        lm_quantities[i+1] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
 # Eclipses must fit for a baseline, which is done via the linear detrending.
 # So add this term to the fits if not already included.
-if config['lm_file'] is None and 'eclipse' in config['lc_model_type']:
+if config['lm_file'] is None and config['lc_model_type'] == 'eclipse':
     lm_quantities = np.zeros((1, len(t)))
     lm_quantities[:, 0] = np.ones_like(t)
     config['params'].append('theta0_inst')
@@ -212,7 +212,7 @@ for order in config['orders']:
         priors[param]['value'] = hyperp
 
     # For transit fits, calculate LD coefficients from stellar models.
-    if 'transit' in config['lc_model_type'] and config['ld_fit_type'] != 'free':
+    if config['lc_model_type'] == 'transit' and config['ld_fit_type'] != 'free':
         calculate = True
         # First check if LD coefficient files have been provided.
         if config['ldcoef_file{}'.format(order)] is not None:
@@ -289,7 +289,7 @@ for order in config['orders']:
         # For transit only; update the LD prior for this bin if available.
         # For prior: set prior width to 0.2 around the model value - based on
         # findings of Patel & Espinoza 2022.
-        if 'transit' in config['lc_model_type'] and config['ld_fit_type'] != 'free':
+        if config['lc_model_type'] == 'transit' and config['ld_fit_type'] != 'free':
             if config['ld_model_type'] == 'quadratic-kipping':
                 low_lim = 0.0
             else:
@@ -326,12 +326,6 @@ for order in config['orders']:
                 prior_dict[thisbin]['u4_inst']['distribution'] = dist
                 prior_dict[thisbin]['u4_inst']['value'] = vals
 
-    # Get custom light curve function call if provided.
-    if config['custom_lc_function'] is not None:
-        custom_lc_function = getattr(model, config['custom_lc_function'])
-    else:
-        custom_lc_function = None
-
     # === Do the Fit ===
     # Fit each light curve
     fit_results = stage4.fit_lightcurves(data_dict, prior_dict, order=order,
@@ -340,8 +334,7 @@ for order in config['orders']:
                                          fit_suffix=fit_suffix,
                                          observing_mode=config['observing_mode'],
                                          lc_model_type=config['lc_model_type'],
-                                         ld_model=config['ld_model_type'],
-                                         lc_function_call=config['custom_lc_function'])
+                                         ld_model=config['ld_model_type'])
 
     # === Summarize Fit Results ===
     # Loop over results for each wavebin, extract best-fitting parameters and
@@ -367,7 +360,7 @@ for order in config['orders']:
         # If not skipped, append median and 1-sigma bounds.
         else:
             this_result = fit_results[wavebin].get_results_from_fit()
-            if 'transit' in config['lc_model_type']:
+            if config['lc_model_type'] == 'transit':
                 md = this_result['rp_p1_inst']['median']
                 up = this_result['rp_p1_inst']['up_1sigma']
                 lw = this_result['rp_p1_inst']['low_1sigma']
@@ -394,10 +387,6 @@ for order in config['orders']:
             if config['gp_file'] is not None:
                 thisgp = {'inst': data_dict[wavebin]['GP_parameters']}
             thislcmod = {'inst': {'p1': config['lc_model_type']}}
-            if 'custom' in config['lc_model_type']:
-                thislcfunc = {'inst': {'p1': config['custom_lc_function']}}
-            else:
-                thislcfunc = None
             result = model.LightCurveModel(param_dict,
                                            t={'inst': data_dict[wavebin]['times']},
                                            linear_regressors=thislm,
@@ -405,8 +394,7 @@ for order in config['orders']:
                                            observations={'inst': {'flux': data_dict[wavebin]['flux']}},
                                            ld_model=config['ld_model_type'],
                                            silent=True)
-            result.compute_lightcurves(lc_model_type=thislcmod,
-                                       lc_model_functions=thislcfunc)
+            result.compute_lightcurves(lc_model_type=thislcmod)
 
             # Plot transit model and residuals.
             scatter = param_dict['sigma_inst']['value']
@@ -504,7 +492,7 @@ orders = np.concatenate([2*np.ones_like(results_dict['order 2']['dppm']),
 infile_header = fits.getheader(config['infile'], 0)
 extract_type = infile_header['METHOD']
 target = infile_header['TARGET'] + config['planet_letter']
-if 'transit' in config['lc_model_type']:
+if config['lc_model_type'] == 'transit':
     spec_type = 'transmission'
 else:
     spec_type = 'emission'
