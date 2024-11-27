@@ -337,6 +337,21 @@ def get_dq_flag_metrics(dq_map, flags):
     return flagged
 
 
+def get_exouprf_built_in_models(model):
+    """Print names of exoUPRF bullt in models.
+    """
+
+    models = []
+    for item in dir(model):
+        if item in ['LightCurveModel', 'fancyprint']:
+            continue
+        this = getattr(model, item)
+        if hasattr(this, '__call__'):
+            models.append(item)
+
+    return models
+
+
 def get_filename_root(datafiles):
     """Get the file name roots for each segment. Assumes that file names
     follow the default jwst pipeline structure and are in correct segment

@@ -24,6 +24,10 @@ baseline_ints : [50, -50]
 # Type of light curve model: 'transit' or 'eclipse'.
 # Other exoUPRF models can also be supported, see the exoUPRF documentation for more info.
 lc_model_type : 'transit'
+# String of function call for a custom light curve model, if not a simple transit or eclipe.
+# Note: if using a custom light curve model, either 'custom-transit' or 'custom-eclipse' must be passed to
+# lc_model_type.
+custom_lc_model : None
 # If True, make summary plots.
 do_plots : True
 # If True, also make corner plot for each bin.

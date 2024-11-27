@@ -318,6 +318,28 @@ for order in config['orders']:
                 prior_dict[thisbin]['u4_inst']['distribution'] = dist
                 prior_dict[thisbin]['u4_inst']['value'] = vals
 
+    # Get information about custom light curve model, if being used.
+    if 'custom' in config['lc_model_type']:
+        if config['custom_lc_model'] is None:
+            # No custom light curve function passed, raise error.
+            raise AttributeError('Passed light curve model type is custom, '
+                                 'but no custom model was passed.')
+        elif isinstance(config['custom_lc_model'], str):
+            try:
+                custom_lc_function = getattr(model, config['custom_lc_model'])
+            except AttributeError:
+                all_models = utils.get_exouprf_built_in_models(model)
+                msg = 'exoUPRF has no built-in light curve model {0}. ' \
+                      'Available models are: {1}'.format(config['custom_lc_model'], all_models)
+                raise AttributeError(msg)
+        else:
+            thistype = type(config['custom_lc_model'])
+            raise ValueError('Object passed to custom_lc_model of type {} is '
+                             'not a string or None.'.format(thistype))
+    else:
+        # No custom light curve function to be used, all is good.
+        custom_lc_function = None
+
     # === Do the Fit ===
     # Fit each light curve
     fit_results = stage4.fit_lightcurves(data_dict, prior_dict, order=order,
@@ -326,7 +348,8 @@ for order in config['orders']:
                                          fit_suffix=fit_suffix,
                                          observing_mode=config['observing_mode'],
                                          lc_model_type=config['lc_model_type'],
-                                         ld_model=config['ld_model_type'])
+                                         ld_model=config['ld_model_type'],
+                                         custom_lc_function=custom_lc_function)
 
     # === Summarize Fit Results ===
     # Loop over results for each wavebin, extract best-fitting parameters and
@@ -352,7 +375,7 @@ for order in config['orders']:
         # If not skipped, append median and 1-sigma bounds.
         else:
             this_result = fit_results[wavebin].get_results_from_fit()
-            if config['lc_model_type'] == 'transit':
+            if 'transit' in config['lc_model_type']:
                 md = this_result['rp_p1_inst']['median']
                 up = this_result['rp_p1_inst']['up_1sigma']
                 lw = this_result['rp_p1_inst']['low_1sigma']
@@ -379,6 +402,7 @@ for order in config['orders']:
             if config['gp_file'] is not None:
                 thisgp = {'inst': data_dict[wavebin]['GP_parameters']}
             thislcmod = {'inst': {'p1': config['lc_model_type']}}
+            thislcfunc = {'inst': {'p1': custom_lc_function}}
             result = model.LightCurveModel(param_dict,
                                            t={'inst': data_dict[wavebin]['times']},
                                            linear_regressors=thislm,
@@ -386,7 +410,8 @@ for order in config['orders']:
                                            observations={'inst': {'flux': data_dict[wavebin]['flux']}},
                                            ld_model=config['ld_model_type'],
                                            silent=True)
-            result.compute_lightcurves(lc_model_type=thislcmod)
+            result.compute_lightcurves(lc_model_type=thislcmod,
+                                       lc_model_functions=thislcfunc)
 
             # Plot transit model and residuals.
             scatter = param_dict['sigma_inst']['value']
@@ -484,7 +509,7 @@ orders = np.concatenate([2*np.ones_like(results_dict['order 2']['dppm']),
 infile_header = fits.getheader(config['infile'], 0)
 extract_type = infile_header['METHOD']
 target = infile_header['TARGET'] + config['planet_letter']
-if config['lc_model_type'] == 'transit':
+if 'transit' in config['lc_model_type']:
     spec_type = 'transmission'
 else:
     spec_type = 'emission'
