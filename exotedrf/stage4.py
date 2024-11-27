@@ -14,6 +14,7 @@ import exouprf.fit as fit
 import numpy as np
 import os
 import pandas as pd
+os.environ["RAY_DEDUP_LOGS"] = "0"
 import ray
 from tqdm import tqdm
 
@@ -312,7 +313,7 @@ def bin_at_resolution(inwave_low, inwave_up, flux, flux_err, res,
 
 @ray.remote
 def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins,
-             lc_model_type, ld_model):
+             lc_model_type, ld_model, debug=False):
     """Functional wrapper around run_uporf to make it compatible for
     multiprocessing with ray.
     """
@@ -337,7 +338,7 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins,
         linear_regressors = {'inst': data_dictionary['lm_parameters']}
 
     fit_results = run_uporf(priors, t, flux, output_dir, gp_regressors,
-                            linear_regressors, lc_model_type, ld_model)
+                            linear_regressors, lc_model_type, ld_model, debug)
 
     return fit_results
 
@@ -560,7 +561,7 @@ def read_ld_coefs(filename, wavebin_low, wavebin_up):
 
 
 def run_uporf(priors, time, flux, out_folder, gp_regressors,
-              linear_regressors, lc_model_type, ld_model):
+              linear_regressors, lc_model_type, ld_model, debug=False):
     """Wrapper around the lightcurve fitting functionality of the exoUPRF
     package.
 
@@ -582,6 +583,8 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors,
         exoUPRF light curve model identifier.
     ld_model : str
         Limb darkening model identifier.
+    debug : bool
+        If True, always break when encountering an error.
 
     Returns
     -------
@@ -600,14 +603,18 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors,
 
         # Run the fit.
         try:
-            dataset.fit(output_file=out_folder, sampler='NestedSampling')
+            dataset.fit(output_file=out_folder, sampler='NestedSampling',
+                        force_redo=True)
             res = dataset
         except KeyboardInterrupt as err:
             raise err
-        except:
-            fancyprint('Exception encountered.', msg_type='WARNING')
-            fancyprint('Skipping bin.', msg_type='WARNING')
-            res = None
+        except Exception as err:
+            if debug is False:
+                fancyprint('Exception encountered.', msg_type='WARNING')
+                fancyprint('Skipping bin.', msg_type='WARNING')
+                res = None
+            else:
+                raise err
     else:
         fancyprint('NaN bin encountered.', msg_type='WARNING')
         fancyprint('Skipping bin.', msg_type='WARNING')

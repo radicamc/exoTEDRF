@@ -85,11 +85,12 @@ f.write('\nRun at {}.'.format(time))
 f.close()
 
 # Formatted parameter names for plotting.
-formatted_names = {'per_p1': r'$P$', 't0_p1': r'$T_0$', 'rp_p1_inst': r'$R_p/R_*$',
-                   'inc_p1': r'$i$', 'u1_inst': r'$u_1$', 'u2_inst': r'$u_2$',
+formatted_names = {'per_p1': r'$P$', 't0_p1': r'$T_0$',
+                   'rp_p1_inst': r'$R_p/R_*$', 'inc_p1': r'$i$',
+                   'u1_inst': r'$u_1$', 'u2_inst': r'$u_2$',
                    'ecc_p1': r'$e$', 'w_p1': r'$\Omega$',
                    'a_p1': r'$a/R_*$', 'sigma_inst': r'$\sigma$',
-                   'theta0_inst': r'$\theta_0$', 'theta1_inst': r'$\theta_1$',
+                   'zero_inst': 'zero point', 'theta1_inst': r'$\theta_1$',
                    'theta2_inst': r'$\theta_2$', 'theta3_inst': r'$\theta_3$',
                    'theta4_inst': r'$\theta_4$', 'theta5_inst': r'$\theta_5$',
                    'GP_sigma_inst': r'$GP \sigma$',
@@ -107,19 +108,10 @@ else:
 # Quantities against which to linearly detrend.
 if config['lm_file'] is not None:
     lm_data = pd.read_csv(config['lm_file'], comment='#')
-    lm_quantities = np.zeros((len(config['lm_parameters'])+1, len(t)))
-    lm_quantities[0] = np.ones_like(t)
+    lm_quantities = np.zeros((len(config['lm_parameters']), len(t)))
     for i, key in enumerate(config['lm_parameters']):
         lm_param = lm_data[key]
-        lm_quantities[i+1] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
-# Eclipses must fit for a baseline, which is done via the linear detrending.
-# So add this term to the fits if not already included.
-if config['lm_file'] is None and config['lc_model_type'] == 'eclipse':
-    lm_quantities = np.zeros((1, len(t)))
-    lm_quantities[:, 0] = np.ones_like(t)
-    config['params'].append('theta0_inst')
-    config['dists'].append('uniform')
-    config['hyperps'].append([-10, 10])
+        lm_quantities[i] = (lm_param - np.mean(lm_param)) / np.std(lm_param)
 
 # Quantity on which to train GP.
 if config['gp_file'] is not None:
