@@ -342,7 +342,13 @@ for order in config['orders']:
 
     # === Do the Fit ===
     # Fit each light curve
-    fit_results = stage4.fit_lightcurves(data_dict, prior_dict, order=order,
+    if config['observing_mode'].split('/')[0].upper() == 'NIRSPEC':
+        thisorder = int(config['detector'][-1])
+    else:
+        thisorder = order
+    print(thisorder)
+    fit_results = stage4.fit_lightcurves(data_dict, prior_dict,
+                                         order=thisorder,
                                          output_dir=outdir,
                                          nthreads=config['ncores'],
                                          fit_suffix=fit_suffix,
