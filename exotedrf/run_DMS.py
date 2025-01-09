@@ -83,6 +83,7 @@ if 1 in config['run_stages']:
                                 soss_background_model=config['soss_background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 oof_method=config['oof_method'],
+                                superbias_method=config['superbias_method'],
                                 soss_timeseries=config['soss_timeseries'],
                                 soss_timeseries_o2=config['soss_timeseries_o2'],
                                 save_results=config['save_results'],

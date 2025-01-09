@@ -898,6 +898,23 @@ def make_superbias_plot(results, outfile=None, show_plot=True):
     basic_nine_panel_plot(results, outfile=outfile, show_plot=show_plot)
 
 
+def make_superbias_scale_plot(scale_factors, outfile=None, show_plot=True):
+    """ Make a plot showing the custom superbias scale factors.
+    """
+
+    plt.plot(scale_factors)
+    plt.xlabel('Integration No.', fontsize=12)
+    plt.ylabel('Scale Factor', fontsize=12)
+
+    if outfile is not None:
+        plt.savefig(outfile, bbox_inches='tight')
+        fancyprint('Plot saved to {}'.format(outfile))
+    if show_plot is False:
+        plt.close()
+    else:
+        plt.show()
+
+
 def make_2d_lightcurve_plot(wave1, flux1, wave2=None, flux2=None, outpdf=None,
                             title='', instrument='NIRISS', **kwargs):
     """Plot 2D spectroscopic light curves.

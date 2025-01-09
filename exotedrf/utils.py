@@ -928,6 +928,33 @@ def make_baseline_stack_fits(datafiles, baseline_ints):
     return stack
 
 
+def make_custom_superbias(datafiles):
+    """Cunstruct a custom superbias frame by stacking all of the 0th group
+    frames in a TSO.
+
+    Parameters
+    ----------
+    datafiles : array-like(str)
+        List of paths to datafiles.
+
+    Returns
+    -------
+    superbias : ndarray(float)
+        Custom superbias reference frame.
+    """
+
+    # Stack 0th group frames from all integrations.
+    for i, file in enumerate(datafiles):
+        if i == 0:
+            superbias = fits.getdata(file)[:, 0]
+        else:
+            superbias = np.concatenate([superbias, fits.getdata(file)[:, 0]])
+    # Collapse along integrations axis.
+    superbias = bn.nanmedian(superbias, axis=0)
+
+    return superbias
+
+
 def make_deepstack(cube):
     """Make deep stack of a TSO.
 

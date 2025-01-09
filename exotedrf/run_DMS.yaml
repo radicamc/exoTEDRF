@@ -20,13 +20,15 @@ filter_detector : 'CLEAR'
 DQInitStep : 'run'
 SaturationStep : 'run'
 SuperBiasStep : 'run'
-RefPixStep : 'run'
+RefPixStep : 'run'         # SOSS only
 DarkCurrentStep : 'skip'
 OneOverFStep_grp : 'run'
 LinearityStep : 'run'
 JumpStep : 'run'
 RampFitStep : 'run'
 GainScaleStep : 'run'
+# (NIRSpec only) Superbias calculation method. Options are 'crds', 'custom', or 'custom-rescale'.
+superbias_method : 'crds'
 # (SOSS only) Background model for NIRISS/SOSS. Default model available here:
 # https://jwst-docs.stsci.edu/jwst-near-infrared-imager-and-slitless-spectrograph/niriss-observing-strategies/niriss-soss-recommended-strategies
 soss_background_file : 'model_background256.npy'

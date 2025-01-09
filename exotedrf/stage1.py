@@ -204,10 +204,11 @@ class SaturationStep:
 
 
 class SuperBiasStep:
-    """Wrapper around default calwebb_detector1 Super Bias Subtraction step.
+    """Wrapper around default calwebb_detector1 Super Bias Subtraction step
+    with some custom modifications.
     """
 
-    def __init__(self, input_data, output_dir):
+    def __init__(self, input_data, output_dir, centroids=None, method='crds'):
         """Step initializer.
 
         Parameters
@@ -216,18 +217,40 @@ class SuperBiasStep:
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
+        centroids : str, dict, None
+            Path to file containing trace positions for each order or the
+            centroids dictionary itself.
+        method : str
+            Method via which to calculate the superbias level. Options are
+            'crds', 'custom', or 'custom-rescale'. NIRSpec only.
         """
 
         # Set up easy attributes.
         self.tag = 'superbiasstep.fits'
         self.output_dir = output_dir
+        self.method = method
 
         # Unpack input data files.
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
+        self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
+
+        # Unpack centroids.
+        if isinstance(centroids, str):
+            fancyprint('Reading centroids file: {}...'.format(centroids))
+            self.centroids = pd.read_csv(centroids, comment='#')
+        else:
+            self.centroids = centroids
 
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
+
+        # Make sure instrument is compatible with the superbias method.
+        if self.instrument == 'NIRISS' and method != 'crds':
+            fancyprint('Custom bias subtractions are not available for {} '
+                       'observations. Changing method to '
+                       'crds'.format(self.instrument), msg_type='WARNING')
+            self.method = 'crds'
 
     def run(self, save_results=True, force_redo=False, do_plot=False,
             show_plot=False, **kwargs):
@@ -258,7 +281,17 @@ class SuperBiasStep:
             fancyprint('Setting "save_results=False" can be memory '
                        'intensive.', msg_type='WARNING')
 
+        # If not using the crds reference file, make the custom superbias now.
+        if self.method != 'crds':
+            fancyprint('Generating a custom superbias frame from 0th group.')
+            superbias = utils.make_custom_superbias(self.datafiles)
+            # Save superbias frame.
+            if save_results is True:
+                filename = self.fileroot_noseg + 'superbias.npy'
+                np.save(self.output_dir + filename, superbias)
+
         results = []
+        first_time = True
         all_files = glob.glob(self.output_dir + '*')
         for i, segment in enumerate(self.datafiles):
             # If an output file for this segment already exists, skip the step.
@@ -270,12 +303,41 @@ class SuperBiasStep:
                 do_plot, show_plot = False, False
             # If no output files are detected, run the step.
             else:
-                step = calwebb_detector1.superbias_step.SuperBiasStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results, **kwargs)
+                # To subtract the default crds superbias reference file.
+                if self.method == 'crds':
+                    step = calwebb_detector1.superbias_step.SuperBiasStep()
+                    res = step.call(segment, output_dir=self.output_dir,
+                                    save_results=save_results, **kwargs)
+                # To calculate the superbias level directly from the data.
+                else:
+                    if self.method == 'custom':
+                        method = 'constant'
+                    else:
+                        method = 'rescale'
+                    res = subtract_custom_superbias(segment, superbias,
+                                                    method=method,
+                                                    centroids=self.centroids,
+                                                    output_dir=self.output_dir,
+                                                    save_results=save_results,
+                                                    fileroot=self.fileroots[i],
+                                                    **kwargs)
+                    res, scale_factor = res
+                    # For rescaling method, want to plot the timeseries of
+                    # scale factors. So keep track of this.
+                    if method == 'rescale':
+                        if first_time is True:
+                            scale_factors = scale_factor
+                            first_time = False
+                        else:
+                            scale_factors = np.concatenate([scale_factors,
+                                                            scale_factor])
+
                 # Verify that filename is correct.
                 if save_results is True:
-                    current_name = self.output_dir + res.meta.filename
+                    if isinstance(res, str):
+                        current_name = res
+                    else:
+                        current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
@@ -284,18 +346,28 @@ class SuperBiasStep:
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
+
         # Do step plot if requested.
         if do_plot is True:
             if save_results is True:
-                plot_file = self.output_dir + self.tag.replace('.fits', '.png')
+                plot_file1 = self.output_dir + self.tag.replace('.fits',
+                                                                '_1.png')
+                plot_file2 = self.output_dir + self.tag.replace('.fits',
+                                                                '_2.png')
                 if self.instrument == 'NIRSPEC':
                     det = utils.get_detector_name(self.datafiles[0])
-                    plot_file = plot_file.replace('.png',
-                                                  '_{}.png'.format(det))
+                    plot_file1 = plot_file1.replace('.png',
+                                                    '_{}.png'.format(det))
+                    plot_file2 = plot_file2.replace('.png',
+                                                    '_{}.png'.format(det))
             else:
-                plot_file = None
-            plotting.make_superbias_plot(results, outfile=plot_file,
+                plot_file1, plot_file2 = None, None
+            plotting.make_superbias_plot(results, outfile=plot_file1,
                                          show_plot=show_plot)
+            if self.method == 'custom-rescale':
+                plotting.make_superbias_scale_plot(scale_factors,
+                                                   outfile=plot_file2,
+                                                   show_plot=show_plot)
 
         return results
 
@@ -2349,13 +2421,161 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70,
     return result, calc_vals
 
 
+def subtract_custom_superbias(datafile, superbias, method='constant',
+                              centroids=None, mask_width=10, output_dir=None,
+                              save_results=True, fileroot=None,
+                              override_centroids=False):
+    """Perform a custom superbias subtraction on NIRSpec data where the
+    superbias frame is calculated using the 0th group data from the
+    observation itself. The superbias can either be subtracted as is from the
+    data, or rescaled to account for minor bias level variations which cannot
+    be captured by reference pixels with NIRSpec subarrays.
+
+    Parameters
+    ----------
+    datafile : str, CubeModel
+        Path to data files, or datamodel itself for a segment of the TSO.
+    superbias : ndarray(float)
+        Superbias frame.
+    method : str
+        Superbias subtraction method. Either 'constant' or 'rescale'.
+    centroids : dict, None
+        Dictionary containing trace positions for each order.
+    mask_width : int
+        Full width in pixels to mask around the trace.
+    output_dir : str, None
+        Directory to which to save results. Only necessary if saving results.
+    save_results : bool
+        If True, save results to disk.
+    fileroot : str, None
+        Root name for output files. Only necessary if saving results.
+    override_centroids : bool
+        If True, when passed centroids do not match the shape of the data
+        frame, use passed centroids and do not recalculate.
+
+    Returns
+    -------
+    result : RampModel, str
+        RampModel for the segment, corrected for the superbias.
+    scale_factors : ndarray(float), None
+        Time series of superbias scale factors for each integration.
+    """
+
+    fancyprint('Starting custom superbias subraction step using the custom-{} '
+               'method.'.format(method))
+
+    # If saving results, ensure output directory and fileroots are provided.
+    if save_results is True:
+        assert output_dir is not None
+        assert fileroot is not None
+        # Output directory formatting.
+        if output_dir[-1] != '/':
+            output_dir += '/'
+
+    # Load in data, accept both strings (open as fits) and datamodels.
+    if isinstance(datafile, str):
+        cube = fits.getdata(datafile, 1)
+        filename = fits.getheader(datafile, 0)['FILENAME']
+        dq = fits.getdata(datafile, 2).astype(bool)
+    else:
+        with utils.open_filetype(datafile) as thisfile:
+            cube = thisfile.data
+            filename = thisfile.meta.filename
+            dq = thisfile.pixeldq.astype(bool)
+    fancyprint('Processing file {}.'.format(filename))
+
+    # Define the readout setup
+    nint, ngroup, dimy, dimx = np.shape(cube)
+
+    # Subtract the superbias.
+    # Subtract the custom superbias from each integration.
+    if method == 'constant':
+        cube_corr = cube - superbias
+        scale_factors = None
+    # Rescale the custom superbias to match each integration before
+    # subtracting.
+    else:
+        # Get trace centroids to mask.
+        if centroids is not None:
+            # Unpack centroids if provided.
+            fancyprint('Unpacking centroids.')
+            xpos, ypos = centroids['xpos'], centroids['ypos']
+            # If centroids on trimmed slit data frame are passed to be used on
+            # full frame data, recalculate centroids on data, unless
+            # overridden.
+            if len(xpos) != dimx and override_centroids is False:
+                fancyprint('Dimension of passed centroids do not match data '
+                           'frame dimensions. New centroids will be '
+                           'calculated.', msg_type='WARNING')
+                centroids = None
+
+        if centroids is None:
+            # If no centroids file is provided, get the trace positions from
+            # the data now.
+            fancyprint('No centroids provided, locating trace positions.')
+            # Create deepstack.
+            if np.ndim(cube) == 4:
+                # Only need last group.
+                thiscube = cube[:, -1]
+            else:
+                thiscube = cube
+            deepstack = bn.nanmedian(thiscube, axis=0)
+            # Get detector to determine x limits.
+            det = utils.get_detector_name(datafile)
+            if det == 'nrs1':
+                xstart = 500
+            else:
+                xstart = 0
+            centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart,
+                                                    save_results=False)
+            xpos, ypos = centroids[0], centroids[1]
+
+        # Construct trace masks.
+        fancyprint('Constructing trace mask.')
+        low = np.max([np.zeros_like(ypos),
+                      ypos - mask_width / 2], axis=0).astype(int)
+        up = np.min([dimy * np.ones_like(ypos),
+                     ypos + mask_width / 2], axis=0).astype(int)
+        tracemask = np.ones((dimy, dimx))
+        for i, x in enumerate(xpos):
+            tracemask[low[i]:up[i], int(x)] = 0
+        # Combine with dq flags.
+        mask = ~dq | tracemask.astype(bool)
+        # Replace bad pixels with nans.
+        mask = np.where(mask == 0, np.nan, mask)
+        # Apply mask to 0th group frames.
+        group0 = mask * cube[:, 0]
+
+        # Calculate the superbias scaling relative to each integration.
+        scale_factors = np.nanmedian(group0 / superbias, axis=(1, 2))
+        # Rescale custom superbias and subtract from each integration.
+        cube_corr = cube - scale_factors[:, None, None, None] * superbias[None, None, :, :]
+
+    # Save superbias corrected data.
+    if save_results is True:
+        thisfile = fits.open(datafile)
+        thisfile[1].data = cube_corr
+        # Save corrected data.
+        result = output_dir + fileroot + 'superbiasstep.fits'
+        thisfile[0].header['FILENAME'] = fileroot + 'superbiasstep.fits'
+        thisfile.writeto(result, overwrite=True)
+        fancyprint('File saved to: {}.'.format(result))
+    # If not saving results, need to work in datamodels to not break
+    # interoperability with jwst pipeline.
+    else:
+        result = utils.open_filetype(datafile)
+        result.data = cube_corr
+
+    return result, scale_factors
+
+
 def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
-               oof_method='scale-achromatic', soss_timeseries=None,
-               soss_timeseries_o2=None, save_results=True, pixel_masks=None,
-               force_redo=False, deepframe=None, flag_up_ramp=False,
-               rejection_threshold=15, flag_in_time=True,
-               time_rejection_threshold=10, root_dir='./', output_tag='',
-               skip_steps=None, do_plot=False, show_plot=False,
+               oof_method='scale-achromatic', superbias_method='crds',
+               soss_timeseries=None, soss_timeseries_o2=None,
+               save_results=True, pixel_masks=None, force_redo=False,
+               deepframe=None, flag_up_ramp=False,  rejection_threshold=15,
+               flag_in_time=True, time_rejection_threshold=10, root_dir='./',
+               output_tag='', skip_steps=None, do_plot=False, show_plot=False,
                soss_inner_mask_width=40, soss_outer_mask_width=70,
                centroids=None, nirspec_mask_width=16, **kwargs):
     """Run the exoTEDRF Stage 1 pipeline: detector level processing,
@@ -2377,6 +2597,9 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     oof_method : str
         1/f correction method. Options are "scale-chromatic",
         "scale-achromatic", "scale-achromatic-window", or "solve".
+    superbias_method : str
+        NIRSpec superbias correction method. Options are "crds", "custom", and
+        "custom-rescale".
     soss_timeseries : array-like(float), str, None
         Estimate of the normalized light curve, either 1D or 2D, or path to
         a file containing it.
@@ -2470,13 +2693,14 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                            **step_kwargs)
 
     # ===== Superbias Subtraction Step =====
-    # Default DMS step.
+    # Default/Custom DMS step.
     if 'SuperBiasStep' not in skip_steps:
         if 'SuperBiasStep' in kwargs.keys():
             step_kwargs = kwargs['SuperBiasStep']
         else:
             step_kwargs = {}
-        step = SuperBiasStep(results, output_dir=outdir)
+        step = SuperBiasStep(results, output_dir=outdir, centroids=centroids,
+                             method=superbias_method)
         results = step.run(save_results=save_results, force_redo=force_redo,
                            do_plot=do_plot, show_plot=show_plot, **step_kwargs)
 
