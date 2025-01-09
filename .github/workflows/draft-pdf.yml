@@ -1,9 +1,10 @@
 name: "Build JOSS Paper Draft"
 
 on:
-  push:
-    branches:
-      - 'main'
+  workflow_dispatch:
+#  push:
+#    branches:
+#      - 'main'
 
 jobs:
   paper:
