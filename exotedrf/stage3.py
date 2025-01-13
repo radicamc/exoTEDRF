@@ -1088,7 +1088,7 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
         mod_wave = fits.getdata(wave_file)/1e4
 
         # Bin model down to data wavelengths.
-        mod_flux = spectres.spectres(wave1d_o1[::-1], mod_wave, mod_flux)[:-1]
+        mod_flux = spectres.spectres(wave1d_o1[::-1], mod_wave, mod_flux)[::-1]
 
         # Cross-correlate extracted spectrum with model to refine wavelength
         # calibration.
