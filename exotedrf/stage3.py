@@ -910,11 +910,6 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
     flux = datafiles[1]
     ferr = datafiles[2]
 
-    # Make sure there are no NaNs in wavelengths --- can happen for NIRSpec
-    # NRS1.
-    ii = np.where(np.isfinite(wave1d))
-    wave1d = wave1d[ii]
-
     # Now cross-correlate with stellar model.
     # If one or more of the stellar parameters are not provided, use the
     # wavelength solution from pastasoss.
@@ -942,7 +937,6 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
         # Cross-correlate extracted spectrum with model to refine wavelength
         # calibration.
         x1d_flux = np.nansum(flux, axis=0)
-        x1d_flux = x1d_flux[ii]
         wave_shift = do_ccf(wave1d, x1d_flux, mod_flux)
         fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
         wave1d += wave_shift
