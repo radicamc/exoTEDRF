@@ -783,16 +783,19 @@ def do_ccf(wave, flux, mod_flux, oversample=5):
     thismod = mod_flux[ii]
 
     # Interpolte both model and data onto a finer wavelength grid.
-    new_wave = []
-    for i in range(len(thiswave)):
-        new_wave.append(thiswave[i])
-        if i < len(thiswave) - 1:
-            step = thiswave[i + 1] - thiswave[i]
-            step /= oversample
-            for s in range(1, oversample):
-                new_wave.append(thiswave[i] + s * step)
-    thisflux = np.interp(new_wave, thiswave, thisflux)
-    thismod = np.interp(new_wave, thiswave, thismod)
+    if oversample != 1:
+        new_wave = []
+        for i in range(len(thiswave)):
+            new_wave.append(thiswave[i])
+            if i < len(thiswave) - 1:
+                step = thiswave[i + 1] - thiswave[i]
+                step /= oversample
+                for s in range(1, oversample):
+                    new_wave.append(thiswave[i] + s * step)
+        thisflux = np.interp(new_wave, thiswave, thisflux)
+        thismod = np.interp(new_wave, thiswave, thismod)
+    else:
+        new_wave = thiswave
 
     # Remove any nan pixels.
     ii = np.where(np.isnan(thisflux))
@@ -910,6 +913,10 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
     flux = datafiles[1]
     ferr = datafiles[2]
 
+    # Remove any NaN pixels --- important for NIRSpec NRS1.
+    ii = np.where(np.isfinite(wave1d))[0]
+    wave1d_trim = wave1d[ii]
+
     # Now cross-correlate with stellar model.
     # If one or more of the stellar parameters are not provided, use the
     # wavelength solution from pastasoss.
@@ -932,12 +939,12 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
         mod_wave = fits.getdata(wave_file) / 1e4
 
         # Bin model down to data wavelengths.
-        mod_flux = spectres.spectres(wave1d, mod_wave, mod_flux)
+        mod_flux = spectres.spectres(wave1d_trim, mod_wave, mod_flux)
 
         # Cross-correlate extracted spectrum with model to refine wavelength
         # calibration.
-        x1d_flux = np.nansum(flux, axis=0)
-        wave_shift = do_ccf(wave1d, x1d_flux, mod_flux)
+        x1d_flux = np.nansum(flux, axis=0)[ii]
+        wave_shift = do_ccf(wave1d_trim, x1d_flux, mod_flux, oversample=1)
         fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
         wave1d += wave_shift
 
