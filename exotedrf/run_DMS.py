@@ -13,9 +13,6 @@ import os
 import shutil
 import sys
 
-from exotedrf.stage1 import run_stage1
-from exotedrf.stage2 import run_stage2
-from exotedrf.stage3 import run_stage3
 from exotedrf.utils import fancyprint, parse_config, unpack_input_dir, \
     verify_path
 
@@ -30,6 +27,11 @@ config = parse_config(config_file)
 # Set CRDS cache path.
 os.environ['CRDS_PATH'] = config['crds_cache_path']
 os.environ['CRDS_SERVER_URL'] = 'https://jwst-crds.stsci.edu'
+
+# Import rest of pipeline stuff after initializing crds path.
+from exotedrf.stage1 import run_stage1
+from exotedrf.stage2 import run_stage2
+from exotedrf.stage3 import run_stage3
 
 # Save a copy of the config file.
 if config['output_tag'] != '':

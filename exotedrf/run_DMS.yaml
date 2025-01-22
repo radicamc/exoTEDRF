@@ -74,7 +74,7 @@ TracingStep : 'run'
 space_outlier_threshold : 15
 # For outlier detection; sigma threshold for a pixel to be flagged as an outlier, temporally.
 time_outlier_threshold : 10
-# If True, calculate the stability of the SOSS trace over the course of the TSO using principle component analysis.
+# If True, calculate the stability of the spectral trace over the course of the TSO using principle component analysis.
 calculate_stability : True
 # Number of principle components to extract. Only necessary if calculate_stability is True.
 pca_components : 10
