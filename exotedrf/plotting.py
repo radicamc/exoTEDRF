@@ -1048,6 +1048,43 @@ def basic_nine_panel_plot(results, outfile=None, show_plot=True, **kwargs):
         fancyprint('Plot saved to {}'.format(outfile))
 
 
+def plot_quicklook_lightcurve(datafiles):
+    """Quick and dirty light curve plot, mostly for validation of
+    observations.
+    """
+
+    datafiles = np.atleast_1d(datafiles)
+
+    # Stack the TSO into a cube.
+    for i, file in enumerate(datafiles):
+        fancyprint('Reading file {}.'.format(file))
+        if i == 0:
+            cube = fits.getdata(file)[:, -1]
+        else:
+            cube = np.concatenate([cube, fits.getdata(file)[:, -1]])
+
+    # Quick sum of flux near throughput peak.
+    instrument = utils.get_instrument_name(datafiles[0])
+    if instrument == 'NIRSPEC':
+        det = utils.get_detector_name(datafiles[0])
+        if det == 'NRS1':
+            postage = cube[:, 12:17, 900:1500]
+        else:
+            postage = cube[:, 6:10, :500]
+    else:
+        postage = cube[:, 20:60, 1500:1550]
+    timeseries = np.nansum(postage, axis=(1, 2))
+
+    # Make plot.
+    plt.figure(figsize=(6, 4))
+    plt.errorbar(np.arange(len(timeseries)),
+                 timeseries / np.nanmedian(timeseries[:20]),
+                 fmt='o', mfc='white', mec='royalblue', ms=3)
+    plt.xlabel('Integration No.', fontsize=12)
+    plt.ylabel('Normalized Flux', fontsize=12)
+    plt.show()
+
+
 def nine_panel_plot(data, text=None, outfile=None, show_plot=True, **kwargs):
     """Basic setup for nine panel plotting.
     """
