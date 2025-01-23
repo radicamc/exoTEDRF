@@ -1401,12 +1401,15 @@ def pcareconstructionstep(datafiles, pca_components=10,
     # Calculate the trace stability using PCA -- original pass without any
     # components removed.
     fancyprint('Calculating TSO stability.')
-    outfile = output_dir + 'stability_pca.png'
-    # Get proper detector names for NIRSpec.
-    instrument = utils.get_instrument_name(datafiles[0])
-    if instrument == 'NIRSPEC':
-        det = utils.get_detector_name(datafiles[0])
-        outfile = outfile.replace('.png', '_{}.png'.format(det))
+    if save_results is True:
+        outfile = output_dir + 'stability_pca.png'
+        # Get proper detector names for NIRSpec.
+        instrument = utils.get_instrument_name(datafiles[0])
+        if instrument == 'NIRSPEC':
+            det = utils.get_detector_name(datafiles[0])
+            outfile = outfile.replace('.png', '_{}.png'.format(det))
+    else:
+        outfile = None
     pcs, var, _ = soss_stability_pca(cube, n_components=pca_components,
                                      outfile=outfile, do_plot=do_plot,
                                      show_plot=show_plot)
@@ -1604,7 +1607,15 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None,
                                                 save_results=save_results,
                                                 save_filename=save_filename)
 
-    # TODO: Add diagnostic plot for centroiding.
+        # Do diagnostic plot if requested.
+        if do_plot is True:
+            if save_results is True:
+                outfile = output_dir + 'centroiding.png'
+            else:
+                outfile = None
+            plotting.make_centroiding_plot(deepframe, centroids,
+                                           show_plot=show_plot,
+                                           outfile=outfile)
 
     # ===== PART 2: Create order 0 background contamination mask =====
     # If requested, create a mask for all background order 0 contaminants.
