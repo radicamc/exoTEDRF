@@ -1607,15 +1607,14 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None,
                                                 save_results=save_results,
                                                 save_filename=save_filename)
 
-        # Do diagnostic plot if requested.
-        if do_plot is True:
-            if save_results is True:
-                outfile = output_dir + 'centroiding.png'
-            else:
-                outfile = None
-            plotting.make_centroiding_plot(deepframe, centroids,
-                                           show_plot=show_plot,
-                                           outfile=outfile)
+    # Do diagnostic plot if requested.
+    if do_plot is True:
+        if save_results is True:
+            outfile = output_dir + 'centroiding.png'
+        else:
+            outfile = None
+        plotting.make_centroiding_plot(deepframe, centroids,
+                                       show_plot=show_plot, outfile=outfile)
 
     # ===== PART 2: Create order 0 background contamination mask =====
     # If requested, create a mask for all background order 0 contaminants.
