@@ -35,7 +35,7 @@ class DQInitStep:
     step with additional hot pixel flagging.
     """
 
-    def __init__(self, input_data, output_dir, deepframe=None):
+    def __init__(self, input_data, output_dir, hot_pixel_map=None):
         """Step initializer.
 
         Parameters
@@ -44,8 +44,8 @@ class DQInitStep:
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
-        deepframe : str, np.ndarray(float)
-            Path to observation deepstack or the deepstack itself.
+        hot_pixel_map : str, np.ndarray(float)
+            Path to a custom hot pixel map, or the map itself.
         """
 
         # Set up easy attributes.
@@ -57,14 +57,14 @@ class DQInitStep:
         self.fileroots = utils.get_filename_root(self.datafiles)
 
         # Unpack deepframe.
-        if isinstance(deepframe, str):
+        if isinstance(hot_pixel_map, str):
             # Want deepframe extension before bad pixel interpolation.
-            fancyprint('Reading deepframe file: {}...'.format(deepframe))
-            self.deepframe = fits.getdata(deepframe, 2)
-        elif isinstance(deepframe, np.ndarray) or deepframe is None:
-            self.deepframe = deepframe
+            fancyprint('Reading hot pixel map file: {}...'.format(hot_pixel_map))
+            self.hotpix = np.load(hot_pixel_map).astype(bool)
+        elif isinstance(hot_pixel_map, np.ndarray) or hot_pixel_map is None:
+            self.hotpix = hot_pixel_map
         else:
-            msg = 'Invalid type for deepframe: {}'.format(type(deepframe))
+            msg = 'Invalid type for hot_pixel_map: {}'.format(type(hot_pixel_map))
             raise ValueError(msg)
 
     def run(self, save_results=True, force_redo=False, **kwargs):
@@ -105,11 +105,9 @@ class DQInitStep:
                 step = calwebb_detector1.dq_init_step.DQInitStep()
                 res = step.call(segment, output_dir=self.output_dir,
                                 save_results=save_results, **kwargs)
-                # If a deep frame is passed, use it to search for and flag
-                # additional hot pixels not in the default map.
-                if self.deepframe is not None:
-                    res, hot_pix = flag_hot_pixels(res, hot_pix=hot_pix,
-                                                   deepframe=self.deepframe)
+                # Flag additional hot pixels not in the default map.
+                if self.hotpix is not None:
+                    res, hot_pix = flag_hot_pixels(res, hot_pix=hot_pix)
                     # Overwite the previous edition.
                     res.save(expected_file)
                 # Verify that filename is correct.
@@ -1368,7 +1366,8 @@ class GainScaleStep:
         return results
 
 
-def flag_hot_pixels(result, deepframe, box_size=10, thresh=15, hot_pix=None):
+def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15,
+                    hot_pix=None):
     """Identify and flag additional hot pixels in a SOSS TSO which are not
     already in the default pipeline flags.
 
@@ -1376,7 +1375,7 @@ def flag_hot_pixels(result, deepframe, box_size=10, thresh=15, hot_pix=None):
     ----------
     result : jwst.datamodel
         Input datamodel.
-    deepframe : array-like(float)
+    deepframe : array-like(float), None
         Deep stack of the time series.
     box_size : int
         Size of box around each pixel to consider.
@@ -1395,17 +1394,19 @@ def flag_hot_pixels(result, deepframe, box_size=10, thresh=15, hot_pix=None):
 
     fancyprint('Identifying additional unflagged hot pixels...')
 
-    dimy, dimx = np.shape(deepframe)
-    all_med = np.nanmedian(deepframe)
     # Get location of all pixels already flagged as warm or hot.
     hot = utils.get_dq_flag_metrics(result.pixeldq, ['HOT', 'WARM'])
 
     if hot_pix is not None:
+        hot_pix = hot_pix
         fancyprint('Using provided hot pixel map...')
-        assert np.shape(hot_pix) == np.shape(deepframe)
         result.pixeldq[hot_pix] += 2048
 
     else:
+        assert deepframe is not None
+
+        dimy, dimx = np.shape(deepframe)
+        all_med = np.nanmedian(deepframe)
         hot_pix = np.zeros_like(deepframe).astype(bool)
         for i in tqdm(range(4, dimx - 4)):
             for j in range(dimy):
@@ -2573,7 +2574,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                oof_method='scale-achromatic', superbias_method='crds',
                soss_timeseries=None, soss_timeseries_o2=None,
                save_results=True, pixel_masks=None, force_redo=False,
-               deepframe=None, flag_up_ramp=False,  rejection_threshold=15,
+               hot_pixel_map=None, flag_up_ramp=False, rejection_threshold=15,
                flag_in_time=True, time_rejection_threshold=10, root_dir='./',
                output_tag='', skip_steps=None, do_plot=False, show_plot=False,
                soss_inner_mask_width=40, soss_outer_mask_width=70,
@@ -2613,8 +2614,8 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         data segment. Can be 3D (nints, dimy, dimx), or 2D (dimy, dimx) files.
     force_redo : bool
         If True, redo steps even if outputs files are already present.
-    deepframe : str, None
-        Path to deep stack, such as one produced by BadPixStep.
+    hot_pixel_map : str, None
+        Path to a hot pixel map, such as one produced by BadPixStep.
     flag_up_ramp : bool
         Whether to flag jumps up the ramp. This is the default flagging in the
         STScI pipeline. Note that this is broken as of jwst v1.12.5.
@@ -2677,7 +2678,8 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = kwargs['DQInitStep']
         else:
             step_kwargs = {}
-        step = DQInitStep(results, output_dir=outdir, deepframe=deepframe)
+        step = DQInitStep(results, output_dir=outdir,
+                          hot_pixel_map=hot_pixel_map)
         results = step.run(save_results=save_results, force_redo=force_redo,
                            **step_kwargs)
 
