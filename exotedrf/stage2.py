@@ -694,7 +694,8 @@ class PCAReconstructStep:
         self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
 
     def run(self, pca_components=10, remove_components=None, skip_pca=False,
-            save_results=True, do_plot=True, show_plot=True, force_redo=False):
+            save_results=True, do_plot=True, show_plot=False,
+            force_redo=False):
         """Method to run the step.
 
         Parameters
@@ -1802,10 +1803,11 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False,
     pcs = pca.components_
     var = pca.explained_variance_ratio_
 
+    # Reproject PCs onto data.
+    projection = pca.transform(cube2.transpose())
+    projection = np.reshape(projection, (dimy, dimx, n_components))
+
     if do_plot is True:
-        # Reproject PCs onto data.
-        projection = pca.transform(cube2.transpose())
-        projection = np.reshape(projection, (dimy, dimx, n_components))
         # Do plot.
         plotting.make_pca_plot(pcs, var, projection.transpose(2, 0, 1),
                                outfile=outfile, show_plot=show_plot)
@@ -1813,7 +1815,7 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False,
     # Reconstruct input data using extracted PCs.
     reconstruction = pca.inverse_transform(projection)
     reconstruction = reconstruction.reshape(dimy, dimx, nints)
-    reconstruction = reconstruction.transpse(2, 0, 1)
+    reconstruction = reconstruction.transpose(2, 0, 1)
 
     return pcs, var, reconstruction
 

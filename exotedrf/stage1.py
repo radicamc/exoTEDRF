@@ -92,7 +92,6 @@ class DQInitStep:
 
         results = []
         all_files = glob.glob(self.output_dir + '*')
-        hot_pix = None
         for i, segment in enumerate(self.datafiles):
             # If an output file for this segment already exists, skip the step.
             expected_file = self.output_dir + self.fileroots[i] + self.tag
@@ -107,7 +106,7 @@ class DQInitStep:
                                 save_results=save_results, **kwargs)
                 # Flag additional hot pixels not in the default map.
                 if self.hotpix is not None:
-                    res, hot_pix = flag_hot_pixels(res, hot_pix=hot_pix)
+                    res = flag_hot_pixels(res, hot_pix=self.hotpix)[0]
                     # Overwite the previous edition.
                     res.save(expected_file)
                 # Verify that filename is correct.

@@ -172,9 +172,8 @@ def make_centroiding_plot(deepframe, centroids, outfile=None, show_plot=True):
     plt.imshow(deepframe, aspect='auto', origin='lower', vmin=0,
                vmax=np.nanpercentile(deepframe, 80))
 
-    for key in centroids.keys():
-        if 'ypos' in key:
-            plt.plot(centroids['xpos'], centroids[key], ls='--', c='red')
+    for order in range(len(centroids)):
+        plt.plot(centroids[order][0], centroids[order][1], ls='--', c='red')
 
     plt.ylim(0, dimy - 1)
     plt.xlim(0, dimx - 1)
