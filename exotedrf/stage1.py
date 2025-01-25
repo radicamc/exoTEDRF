@@ -587,7 +587,7 @@ class OneOverFStep:
 
         # Unpack timeseries for order 2.
         if isinstance(soss_timeseries_o2, str):
-            fancyprint('Reading order 2timeseries file: {}...'
+            fancyprint('Reading order 2 timeseries file: {}...'
                        ''.format(soss_timeseries_o2))
             self.timeseries_o2 = np.load(soss_timeseries_o2)
         elif isinstance(soss_timeseries_o2, np.ndarray) or soss_timeseries_o2 is None:

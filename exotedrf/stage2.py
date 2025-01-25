@@ -569,7 +569,7 @@ class BadPixStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, space_thresh=15, time_thresh=10, box_size=5,
+    def run(self, space_thresh=15, time_thresh=10, box_size=5, window_size=5,
             save_results=True, force_redo=False, do_plot=False,
             show_plot=False):
         """Method to run the step.
@@ -582,6 +582,9 @@ class BadPixStep:
             Sigma threshold for a pixel to be flagged as an outlier temporally.
         box_size : int
             Size of box around each pixel to test for spatial outliers.
+        window_size : int
+            Size of temporal window around each pixel to text for deviations.
+            Must be odd.
         save_results : bool
             If True, save results.
         force_redo : bool
@@ -650,7 +653,9 @@ class BadPixStep:
                                           fileroot=self.fileroots[i],
                                           space_thresh=space_thresh,
                                           time_thresh=time_thresh,
-                                          box_size=box_size, do_plot=do_plot,
+                                          box_size=box_size,
+                                          window_size=window_size,
+                                          do_plot=do_plot,
                                           show_plot=show_plot, to_flag=to_flag)
                 res, to_flag = step_results
             results.append(res)
@@ -1128,7 +1133,7 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
 
 
 def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
-               box_size=5, output_dir='./', save_results=True,
+               box_size=5, window_size=5, output_dir='./', save_results=True,
                fileroot=None, do_plot=False, show_plot=False, to_flag=None):
     """Identify and correct outlier pixels remaining in the dataset, using
     both a spatial and temporal approach. First, find spatial outlier pixels
@@ -1148,6 +1153,9 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
         Sigma threshold for a deviant pixel to be flagged temporally.
     box_size : int
         Size of box around each pixel to test for deviations.
+    window_size : int
+        Size of temporal window around each pixel to text for deviations.
+        Must be odd.
     output_dir : str
         Directory to which to output results.
     save_results : bool
@@ -1231,13 +1239,13 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
                 else:
                     box_size_i = box_size
                     box_prop = utils.get_interp_box(deepframe, box_size_i,
-                                                    i, j, dimx)
+                                                    i, j)
                     # Ensure that the median and std dev extracted are good.
                     # If not, increase the box size until they are.
                     while np.any(np.isnan(box_prop)):
                         box_size_i += 1
                         box_prop = utils.get_interp_box(deepframe, box_size_i,
-                                                        i, j, dimx)
+                                                        i, j)
                     med, std = box_prop[0], box_prop[1]
 
                     # If central pixel is too deviant (or nan) flag it.
@@ -1272,12 +1280,11 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
     # ===== Temporal Outlier Flagging =====
     fancyprint('Starting temporal outlier flagging...')
     # Median filter the data.
+    cube_filt = medfilt(newdata, (window_size, 1, 1))
     if instrument == 'NIRISS':
-        cube_filt = medfilt(newdata, (5, 1, 1))
         cube_filt[:2] = np.median(cube_filt[2:7], axis=0)
         cube_filt[-2:] = np.median(cube_filt[-8:-3], axis=0)
     else:
-        cube_filt = medfilt(newdata, (11, 1, 1))
         cube_filt[:5] = np.median(cube_filt[5:15], axis=0)
         cube_filt[-5:] = np.median(cube_filt[-16:-6], axis=0)
     # Check along the time axis for outlier pixels.
