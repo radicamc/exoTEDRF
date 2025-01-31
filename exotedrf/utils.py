@@ -61,15 +61,7 @@ def do_replacement(frame, badpix_map, dq=None, box_size=5):
                 continue
             # If pixel is flagged, replace it with the box median.
             else:
-                med = get_interp_box(frame, box_size, i, j,
-                                     badpix_map=badpix_map)[0]
-                thisbox = box_size
-                # Ensure that the new value is not NaN.
-                # If it is, expand the box until it isn't.
-                while np.isnan(med):
-                    thisbox += 1
-                    med = get_interp_box(frame, thisbox, i, j,
-                                         badpix_map=badpix_map)[0]
+                med = get_interp_box(frame, box_size, i, j, dimx)[0]
                 frame_out[j, i] = med
                 # Set dq flag of inerpolated pixel to zero (use the pixel).
                 dq_out[j, i] = 0
@@ -464,7 +456,7 @@ def get_instrument_name(datafile):
     return instrument
 
 
-def get_interp_box(data, box_size, i, j, badpix_map=None):
+def get_interp_box(data, box_size, i, j, dimx):
     """Get median and standard deviation of a box centered on a specified
     pixel.
 
@@ -472,14 +464,14 @@ def get_interp_box(data, box_size, i, j, badpix_map=None):
     ----------
     data : array-like[float]
         Data frame.
-    badpix_map : array-like(bool)
-        Map of bad pixels.
     box_size : int
         Size of box to consider.
     i : int
         X pixel.
     j : int
         Y pixel.
+    dimx : int
+        Size of x dimension.
 
     Returns
     -------
@@ -487,25 +479,12 @@ def get_interp_box(data, box_size, i, j, badpix_map=None):
         Median and standard deviation of pixels in the box.
     """
 
-    # NaN out other bad pixels.
-    if badpix_map is not None:
-        thisdata = np.where(badpix_map == 0, data, np.nan)
-    else:
-        thisdata = data
-
-    # Get data dimensions.
-    dimy, dimx = np.shape(data)
-
     # Get the box limits.
-    low_x = np.max([i - box_size, 4])
-    up_x = np.min([i + box_size, dimx - 4])
-    low_y = np.max([j - 2, 0])
-    up_y = np.min([j + 2, dimy - 1])
+    low_x = np.max([i - box_size, 0])
+    up_x = np.min([i + box_size, dimx - 1])
 
     # Calculate median and std deviation of box - excluding central pixel.
-    box = np.concatenate([thisdata[j, low_x:i], thisdata[j, (i + 1):up_x],
-                          thisdata[low_y, low_x:up_x],
-                          thisdata[up_y, low_x:up_x]])
+    box = np.concatenate([data[j, low_x:i], data[j, (i+1):up_x]])
     median = np.nanmedian(box)
     stddev = np.sqrt(outlier_resistant_variance(box))
 

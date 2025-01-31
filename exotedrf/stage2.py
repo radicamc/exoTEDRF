@@ -1239,13 +1239,13 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
                 else:
                     box_size_i = box_size
                     box_prop = utils.get_interp_box(deepframe, box_size_i,
-                                                    i, j)
+                                                    i, j, dimx)
                     # Ensure that the median and std dev extracted are good.
                     # If not, increase the box size until they are.
                     while np.any(np.isnan(box_prop)):
                         box_size_i += 1
                         box_prop = utils.get_interp_box(deepframe, box_size_i,
-                                                        i, j)
+                                                        i, j, dimx)
                     med, std = box_prop[0], box_prop[1]
 
                     # If central pixel is too deviant (or nan) flag it.
