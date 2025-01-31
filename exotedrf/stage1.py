@@ -1475,13 +1475,18 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
             output_dir += '/'
 
     # Load in the datafile.
+    instrument = utils.get_instrument_name(datafile)
+    if instrument == 'NIRISS':
+        max_reset_int = 255
+    else:
+        max_reset_int = 62
     if isinstance(datafile, str):
         datafile = fits.open(datafile)
         cube = datafile[1].data
         dqcube = datafile[3].data
         # Get start and end integrations for reset artifact masking.
         int_start = datafile[0].header['INTSTART']
-        int_end = np.min([datafile[0].header['INTEND'], 256])
+        int_end = np.min([datafile[0].header['INTEND'], max_reset_int])
         filename = datafile[0].header['FILENAME']
     else:
         datafile = utils.open_filetype(datafile)
@@ -1489,22 +1494,29 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
         dqcube = datafile.groupdq
         # Get start and end integrations for reset artifact masking.
         int_start = datafile.meta.exposure.integration_start
-        int_end = np.min([datafile.meta.exposure.integration_end, 256])
+        int_end = np.min([datafile.meta.exposure.integration_end,
+                          max_reset_int])
         filename = datafile.meta.filename
     fancyprint('Processing file {}.'.format(filename))
 
     nints, ngroups, dimy, dimx = np.shape(cube)
+
     # Mask the detector reset artifact which is picked up by this flagging.
-    # Artifact only affects first 256 integrations.
+    # Artifact only affects first 256 integrations for SOSS and first 60 for
+    # NIRSpec
     artifact = np.zeros((nints, dimy, dimx)).astype(int)
-    if int_start < 255:
+    if int_start < max_reset_int:
         for j, jj in enumerate(range(int_start, int_end)):
             # j counts ints from start of this segment, jj is
             # integrations from start of exposure (1-indexed).
             # Mask rows from jj to jj+3 for detector reset
             # artifact.
-            min_row = np.max([256 - (jj + 3), 0])
-            max_row = np.min([(258 - jj), 256])
+            if instrument == 'NIRISS':
+                min_row = np.max([256 - (jj + 3), 0])
+                max_row = np.min([(258 - jj), dimy])
+            else:
+                min_row = np.max([max_reset_int - (jj + 2), 0])
+                max_row = np.min([(max_reset_int - jj), dimy])
             artifact[j, min_row:max_row, :] = 1
 
     # Jump detection algorithm based on Nikolov+ (2014). For each integration,
