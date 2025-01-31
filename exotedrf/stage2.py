@@ -1208,13 +1208,20 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
     fancyprint('Starting spatial outlier flagging...')
     instrument = utils.get_instrument_name(datafile)
 
+    # Set detector Y-axis limits.
+    if instrument == 'NIRISS':
+        ymax = dimy - 5
+        ybox_size = 2
+    else:
+        ymax = dimy
+        ybox_size = 0
+
     # Find locations of bad pixels in the deep frame.
     if to_flag is None:
         # Initialize storage arrays.
         hotpix = np.zeros_like(deepframe)
         nanpix = np.zeros_like(deepframe)
         otherpix = np.zeros_like(deepframe)
-        nan, hot, other = 0, 0, 0
 
         # Set all negatives to zero.
         newdata[newdata < 0] = 0
@@ -1223,44 +1230,39 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
                                                           'DO_NOT_USE'])
 
         # Loop over whole deepstack and flag deviant pixels.
-        if instrument == 'NIRISS':
-            ymax = dimy - 5
-        else:
-            ymax = dimy
         for i in tqdm(range(5, dimx - 5)):
             for j in range(ymax):
                 # If the pixel is known to be hot, add it to list to
                 # interpolate.
                 if hot_pix[j, i]:
                     hotpix[j, i] = 1
-                    hot += 1
                 # If not already flagged, double check that the pixel isn't
                 # deviant in some other manner.
                 else:
-                    box_size_i = box_size
-                    box_prop = utils.get_interp_box(deepframe, box_size_i,
-                                                    i, j, dimx)
+                    xbox_size_i = box_size
+                    box_prop = utils.get_interp_box(deepframe, xbox_size_i,
+                                                    ybox_size, i, j)
                     # Ensure that the median and std dev extracted are good.
                     # If not, increase the box size until they are.
                     while np.any(np.isnan(box_prop)):
-                        box_size_i += 1
-                        box_prop = utils.get_interp_box(deepframe, box_size_i,
-                                                        i, j, dimx)
+                        xbox_size_i += 1
+                        box_prop = utils.get_interp_box(deepframe, xbox_size_i,
+                                                        ybox_size, i, j)
                     med, std = box_prop[0], box_prop[1]
 
                     # If central pixel is too deviant (or nan) flag it.
                     if np.isnan(deepframe[j, i]):
                         nanpix[j, i] = 1
-                        nan += 1
                     elif np.abs(deepframe[j, i] - med) >= (space_thresh * std):
                         otherpix[j, i] = 1
-                        other += 1
 
         # Combine all flagged pixel maps.
         badpix = hotpix.astype(bool) | nanpix.astype(bool) | otherpix.astype(bool)
         badpix = badpix.astype(int)
         fancyprint('{0} hot, {1} nan, and {2} deviant pixels '
-                   'identified.'.format(hot, nan, other))
+                   'identified.'.format(int(np.sum(hotpix)),
+                                        int(np.sum(nanpix)),
+                                        int(np.sum(otherpix))))
 
     # If a bad pixel map is passed, just use that.
     else:
@@ -1272,7 +1274,8 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
     for i in tqdm(range(nint)):
         newdata[i], thisdq = utils.do_replacement(newdata[i], badpix,
                                                   dq=np.ones_like(newdata[i]),
-                                                  box_size=box_size)
+                                                  xbox_size=box_size,
+                                                  ybox_size=ybox_size)
         # Set DQ flags for these pixels to zero (use the pixel).
         thisdq = ~thisdq.astype(bool)
         newdq[:, thisdq] = 0
@@ -1307,10 +1310,20 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
     newdata[newdata < 0] = 0
     newdata[np.isnan(newdata)] = 0
 
-    # Replace reference pixels with 0s.
-    newdata[:, :, :5] = 0
-    newdata[:, :, -5:] = 0
+    # Egregious hack...don't ask.
     if instrument == 'NIRISS':
+        # Get of pixels where an artifact intersects the order 1 trace edge
+        # are just never corrected properly and I don't know why.
+        # So manual interpolation...
+        mm = np.nanmedian(np.concatenate([newdata[:, 82:84, 2018:],
+                                          newdata[:, 88:90, 2018:]], axis=1),
+                          axis=1)
+        newdata[:, 84:88, 2018:] = mm[:, None, :]
+
+    # Replace NIRISS reference pixels with 0s.
+    if instrument == 'NIRISS':
+        newdata[:, :, :5] = 0
+        newdata[:, :, -5:] = 0
         newdata[:, -5:] = 0
 
     # Save interpolated data.
