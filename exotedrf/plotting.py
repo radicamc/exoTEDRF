@@ -162,7 +162,8 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None,
         plt.show()
 
 
-def make_centroiding_plot(deepframe, centroids, outfile=None, show_plot=True):
+def make_centroiding_plot(deepframe, centroids, instrument, outfile=None,
+                          show_plot=True):
     """Make plot showing results of centroiding.
     """
 
@@ -172,8 +173,12 @@ def make_centroiding_plot(deepframe, centroids, outfile=None, show_plot=True):
     plt.imshow(deepframe, aspect='auto', origin='lower', vmin=0,
                vmax=np.nanpercentile(deepframe, 80))
 
-    for order in range(len(centroids)):
-        plt.plot(centroids[order][0], centroids[order][1], ls='--', c='red')
+    if instrument == 'NIRISS':
+        for order in range(len(centroids)):
+            plt.plot(centroids[order][0], centroids[order][1], ls='--',
+                     c='red')
+    else:
+        plt.plot(centroids[0], centroids[1], ls='--', c='red')
 
     plt.ylim(0, dimy - 1)
     plt.xlim(0, dimx - 1)

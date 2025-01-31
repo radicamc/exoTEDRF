@@ -1634,7 +1634,7 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None,
             outfile = output_dir + 'centroiding.png'
         else:
             outfile = None
-        plotting.make_centroiding_plot(deepframe, centroids,
+        plotting.make_centroiding_plot(deepframe, centroids, instrument,
                                        show_plot=show_plot, outfile=outfile)
 
     # ===== PART 2: Create order 0 background contamination mask =====
