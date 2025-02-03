@@ -1476,10 +1476,17 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
 
     # Load in the datafile.
     instrument = utils.get_instrument_name(datafile)
+    # Set maximum integration where reset artifact impacts the data frames
+    # for masking purposes.
     if instrument == 'NIRISS':
         max_reset_int = 255
     else:
-        max_reset_int = 62
+        det = utils.get_detector_name(datafile)
+        # Max integration is different for NRS1 vs NRS2.
+        if det == 'NRS1':
+            max_reset_int = 62
+        else:
+            max_reset_int = 58
     if isinstance(datafile, str):
         datafile = fits.open(datafile)
         cube = datafile[1].data
