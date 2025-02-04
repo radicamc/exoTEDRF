@@ -1,7 +1,7 @@
 Citations
 ==========
 
-If you make use of this code in your work, please cite `Radica (2024) <https://ui.adsabs.harvard.edu/abs/2024arXiv240717541R/abstract>`_, as well as `Radica et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023MNRAS.524..835R/abstract>`_ and `Feinstein et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023Natur.614..670F/abstract>`_ for its first uses.
+If you make use of this code in your work, please cite `Radica (2024) <https://ui.adsabs.harvard.edu/abs/2024JOSS....9.6898R/abstract>`_, as well as `Radica et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023MNRAS.524..835R/abstract>`_ and `Feinstein et al. (2023) <https://ui.adsabs.harvard.edu/abs/2023Natur.614..670F/abstract>`_ for its first uses.
 
 For NIRSpec capabilities, please also cite `Ahrer et al. (2025) <xxx>`_ for the first use.
 

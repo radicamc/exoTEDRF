@@ -27,6 +27,8 @@ LinearityStep : 'run'
 JumpStep : 'run'
 RampFitStep : 'run'
 GainScaleStep : 'run'
+# Custom map of hot pixel locations (optional).
+hot_pixel_map : None
 # (NIRSpec only) Superbias calculation method. Options are 'crds', 'custom', or 'custom-rescale'.
 superbias_method : 'crds'
 # (SOSS only) Background model for NIRISS/SOSS. Default model available here:
@@ -69,15 +71,16 @@ FlatFieldStep : 'run'      # SOSS only
 BackgroundStep : 'run'     # SOSS only
 OneOverFStep_int : 'skip'
 BadPixStep : 'run'
+PCAReconstructStep : 'run'
 TracingStep : 'run'
 # For outlier detection; sigma threshold for a pixel to be flagged as an outlier, spatially.
 space_outlier_threshold : 15
 # For outlier detection; sigma threshold for a pixel to be flagged as an outlier, temporally.
 time_outlier_threshold : 10
-# If True, calculate the stability of the spectral trace over the course of the TSO using principle component analysis.
-calculate_stability : True
 # Number of principle components to extract. Only necessary if calculate_stability is True.
 pca_components : 10
+# PCA components to remove during the TSO reconstruction (optional).
+remove_components : None
 # (SOSS only) If True, generate a smoothed estimate of the order 1 white light curve.
 generate_lc : True
 # (SOSS only) Timescale on which to smooth lightcurve estimate (optional).
@@ -95,7 +98,7 @@ stage2_kwargs : {}
 extract_method : 'box'
 # Box width to extract around the trace center. Passing 'optimize' will find and use the aperture width that minimizes
 # the white light curve scatter.
-extract_width : 35
+extract_width : 30
 # (SOSS only) Specprofile reference file for ATOCA (optional).
 soss_specprofile : None
 # Stellar effective temperature in K for wavelength calibration (optional).

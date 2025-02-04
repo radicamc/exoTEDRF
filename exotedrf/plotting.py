@@ -162,6 +162,37 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None,
         plt.show()
 
 
+def make_centroiding_plot(deepframe, centroids, instrument, outfile=None,
+                          show_plot=True):
+    """Make plot showing results of centroiding.
+    """
+
+    dimy, dimx = np.shape(deepframe)
+
+    plt.figure(figsize=(8, 3))
+    plt.imshow(deepframe, aspect='auto', origin='lower', vmin=0,
+               vmax=np.nanpercentile(deepframe, 80))
+
+    if instrument == 'NIRISS':
+        for order in range(len(centroids)):
+            plt.plot(centroids[order][0], centroids[order][1], ls='--',
+                     c='red')
+    else:
+        plt.plot(centroids[0], centroids[1], ls='--', c='red')
+
+    plt.ylim(0, dimy - 1)
+    plt.xlim(0, dimx - 1)
+    plt.xlabel('X Pixel', fontsize=12)
+    plt.ylabel('Y Pixel', fontsize=12)
+
+    if outfile is not None:
+        plt.savefig(outfile, bbox_inches='tight')
+    if show_plot is False:
+        plt.close()
+    else:
+        plt.show()
+
+
 def make_compare_spectra_plot(spec1, spec2, title=None):
     """Make plot comparing two spectra.
     """
