@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-### [2.1.0] -- 2025-01-31
+### [2.1.0] -- 2025-02-03
 #### Added
 - Massive improvements to speed and memory usage.
 - Expicit support for NIRSpec/G395M.

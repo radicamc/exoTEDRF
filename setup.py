@@ -4,10 +4,10 @@
 from setuptools import setup
 
 setup(name='exotedrf',
-      version='2.0.0',
+      version='2.1.0',
       license='MIT',
       author='Michael Radica',
-      author_email='michael.radica@umontreal.ca',
+      author_email='radicamc@uchicago.edu',
       packages=['exotedrf'],
       include_package_data=True,
       url='https://github.com/radicamc/exoTEDRF',
