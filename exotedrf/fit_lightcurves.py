@@ -52,6 +52,9 @@ if config['res'] is not None:
     if config['res'] == 'pixel':
         fit_suffix += '_pixel'
         res_str = 'pixel resolution'
+    elif config['res'] == 'prebin':
+        fit_suffix += '_prebin'
+        res_str = 'custom prebinned resolution'
     else:
         fit_suffix += '_R{}'.format(config['res'])
         res_str = 'R = {}'.format(config['res'])
@@ -82,11 +85,12 @@ f.write('\nRun at {}.'.format(time))
 f.close()
 
 # Formatted parameter names for plotting.
-formatted_names = {'per_p1': r'$P$', 't0_p1': r'$T_0$', 'rp_p1_inst': r'$R_p/R_*$',
-                   'inc_p1': r'$i$', 'u1_inst': r'$u_1$', 'u2_inst': r'$u_2$',
+formatted_names = {'per_p1': r'$P$', 't0_p1': r'$T_0$',
+                   'rp_p1_inst': r'$R_p/R_*$', 'inc_p1': r'$i$',
+                   'u1_inst': r'$u_1$', 'u2_inst': r'$u_2$',
                    'ecc_p1': r'$e$', 'w_p1': r'$\Omega$',
                    'a_p1': r'$a/R_*$', 'sigma_inst': r'$\sigma$',
-                   'theta0_inst': r'$\theta_0$', 'theta1_inst': r'$\theta_1$',
+                   'zero_inst': 'zero point', 'theta1_inst': r'$\theta_1$',
                    'theta2_inst': r'$\theta_2$', 'theta3_inst': r'$\theta_3$',
                    'theta4_inst': r'$\theta_4$', 'theta5_inst': r'$\theta_5$',
                    'GP_sigma_inst': r'$GP \sigma$',
@@ -104,19 +108,10 @@ else:
 # Quantities against which to linearly detrend.
 if config['lm_file'] is not None:
     lm_data = pd.read_csv(config['lm_file'], comment='#')
-    lm_quantities = np.zeros((len(config['lm_parameters'])+1, len(t)))
-    lm_quantities[0] = np.ones_like(t)
+    lm_quantities = np.zeros((len(config['lm_parameters']), len(t)))
     for i, key in enumerate(config['lm_parameters']):
         lm_param = lm_data[key]
-        lm_quantities[i+1] = (lm_param - np.mean(lm_param)) / np.sqrt(np.var(lm_param))
-# Eclipses must fit for a baseline, which is done via the linear detrending.
-# So add this term to the fits if not already included.
-if config['lm_file'] is None and config['lc_model_type'] == 'eclipse':
-    lm_quantities = np.zeros((1, len(t)))
-    lm_quantities[:, 0] = np.ones_like(t)
-    config['params'].append('theta0_inst')
-    config['dists'].append('uniform')
-    config['hyperps'].append([-10, 10])
+        lm_quantities[i] = (lm_param - np.mean(lm_param)) / np.std(lm_param)
 
 # Quantity on which to train GP.
 if config['gp_file'] is not None:
@@ -148,27 +143,35 @@ for order in config['orders']:
         fancyprint('Fitting order {} at {}.'.format(order, res_str))
     else:
         fancyprint('Fitting detector {} at {}.'.format(config['detector'], res_str))
-    # Unpack wave, flux and error, cutting reference pixel columns.
-    wave_low = fits.getdata(config['infile'],  1 + 4*(order - 1))[:, 5:-5]
-    wave_up = fits.getdata(config['infile'], 2 + 4*(order - 1))[:, 5:-5]
+    # Unpack wave, flux and error.
+    wave_low = fits.getdata(config['infile'],  1 + 4*(order - 1))
+    wave_up = fits.getdata(config['infile'], 2 + 4*(order - 1))
+    flux = fits.getdata(config['infile'], 3 + 4*(order - 1))
+    err = fits.getdata(config['infile'], 4 + 4*(order - 1))
+    # Cut reference pixel columns if data is not prebinned.
+    if config['res'] != 'prebin':
+        wave_low = wave_low[:, 5:-5]
+        wave_up = wave_up[:, 5:-5]
+        flux = flux[:, 5:-5]
+        err = err[:, 5:-5]
     wave = np.nanmean(np.stack([wave_low, wave_up]), axis=0)
-    flux = fits.getdata(config['infile'], 3 + 4*(order - 1))[:, 5:-5]
-    err = fits.getdata(config['infile'], 4 + 4*(order - 1))[:, 5:-5]
 
     # For order 2, only fit wavelength bins between 0.6 and 0.85µm.
     if order == 2:
         ii = np.where((wave[0] >= 0.6) & (wave[0] <= 0.85))[0]
         flux, err = flux[:, ii], err[:, ii]
         wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
-    # For NRS1, only fit wavelengths > 2.9µm.
+    # For NRS1, only fit wavelengths larger than blue cutoff.
     if config['detector'] == 'NRS1' and config['observing_mode'].upper() == 'NIRSPEC/G395H':
-        ii = np.where(wave[0] >= 2.9)[0]
-        flux, err = flux[:, ii], err[:, ii]
-        wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
+        if config['res'] != 'prebin':
+            ii = np.where(wave[0] >= config['nrs1_blue'])[0]
+            flux, err = flux[:, ii], err[:, ii]
+            wave_low, wave_up = wave_low[:, ii], wave_up[:, ii]
+            wave = wave[:, ii]
 
     # Bin input spectra to desired resolution.
     if config['res'] is not None:
-        if config['res'] == 'pixel':
+        if config['res'] == 'pixel' or config['res'] == 'prebin':
             wave, wave_low, wave_up = wave[0], wave_low[0], wave_up[0]
         else:
             binned_vals = stage4.bin_at_resolution(wave_low[0], wave_up[0],
@@ -315,15 +318,44 @@ for order in config['orders']:
                 prior_dict[thisbin]['u4_inst']['distribution'] = dist
                 prior_dict[thisbin]['u4_inst']['value'] = vals
 
+    # Get information about custom light curve model, if being used.
+    if 'custom' in config['lc_model_type']:
+        if config['custom_lc_model'] is None:
+            # No custom light curve function passed, raise error.
+            raise AttributeError('Passed light curve model type is custom, '
+                                 'but no custom model was passed.')
+        elif isinstance(config['custom_lc_model'], str):
+            try:
+                custom_lc_function = getattr(model, config['custom_lc_model'])
+            except AttributeError:
+                all_models = utils.get_exouprf_built_in_models(model)
+                msg = 'exoUPRF has no built-in light curve model {0}. ' \
+                      'Available models are: {1}'.format(config['custom_lc_model'], all_models)
+                raise AttributeError(msg)
+        else:
+            thistype = type(config['custom_lc_model'])
+            raise ValueError('Object passed to custom_lc_model of type {} is '
+                             'not a string or None.'.format(thistype))
+    else:
+        # No custom light curve function to be used, all is good.
+        custom_lc_function = None
+
     # === Do the Fit ===
     # Fit each light curve
-    fit_results = stage4.fit_lightcurves(data_dict, prior_dict, order=order,
+    if config['observing_mode'].split('/')[0].upper() == 'NIRSPEC':
+        thisorder = int(config['detector'][-1])
+    else:
+        thisorder = order
+    print(thisorder)
+    fit_results = stage4.fit_lightcurves(data_dict, prior_dict,
+                                         order=thisorder,
                                          output_dir=outdir,
                                          nthreads=config['ncores'],
                                          fit_suffix=fit_suffix,
                                          observing_mode=config['observing_mode'],
                                          lc_model_type=config['lc_model_type'],
-                                         ld_model=config['ld_model_type'])
+                                         ld_model=config['ld_model_type'],
+                                         custom_lc_function=custom_lc_function)
 
     # === Summarize Fit Results ===
     # Loop over results for each wavebin, extract best-fitting parameters and
@@ -348,18 +380,18 @@ for order in config['orders']:
             order_results['dppm_err'].append(np.nan)
         # If not skipped, append median and 1-sigma bounds.
         else:
-            results_dict = fit_results[wavebin].get_results_from_fit()
-            if config['lc_model_type'] == 'transit':
-                md = results_dict['rp_p1_inst']['median']
-                up = results_dict['rp_p1_inst']['up_1sigma']
-                lw = results_dict['rp_p1_inst']['low_1sigma']
+            this_result = fit_results[wavebin].get_results_from_fit()
+            if 'transit' in config['lc_model_type']:
+                md = this_result['rp_p1_inst']['median']
+                up = this_result['rp_p1_inst']['up_1sigma']
+                lw = this_result['rp_p1_inst']['low_1sigma']
                 order_results['dppm'].append((md**2)*1e6)
                 err_low = (md**2 - (md - lw)**2)*1e6
                 err_up = ((up + md)**2 - md**2)*1e6
             else:
-                md = results_dict['fp_p1_inst']['median']
-                up = results_dict['fp_p1_inst']['up_1sigma']
-                lw = results_dict['fp_p1_inst']['low_1sigma']
+                md = this_result['fp_p1_inst']['median']
+                up = this_result['fp_p1_inst']['up_1sigma']
+                lw = this_result['fp_p1_inst']['low_1sigma']
                 order_results['dppm'].append(md*1e6)
                 err_low = (md**2 - (md - lw)**2)*1e6
                 err_up = ((up + md)**2 - md**2)*1e6
@@ -376,6 +408,7 @@ for order in config['orders']:
             if config['gp_file'] is not None:
                 thisgp = {'inst': data_dict[wavebin]['GP_parameters']}
             thislcmod = {'inst': {'p1': config['lc_model_type']}}
+            thislcfunc = {'inst': {'p1': custom_lc_function}}
             result = model.LightCurveModel(param_dict,
                                            t={'inst': data_dict[wavebin]['times']},
                                            linear_regressors=thislm,
@@ -383,7 +416,8 @@ for order in config['orders']:
                                            observations={'inst': {'flux': data_dict[wavebin]['flux']}},
                                            ld_model=config['ld_model_type'],
                                            silent=True)
-            result.compute_lightcurves(lc_model_type=thislcmod)
+            result.compute_lightcurves(lc_model_type=thislcmod,
+                                       lc_model_functions=thislcfunc)
 
             # Plot transit model and residuals.
             scatter = param_dict['sigma_inst']['value']
@@ -481,7 +515,7 @@ orders = np.concatenate([2*np.ones_like(results_dict['order 2']['dppm']),
 infile_header = fits.getheader(config['infile'], 0)
 extract_type = infile_header['METHOD']
 target = infile_header['TARGET'] + config['planet_letter']
-if config['lc_model_type'] == 'transit':
+if 'transit' in config['lc_model_type']:
     spec_type = 'transmission'
 else:
     spec_type = 'emission'

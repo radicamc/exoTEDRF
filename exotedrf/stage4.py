@@ -14,11 +14,67 @@ import exouprf.fit as fit
 import numpy as np
 import os
 import pandas as pd
+os.environ["RAY_DEDUP_LOGS"] = "0"
 import ray
 from tqdm import tqdm
 
 from jwst import datamodels
 from exotedrf.utils import fancyprint
+
+
+def bin_at_bins(flux, err, inwave_low, inwave_up, outwave_low, outwave_up):
+    """Similar to both other binning functions, except this one will bin the
+    flux data to preset bin edges.
+
+    Parameters
+    ----------
+    flux : array-like(float)
+        2D Flux to bin.
+    err : array-like(float)
+        2D Flux error to bin.
+    inwave_low : array-like(float)
+        Lower edge of flux wavelength bins.
+    inwave_up : array-like(float)
+        Upper edge of flux wavelength bins.
+    outwave_low : array-like(float)
+        Lower edge of bins to which to bin flux.
+    outwave_up : array-like(float)
+        Upper edge of bins to which to bin flux.
+
+    Returns
+    -------
+    binlow : ndarray(float)
+        Lower edge of wavelength bins.
+    binup : ndarray(float)
+        Upper edge of wavelength bins.
+    binspec : ndarray(float)
+        Binned flux.
+    binerr : ndarray(float)
+        Binner errors.
+    """
+
+    nints, ncols = np.shape(flux)
+    wave = np.nanmean([inwave_low, inwave_up], axis=0)
+
+    # Set up output arrays.
+    binspec = np.zeros((nints, len(outwave_up)))
+    binerr = np.zeros((nints, len(outwave_up)))
+
+    # Loop over all input wavelength bins and bin to output bins.
+    for j in range(len(outwave_up)):
+        low = outwave_low[j]
+        up = outwave_up[j]
+        for i in range(ncols):
+            w = wave[i]
+            if low <= w < up:
+                binspec[:, j] += flux[:, i]
+                binerr[:, j] += err[:, i]
+
+    # Broadcast to 2D.
+    binlow = np.repeat(outwave_low[np.newaxis, :], nints, axis=0)
+    binup = np.repeat(outwave_up[np.newaxis, :], nints, axis=0)
+
+    return binlow, binup, binspec, binerr
 
 
 def bin_at_pixel(flux, error, wave, npix):
@@ -257,7 +313,7 @@ def bin_at_resolution(inwave_low, inwave_up, flux, flux_err, res,
 
 @ray.remote
 def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins,
-             lc_model_type, ld_model):
+             lc_model_type, ld_model, model_function, debug=False):
     """Functional wrapper around run_uporf to make it compatible for
     multiprocessing with ray.
     """
@@ -282,14 +338,16 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins,
         linear_regressors = {'inst': data_dictionary['lm_parameters']}
 
     fit_results = run_uporf(priors, t, flux, output_dir, gp_regressors,
-                            linear_regressors, lc_model_type, ld_model)
+                            linear_regressors, lc_model_type, ld_model,
+                            model_function, debug)
 
     return fit_results
 
 
 def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
                     nthreads=4, observing_mode='NIRISS/SOSS',
-                    lc_model_type='transit', ld_model='quadratic'):
+                    lc_model_type='transit', ld_model='quadratic',
+                    custom_lc_function=None):
     """Wrapper about both the exoUPRF and ray libraries to parallelize
     exoUPRF's lightcurve fitting functionality.
 
@@ -313,6 +371,8 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
         exoUPRF light curve model identifier.
     ld_model : str
         Limb darkening model identifier.
+    custom_lc_function : func, None
+        Custom light curve function call, if being used.
 
     Returns
     -------
@@ -347,7 +407,8 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
                                         bin_no=num_bins[i],
                                         num_bins=len(num_bins),
                                         lc_model_type=lc_model_type,
-                                        ld_model=ld_model))
+                                        ld_model=ld_model,
+                                        model_function=custom_lc_function))
     # Run the fits.
     ray_results = ray.get(all_fits)
 
@@ -505,7 +566,8 @@ def read_ld_coefs(filename, wavebin_low, wavebin_up):
 
 
 def run_uporf(priors, time, flux, out_folder, gp_regressors,
-              linear_regressors, lc_model_type, ld_model):
+              linear_regressors, lc_model_type, ld_model, model_function,
+              debug=False):
     """Wrapper around the lightcurve fitting functionality of the exoUPRF
     package.
 
@@ -527,6 +589,10 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors,
         exoUPRF light curve model identifier.
     ld_model : str
         Limb darkening model identifier.
+    model_function : func, None
+        Function call for custom light curve model, if being used.
+    debug : bool
+        If True, always break when encountering an error.
 
     Returns
     -------
@@ -537,22 +603,32 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors,
     if np.all(np.isfinite(flux['inst']['flux'])):
         # Load in all priors and data to be fit.
         lc_model = {'inst': {'p1': lc_model_type}}
+        # Create dictionary for custom light curve function if being used.
+        if model_function is not None:
+            model_call = {'inst': {'p1': model_function}}
+        else:
+            model_call = None
+
         dataset = fit.Dataset(input_parameters=priors, t=time,
                               ld_model=ld_model, lc_model_type=lc_model,
                               linear_regressors=linear_regressors,
                               gp_regressors=gp_regressors, observations=flux,
-                              silent=True)
+                              silent=True, custom_lc_functions=model_call)
 
         # Run the fit.
         try:
-            dataset.fit(output_file=out_folder, sampler='NestedSampling')
+            dataset.fit(output_file=out_folder, sampler='NestedSampling',
+                        force_redo=True)
             res = dataset
         except KeyboardInterrupt as err:
             raise err
-        except:
-            fancyprint('Exception encountered.', msg_type='WARNING')
-            fancyprint('Skipping bin.', msg_type='WARNING')
-            res = None
+        except Exception as err:
+            if debug is False:
+                fancyprint('Exception encountered.', msg_type='WARNING')
+                fancyprint('Skipping bin.', msg_type='WARNING')
+                res = None
+            else:
+                raise err
     else:
         fancyprint('NaN bin encountered.', msg_type='WARNING')
         fancyprint('Skipping bin.', msg_type='WARNING')

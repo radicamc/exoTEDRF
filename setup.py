@@ -4,10 +4,10 @@
 from setuptools import setup
 
 setup(name='exotedrf',
-      version='2.0.0',
+      version='2.1.0',
       license='MIT',
       author='Michael Radica',
-      author_email='michael.radica@umontreal.ca',
+      author_email='radicamc@uchicago.edu',
       packages=['exotedrf'],
       include_package_data=True,
       url='https://github.com/radicamc/exoTEDRF',
@@ -16,8 +16,8 @@ setup(name='exotedrf',
       install_requires=['applesoss==2.1.0', 'astropy', 'astroquery',
                         'bottleneck', 'corner', 'jwst==1.12.5', 'matplotlib',
                         'more_itertools', 'numpy', 'pandas', 'ray',
-                        'scikit-learn', 'scipy', 'tqdm', 'pastasoss',
-                        'pyyaml'],
+                        'scikit-learn', 'scipy', 'spectres', 'tqdm',
+                        'pastasoss', 'pyyaml'],
       extras_require={'stage4': ['exotedrf', 'exouprf', 'exotic_ld', 'h5py'],
                       'webbpsf': ['exotedrf', 'webbpsf>=1.1.1']},
       classifiers=[

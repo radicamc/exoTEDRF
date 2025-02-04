@@ -13,9 +13,6 @@ import os
 import shutil
 import sys
 
-from exotedrf.stage1 import run_stage1
-from exotedrf.stage2 import run_stage2
-from exotedrf.stage3 import run_stage3
 from exotedrf.utils import fancyprint, parse_config, unpack_input_dir, \
     verify_path
 
@@ -30,6 +27,11 @@ config = parse_config(config_file)
 # Set CRDS cache path.
 os.environ['CRDS_PATH'] = config['crds_cache_path']
 os.environ['CRDS_SERVER_URL'] = 'https://jwst-crds.stsci.edu'
+
+# Import rest of pipeline stuff after initializing crds path.
+from exotedrf.stage1 import run_stage1
+from exotedrf.stage2 import run_stage2
+from exotedrf.stage3 import run_stage3
 
 # Save a copy of the config file.
 if config['output_tag'] != '':
@@ -83,6 +85,7 @@ if 1 in config['run_stages']:
                                 soss_background_model=config['soss_background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 oof_method=config['oof_method'],
+                                superbias_method=config['superbias_method'],
                                 soss_timeseries=config['soss_timeseries'],
                                 soss_timeseries_o2=config['soss_timeseries_o2'],
                                 save_results=config['save_results'],
@@ -99,6 +102,7 @@ if 1 in config['run_stages']:
                                 soss_outer_mask_width=config['soss_outer_mask_width'],
                                 nirspec_mask_width=config['nirspec_mask_width'],
                                 centroids=config['centroids'],
+                                hot_pixel_map=config['hot_pixel_map'],
                                 **config['stage1_kwargs'])
 else:
     stage1_results = input_files
@@ -108,7 +112,8 @@ if 2 in config['run_stages']:
     # Determine which steps to run and which to skip.
     steps = ['AssignWCSStep', 'Extract2DStep', 'SourceTypeStep',
              'WaveCorrStep', 'FlatFieldStep', 'OneOverFStep_int',
-             'BackgroundStep', 'TracingStep', 'BadPixStep']
+             'BackgroundStep', 'TracingStep', 'BadPixStep',
+             'PCAReconstructStep']
     stage2_skip = []
     for step in steps:
         if config[step] == 'skip':
@@ -124,7 +129,7 @@ if 2 in config['run_stages']:
                                 force_redo=config['force_redo'],
                                 space_thresh=config['space_outlier_threshold'],
                                 time_thresh=config['time_outlier_threshold'],
-                                calculate_stability=config['calculate_stability'],
+                                remove_components=config['remove_components'],
                                 pca_components=config['pca_components'],
                                 soss_timeseries=config['soss_timeseries'],
                                 soss_timeseries_o2=config['soss_timeseries_o2'],

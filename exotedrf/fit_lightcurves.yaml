@@ -12,6 +12,9 @@ infile : ''
 observing_mode : 'NIRISS/SOSS'
 # (NIRSpec only) Detector used.
 detector : 'NRS1'
+# (NIRSpec only) blue wavelength cutoff for NRS1.
+# Note: ignore if using pre-binned data.
+nrs1_blue : 2.8
 # (SOSS only) Orders to fit.
 orders : [1, 2]
 # Suffix to apply to fit output files.
@@ -21,6 +24,10 @@ baseline_ints : [50, -50]
 # Type of light curve model: 'transit' or 'eclipse'.
 # Other exoUPRF models can also be supported, see the exoUPRF documentation for more info.
 lc_model_type : 'transit'
+# String of function call for a custom light curve model, if not a simple transit or eclipe.
+# Note: if using a custom light curve model, either 'custom-transit' or 'custom-eclipse' must be passed to
+# lc_model_type.
+custom_lc_model : None
 # If True, make summary plots.
 do_plots : True
 # If True, also make corner plot for each bin.
@@ -28,6 +35,7 @@ include_corner : False
 # Number of cores for multiprocessing.
 ncores : 4
 # Spectral resolution at which to fit light curves.
+# Note: if using pre-binned light curves, specify 'prebin' here.
 res : 'pixel'
 # Alternatively, number of pixel columns to bin before light curve fitting
 npix : None
@@ -38,21 +46,24 @@ planet_letter : 'b'
 # Fitting priors in exoUPRF format.
 # For eclipse fits, must not pass u1_inst and u2_inst, and must pass tsec_p1 and fp_p1_inst.
 # Note: just use 'inst' for instrument-specific parameters.
-params : ['per_p1', 't0_p1', 'rp_p1', 'inc_p1',
+params : ['per_p1', 't0_p1', 'rp_p1_inst', 'inc_p1',
           'u1_inst', 'u2_inst', 'ecc_p1', 'w_p1', 'a_p1',
-          'sigma_inst']
+          'sigma_inst',
+          'zero_inst']
 dists : ['fixed', 'fixed', 'uniform', 'fixed',
          'uniform', 'uniform', 'fixed', 'fixed', 'fixed',
-         'loguniform']
+         'loguniform',
+         'uniform']
 values : [3.42525650, 2459751.821681146, [0.01, 0.9], 0.748,
           [0., 1.], [0., 1.], 0.0, 90., 8.82,
-          [0.000001, 0.1]]
+          [0.000001, 0.1],
+          [-0.001, 0.001]]
 
 # === Detrending Paramaters ===
 # Path to file containing linear detrending parameters.
 lm_file : None
 # Key names for detrending parametrers.
-lm_parameters : ['t']
+lm_parameters : []
 # Path to file containing GP training parameters.
 gp_file : None
 # Key name for GP training parametrer.
@@ -60,7 +71,7 @@ gp_parameter : ''
 
 # === Parameters for Limb-Darkening -- Transit Only ===
 # Options for limb-darkening fitting. One of 'fixed', 'prior', or 'free'.
-ld_fit_type : 'prior'
+ld_fit_type : 'free'
 # Options for limb-darkening model. One of 'linear', 'quadratic', 'quadratic-kipping', 'square-root', or 'nonlinear'.
 ld_model_type : 'quadratic'
 # Stellar Metallicity

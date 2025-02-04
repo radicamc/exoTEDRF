@@ -8,14 +8,14 @@ Created on Thurs Jul 21 17:33 2022
 Custom JWST DMS pipeline steps for Stage 3 (1D spectral extraction).
 """
 
-from astropy.convolution import Gaussian1DKernel, convolve
 from astropy.io import fits
 import glob
 import numpy as np
 import pandas as pd
 import pastasoss
 from scipy.interpolate import interp1d
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, filtfilt, correlate
+import spectres
 from tqdm import tqdm
 
 from applesoss import applesoss
@@ -46,13 +46,13 @@ class SpecProfileStep:
         self.output_dir = output_dir
 
         # Unpack input data files.
-        datafiles = utils.sort_datamodels(input_data)
-        self.datafiles = []
-        for file in datafiles:
-            self.datafiles.append(utils.open_filetype(file))
+        self.datafiles = utils.sort_datamodels(input_data)
 
         # Get subarray identifier.
-        self.subarray = self.datafiles[0].meta.subarray.name
+        if isinstance(self.datafiles[0], str):
+            self.subarray = fits.getheader(self.datafiles[0])['SUBARRAY']
+        else:
+            self.subarray = self.datafiles[0].meta.subarray.name
 
     def run(self, force_redo=False, empirical=True):
         """Method to run the step.
@@ -120,10 +120,7 @@ class Extract1DStep:
         self.output_dir = output_dir
 
         # Unpack input data files.
-        datafiles = utils.sort_datamodels(input_data)
-        self.datafiles = []
-        for file in datafiles:
-            self.datafiles.append(utils.open_filetype(file))
+        self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
         self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
 
@@ -258,27 +255,22 @@ class Extract1DStep:
                 else:
                     times = np.concatenate([times, this_time])
 
-            # Clip outliers and format extracted spectra.
+            # Clip outliers, refine wavelength solution, and format extracted
+            # spectra.
             st_teff, st_logg, st_met = self.stellar_params
             if self.instrument == 'NIRISS':
-                # Get throughput data.
-                step = calwebb_spec2.extract_1d_step.Extract1dStep()
-                thpt = step.get_reference_file(self.datafiles[0], 'spectrace')
-
                 spectra = format_soss_spectra(results, times, extract_params,
                                               self.pl_name, st_teff, st_logg,
-                                              st_met, throughput=thpt,
-                                              pwcpos=pwcpos,
+                                              st_met, pwcpos=pwcpos,
                                               output_dir=self.output_dir,
                                               save_results=save_results,
                                               use_pastasoss=use_pastasoss)
             else:
-                thpt = ''
                 detector = utils.get_detector_name(self.datafiles[0])
                 spectra = format_nirspec_spectra(results, times,
                                                  extract_params, self.pl_name,
                                                  detector, st_teff, st_logg,
-                                                 st_met, throughput=thpt,
+                                                 st_met,
                                                  output_dir=self.output_dir,
                                                  save_results=save_results)
 
@@ -319,7 +311,10 @@ def specprofilestep(datafiles, empirical=True, output_dir='./'):
 
     # Create a new deepstack but using all integrations, not just the baseline.
     for i, file in enumerate(datafiles):
-        data = datamodels.open(file)
+        if isinstance(file, str):
+            data = fits.getdata(file)
+        else:
+            data = datamodels.open(file)
         if i == 0:
             cube = data.data
         else:
@@ -370,7 +365,7 @@ def atoca_extract_soss(datafiles, specprofile, output_dir='./',
         Full extraction width, in pixels.
     soss_estimate : str, None
         Path to soss estimate file.
-    fileroots : list(str), None
+    fileroots : array-like(str), None
         Filename roots.
 
     Returns
@@ -494,13 +489,19 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False,
     det = utils.get_detector_name(datafiles[0])
     # Get flux and errors to extract.
     for i, file in enumerate(datafiles):
-        with utils.open_filetype(file) as datamodel:
-            if i == 0:
-                cube = datamodel.data
-                ecube = datamodel.err
-            else:
-                cube = np.concatenate([cube, datamodel.data])
-                ecube = np.concatenate([ecube, datamodel.err])
+        if isinstance(file, str):
+            data = fits.getdata(file)
+            err = fits.getdata(file, 2)
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+                err = datamodel.err
+        if i == 0:
+            cube = data
+            ecube = err
+        else:
+            cube = np.concatenate([cube, data])
+            ecube = np.concatenate([ecube, err])
 
     # Get centroid positions.
     x1, y1 = centroids['xpos'].values, centroids['ypos'].values
@@ -512,7 +513,11 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False,
         # the white light curve scatter.
         scatter = []
         if det == 'nrs1':
-            xstart = 500
+            grating = utils.get_nirspec_grating(datafiles[0])
+            if grating == 'G395H':
+                xstart = 500  # Trace starts at pixel ~500 for G395M
+            else:
+                xstart = 200  # Trace starts at pixel ~200 for G395M
         else:
             xstart = 0
         for w in tqdm(range(1, 12)):
@@ -540,7 +545,11 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False,
     # Do the extraction.
     fancyprint('Performing simple aperture extraction.')
     if det == 'nrs1':
-        xstart = 500
+        grating = utils.get_nirspec_grating(datafiles[0])
+        if grating == 'G395H':
+            xstart = 500  # Trace starts at pixel ~500 for G395M
+        else:
+            xstart = 200  # Trace starts at pixel ~200 for G395M
     else:
         xstart = 0
     flux, ferr = do_box_extraction(cube, ecube, y1, width=extract_width,
@@ -602,13 +611,19 @@ def box_extract_soss(datafiles, centroids, soss_width, do_plot=False,
     datafiles = np.atleast_1d(datafiles)
     # Get flux and errors to extract.
     for i, file in enumerate(datafiles):
-        with utils.open_filetype(file) as datamodel:
-            if i == 0:
-                cube = datamodel.data
-                ecube = datamodel.err
-            else:
-                cube = np.concatenate([cube, datamodel.data])
-                ecube = np.concatenate([ecube, datamodel.err])
+        if isinstance(file, str):
+            data = fits.getdata(file)
+            err = fits.getdata(file, 2)
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+                err = datamodel.err
+        if i == 0:
+            cube = data
+            ecube = err
+        else:
+            cube = np.concatenate([cube, data])
+            ecube = np.concatenate([ecube, err])
 
     # Get centroid positions.
     x1 = centroids['xpos'].values
@@ -733,7 +748,7 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0,
     return f, ferr
 
 
-def do_ccf(wave, flux, err, mod_flux, nsteps=1000):
+def do_ccf(wave, flux, mod_flux, oversample=5):
     """Perform a cross-correlation analysis between an extracted and model
     stellar spectrum to determine the appropriate wavelength shift between
     the two.
@@ -744,16 +759,14 @@ def do_ccf(wave, flux, err, mod_flux, nsteps=1000):
         Wavelength axis.
     flux : array-like[float]
         Extracted spectrum.
-    err : array-like[float]
-        Errors on extracted spectrum.
     mod_flux : array-like[float]
         Model spectrum.
-    nsteps : int
-        Number of wavelength steps to test.
+    oversample : int
+        Degree of oversampling for the cross correlation.
 
     Returns
     -------
-    shift : float
+    shift_wave : float
         Wavelength shift between the model and extracted spectrum in microns.
     """
 
@@ -763,38 +776,105 @@ def do_ccf(wave, flux, err, mod_flux, nsteps=1000):
         signal_filt = filtfilt(b, a, signal)
         return signal_filt
 
-    ccf = np.zeros(nsteps)
-    # Trim edges off of input data to avoid interplation errors.
-    wav_a, flux_a, ferr_a = wave[50:-50], flux[50:-50], err[50:-50]
-    # Max-value normalize the model spectrum and initialize interpolation.
-    mod_norm = mod_flux / np.max(mod_flux)
-    f = interp1d(wave, mod_norm, kind='cubic')
-    # Max-value normalize and high-pass filter the data.
-    data = highpass_filter(flux_a / np.max(flux_a))
-    error = ferr_a / np.max(flux_a)
+    # Ensure wavelengths are in ascending order
+    ii = np.argsort(wave)
+    thiswave = wave[ii]
+    thisflux = flux[ii]
+    thismod = mod_flux[ii]
 
-    # Perform the CCF.
-    for j, jj in enumerate(np.linspace(-0.01, 0.01, nsteps)):
-        # Calculate new wavelength axis.
-        new_wave = wav_a + jj
-        # Interpolate model onto new axis and high-pass filter.
-        model_interp = f(new_wave)
-        model_interp = highpass_filter(model_interp)
-        # Calculate the CCF at this step.
-        ccf[j] = np.nansum(model_interp * data / error ** 2)
+    # Interpolte both model and data onto a finer wavelength grid.
+    if oversample != 1:
+        new_wave = []
+        for i in range(len(thiswave)):
+            new_wave.append(thiswave[i])
+            if i < len(thiswave) - 1:
+                step = thiswave[i + 1] - thiswave[i]
+                step /= oversample
+                for s in range(1, oversample):
+                    new_wave.append(thiswave[i] + s * step)
+        thisflux = np.interp(new_wave, thiswave, thisflux)
+        thismod = np.interp(new_wave, thiswave, thismod)
+    else:
+        new_wave = thiswave
 
-    # Determine the peak of the CCF for each integration to get the
-    # best-fitting shift.
-    maxval = np.argmax(ccf)
-    shift = np.linspace(-0.01, 0.01, nsteps)[maxval]
+    # Remove any nan pixels.
+    ii = np.where(np.isnan(thisflux))
+    thisflux = np.delete(thisflux, ii)
+    thismod = np.delete(thismod, ii)
 
-    return shift
+    # Cross-correlate the model and observed stellar spectrum.
+    ccf = correlate(highpass_filter(thisflux), highpass_filter(thismod))
+    # Determine how many wavelength steps corresponds to the CCF peak.
+    ll = len(thisflux)
+    steps = np.linspace(-ll+1, ll-1, 2*ll-1)
+    shift_steps = steps[np.argmax(ccf)]
+
+    # And get the wavelength shift.
+    shift_wave = -1*shift_steps*np.median(np.diff(new_wave))
+
+    return shift_wave
+
+
+def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path,
+                        orders=[1, 2]):
+    """Perform the flux calibration (to erg/s/cm^2/µm) for extracted SOSS
+    sepctra. Note that the spectra must have been extracted ith a box width of
+    40 pixels, and also that the rev2 photom referebce file produced by Kevin
+    Volk during commissioning should be used instead of the default one.
+
+    Parameters
+    ----------
+    spectrum_file : str
+        Path to extracted stellar spectra.
+    pwcpos : float
+        Observation pupil wheel position.
+    photom_path : str
+        Path to photom reference file.
+    spectrace_path : str
+        Path to spectra reference file.
+    orders : list(int)
+        SOSS order(s) to calibrate.
+    """
+
+    fancyprint('Starting SOSS flux calibration.')
+    fancyprint('Flux calibration is only valid for spectra extracted using '
+               'an aperture width of 40 pixels!', msg_type='WARNING')
+    fancyprint('Ensure to use the rev2 photom file and not the default crds '
+               'reference!', msg_type='WARNING')
+
+    # Get the extracted spectra and erorrs.
+    spec = fits.open(spectrum_file)
+    for order in orders:
+        if order == 1:
+            wave = np.mean([spec[1].data[0], spec[2].data[0]], axis=0)
+            fi, ei = 3, 4
+        else:
+            wave = np.mean([spec[5].data[0], spec[6].data[0]], axis=0)
+            fi, ei = 7, 8
+
+        # Calculate the ADU/s to Jy flux calibration.
+        flux_scaling = wave_and_flux_calibrations(pwcpos=pwcpos,
+                                                  obs_x_pixel=np.arange(2048),
+                                                  photom_path=photom_path,
+                                                  spectrace_path=spectrace_path,
+                                                  order=order)
+        # Apply the flux calibration.
+        spec[fi].data *= flux_scaling
+        spec[ei].data *= flux_scaling
+        # Convert to erg/s/cm2/µm.
+        spec[fi].data *= (1e-23 * (3e8 * 1e6) / wave ** 2)
+        spec[ei].data *= (1e-23 * (3e8 * 1e6) / wave ** 2)
+
+    newfile = spectrum_file[:-5] + '_FluxCalibrated.fits'
+    fancyprint('Flux calibrated spectra saved to {}'.format(newfile))
+    spec.writeto(newfile, overwrite=True)
+
+    return None
 
 
 def format_nirspec_spectra(datafiles, times, extract_params, target_name,
                            detector, st_teff=None, st_logg=None, st_met=None,
-                           throughput=None, output_dir='./',
-                           save_results=True):
+                           output_dir='./', save_results=True):
     """Unpack the outputs of the 1D extraction and format them into
     lightcurves at the native detector resolution.
 
@@ -820,8 +900,6 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
         Stellar log surface gravity.
     st_met : float, None
         Stellar metallicity as [Fe/H].
-    throughput : str
-        Path to JWST spectrace reference file.
 
     Returns
     -------
@@ -835,6 +913,10 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
     flux = datafiles[1]
     ferr = datafiles[2]
 
+    # Remove any NaN pixels --- important for NIRSpec NRS1.
+    ii = np.where(np.isfinite(wave1d))[0]
+    wave1d_trim = wave1d[ii]
+
     # Now cross-correlate with stellar model.
     # If one or more of the stellar parameters are not provided, use the
     # wavelength solution from pastasoss.
@@ -843,38 +925,28 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
                    'Using default wavelength solution.', msg_type='WARNING')
     else:
         fancyprint('Refining the wavelength calibration.')
-        fancyprint('... is buggy and so wont be run!')
-        # # Create a grid of stellar parameters, and download PHOENIX spectra
-        # # for each grid point.
-        # thisout = output_dir + 'phoenix_models'
-        # utils.verify_path(thisout)
-        # res = utils.download_stellar_spectra(st_teff, st_logg, st_met,
-        #                                      outdir=thisout)
-        # wave_file, flux_files = res
-        # # Interpolate model grid to correct stellar parameters.
-        # mod_flux = utils.interpolate_stellar_model_grid(flux_files, st_teff,
-        #                                                 st_logg, st_met)
-        # mod_wave = fits.getdata(wave_file)/1e4
-        #
-        # # Convolve model to lower resolution and interpolate to data
-        # # wavelengths.
-        # gauss = Gaussian1DKernel(stddev=500)
-        # mod_flux = convolve(mod_flux, gauss)
-        # mod_flux = np.interp(wave1d, mod_wave, mod_flux)
-        # # Add throuput effects to model.
-        # thpt = fits.open(throughput)
-        # twave = thpt[1].data['WAVELENGTH']
-        # thpt = thpt[1].data['THROUGHPUT']
-        # thpt = np.interp(wave1d, twave, thpt)
-        # mod_flux *= thpt
-        #
-        # # Cross-correlate extracted spectrum with model to refine wavelength
-        # # calibration.
-        # x1d_flux = np.nansum(flux, axis=0)
-        # x1d_err = np.sqrt(np.nansum(ferr**2, axis=0))
-        # wave_shift = do_ccf(wave1d, x1d_flux, x1d_err, mod_flux)
-        # fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
-        # wave1d += wave_shift
+        # Create a grid of stellar parameters, and download PHOENIX spectra
+        # for each grid point.
+        thisout = output_dir + 'phoenix_models'
+        utils.verify_path(thisout)
+        res = utils.download_stellar_spectra(st_teff, st_logg, st_met,
+                                             outdir=thisout)
+        wave_file, flux_files = res
+        # Interpolate model grid to correct stellar parameters.
+        # Reverse direction of both arrays since SOSS is extracted red to blue.
+        mod_flux = utils.interpolate_stellar_model_grid(flux_files, st_teff,
+                                                        st_logg, st_met)
+        mod_wave = fits.getdata(wave_file) / 1e4
+
+        # Bin model down to data wavelengths.
+        mod_flux = spectres.spectres(wave1d_trim, mod_wave, mod_flux)
+
+        # Cross-correlate extracted spectrum with model to refine wavelength
+        # calibration.
+        x1d_flux = np.nansum(flux, axis=0)[ii]
+        wave_shift = do_ccf(wave1d_trim, x1d_flux, mod_flux, oversample=1)
+        fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
+        wave1d += wave_shift
 
     # Clip remaining 3-sigma outliers.
     flux_clip = utils.sigma_clip_lightcurves(flux, window=11, thresh=3)
@@ -907,8 +979,8 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
 
 def format_soss_spectra(datafiles, times, extract_params, target_name,
                         st_teff=None, st_logg=None, st_met=None,
-                        throughput=None, pwcpos=None, output_dir='./',
-                        save_results=True, use_pastasoss=False):
+                        pwcpos=None, output_dir='./', save_results=True,
+                        use_pastasoss=False):
     """Unpack the outputs of the 1D extraction and format them into
     lightcurves at the native detector resolution.
 
@@ -932,8 +1004,6 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
         Stellar log surface gravity.
     st_met : float, None
         Stellar metallicity as [Fe/H].
-    throughput : str
-        Path to JWST spectrace reference file.
     pwcpos : float
         Filter wheel position. Only necessary is use_pastasoss is True.
     use_pastasoss : bool
@@ -1024,26 +1094,16 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
                                                         st_logg, st_met)
         mod_wave = fits.getdata(wave_file)/1e4
 
-        # Convolve model to lower resolution and interpolate to data
-        # wavelengths.
-        gauss = Gaussian1DKernel(stddev=500)
-        mod_flux = convolve(mod_flux, gauss)
-        mod_flux = np.interp(wave1d_o1[::-1], mod_wave, mod_flux)[::-1]
-        # Add throuput effects to model.
-        thpt = fits.open(throughput)
-        twave = thpt[1].data['WAVELENGTH']
-        thpt = thpt[1].data['THROUGHPUT']
-        thpt = np.interp(wave1d_o1[::-1], twave, thpt)[::-1]
-        mod_flux *= thpt
+        # Bin model down to data wavelengths.
+        mod_flux = spectres.spectres(wave1d_o1[::-1], mod_wave, mod_flux)[::-1]
 
         # Cross-correlate extracted spectrum with model to refine wavelength
         # calibration.
         x1d_flux = np.nansum(flux_o1, axis=0)
-        x1d_err = np.sqrt(np.nansum(ferr_o1**2, axis=0))
-        wave_shift = do_ccf(wave1d_o1, x1d_flux, x1d_err, mod_flux)
-        fancyprint('Found a wavelength shift of {}um'.format(-1*wave_shift))
-        wave1d_o1 -= wave_shift
-        wave1d_o2 -= wave_shift
+        wave_shift = do_ccf(wave1d_o1, x1d_flux, mod_flux)
+        fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
+        wave1d_o1 += wave_shift
+        wave1d_o2 += wave_shift
 
     # Clip remaining 5-sigma outliers.
     flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1)
@@ -1109,6 +1169,98 @@ def get_soss_estimate(atoca_spectra, output_dir):
     estimate_filename = estimate.save(output_dir + 'soss_estimate.fits')
 
     return estimate_filename
+
+
+def wave_and_flux_calibrations(pwcpos, obs_x_pixel, photom_path,
+                               spectrace_path, order=1):
+    """This function wavelength and flux calibrates an input spectrum expressed
+    in adu per sec sampled at a detector x position in pixels. This uses the
+    DMS reference files  (assuming they are correct) and corrects  them using
+    the pwcpos keyword to shift the pixels by -11 pixel/degre. An important
+    limitation is that the reference flux calibration is applicable to spectra
+    extracted using a box aperture of 40 pixels. So the obs_flux_adusec must
+    have been extracted using that same box size otherwise the flux may be
+    systematically off.
+    Function originally by Loïc Albert and adapted by MCR.
+
+    Parameters
+    ----------
+    pwcpos : float
+        Observation pupil wheel position.
+    obs_x_pixel : array-like(float)
+        Pixel x-indices.
+    photom_path : str
+        Path to photom rev2 file
+    spectrace_path : str
+        Path to spectrace reference file.
+    order : int
+        SOSS order to calibrate
+
+    Returns
+    -------
+    obs_flux_scaling : array-like(float)
+        The ADU/s to Jy flux scaling.
+    """
+
+    # The jwst_niriss_photom_rev2.fits calibration was obtained for the
+    # PID 1091 obs 2 data set (BD+601758). So, return results based on that.
+    pwcpos_fluxcal = 245.7909
+
+    # The empirically determined relation between PWCPOS and movement of
+    # the traces along the x axis was obtained using the Tilt test fro CV3
+    # observations with a span of +/- 10 degrees of PWCPOS.
+    xoffset_perdeg = -11.0
+
+    # Use the photomstep ref file rev2 from Kevin
+    if order == 3:
+        m = 3
+    elif order == 2:
+        m = 2
+    else:
+        m = 1
+
+    # Read the flux scaling that needs to be applied to the uncalibrated input
+    # flux in adu/sec to output the calibrated flux in Jy.
+    # This scaling applies for an extraction aperture of 40 pixels.
+    # Its PWCPOS is 245.7909
+    hdu = fits.open(photom_path)
+    # Scaling to convert from adu/sec to Jy
+    w = hdu[1].data[m - 1]['wavelength']
+    scaling = hdu[1].data[m - 1]['relresponse'] * hdu[1].data[m - 1]['photmj']
+    # Remove zeros from both
+    ind = (w != 0) | (scaling != 0)
+    fluxcal_wave_micron = w[ind]
+    fluxcal_scaling = scaling[ind]
+    # The wavelength sampling is almost constant. It's bimodal alternating
+    # between 0.97 nm and 0.98 nm with excursions of 0.001 or 0.002 nm around
+    # each value. The sampling jumps from one mode the the other between
+    # consecutive samples. Weird. The sampling does not quite match the pixel
+    # sampling which is on everage ~0.97 nm/pixel but with gradual changes.
+
+    # The wavelength calibration reference file samples the wavelength at
+    # every 1 nm and gives the corresponding x pixel positions.
+    hdu = fits.open(spectrace_path)
+    wavecal_wave_micron = hdu[m].data['wavelength']
+    wavecal_x_pixel = hdu[m].data['x']
+
+    # Based on the current pwcpos, shift the wavelength solution by
+    # some x pixel offset. The pwcpos offset is relative to that of the flux
+    # calibration data set of BD+60.1758 with which these 2 calibrations
+    # have been made.
+    pwcpos_offset = pwcpos - pwcpos_fluxcal
+    x_offset = xoffset_perdeg * pwcpos_offset
+
+    # Directly interpolate the calibrations at the requested sampling
+    # Wavelength calibration
+    ind = np.argsort(wavecal_x_pixel)
+    obs_wave_micron = np.interp(obs_x_pixel, wavecal_x_pixel[ind] + x_offset,
+                                wavecal_wave_micron[ind])
+    # Flux calibration
+    ind = np.argsort(fluxcal_wave_micron)
+    obs_flux_scaling = np.interp(obs_wave_micron, fluxcal_wave_micron[ind],
+                                 fluxcal_scaling[ind])
+
+    return obs_flux_scaling
 
 
 def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
