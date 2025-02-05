@@ -869,29 +869,27 @@ def make_photon_noise_plot(spectrum_files, ngroup, baseline_ints, order=1,
             if order == 1:
                 wave = np.mean([spectrum[1].data[0], spectrum[2].data[0]],
                                axis=0)
-                ii = np.ones_like(wave)
+                ii = np.arange(len(wave)).astype(int)
             else:
                 wave = np.mean([spectrum[5].data[0], spectrum[6].data[0]],
                                axis=0)
                 ii = np.where((wave >= 0.6) & (wave < 0.85))[0]
 
         scatter = []
-        for i in range(len(ii)):
+        for i in ii:
             wlc = spec[:, i]
             noise = 0.5 * (wlc[0:-2] + wlc[2:]) - wlc[1:-1]
             noise = np.median(np.abs(noise))
             scatter.append(noise / np.median(wlc[base]))
         scatter = np.array(scatter)
-        if labels is not None:
-            label = labels[j]
-        else:
-            label = None
-        plt.plot(wave, median_filter(scatter, 10) * 1e6, label=label)
+        plt.plot(wave[ii][10:-10], median_filter(scatter, 10)[10:-10] * 1e6)
 
     phot = np.sqrt(np.median(spec[base], axis=0)) / np.median(spec[base],
                                                               axis=0)
-    plt.plot(wave, median_filter(phot, 10) * 1e6, c='black')
-    plt.plot(wave, 2 * median_filter(phot, 10) * 1e6, c='black')
+    plt.plot(wave[ii][10:-10], median_filter(phot, 10)[ii][10:-10] * 1e6,
+             c='black')
+    plt.plot(wave[ii][10:-10], 2 * median_filter(phot, 10)[ii][10:-10] * 1e6,
+             c='black')
 
     plt.ylabel('Precision [ppm]', fontsize=14)
 
