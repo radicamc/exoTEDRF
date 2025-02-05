@@ -1211,7 +1211,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
     # Set detector Y-axis limits.
     if instrument == 'NIRISS':
         ymax = dimy - 5
-        ybox_size = 2
+        ybox_size = 0
     else:
         ymax = dimy
         ybox_size = 0
