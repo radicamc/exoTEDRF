@@ -629,6 +629,11 @@ class OneOverFStep:
 
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
+
+        # If NIRSpec, get Grating -- needed for frame time in this function
+        if self.instrument=='NIRSPEC':
+            self.grating = utils.get_grating_name(self.datafiles[0])
+
         if self.instrument == 'NIRISS':
             assert baseline_ints is not None
             self.baseline_ints = baseline_ints
@@ -846,7 +851,12 @@ class OneOverFStep:
 
             # make sure we have the correct frame time.
             if self.instrument == 'NIRSPEC':
-                tframe = 0.902
+                if self.grating == 'PRISM':
+                    # PRISM uses sub512
+                    tframe = 0.226
+                else:
+                    # G395H/M use sub2048
+                    tframe = 0.902
             else:
                 tframe = 5.494
 
@@ -948,6 +958,7 @@ class LinearityStep:
 
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
+
 
     def run(self, save_results=True, force_redo=False, do_plot=False,
             show_plot=False, **kwargs):

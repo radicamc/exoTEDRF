@@ -455,6 +455,29 @@ def get_instrument_name(datafile):
 
     return instrument
 
+def get_grating_name(datafile):
+    """Get name of grating for NIRSpec.
+
+    Parameters
+    ----------
+    datafile : str, datamodel
+        Path to datafile or datafile itself.
+
+    Returns
+    -------
+    grating : str
+        Name of grating.
+    """
+
+    if isinstance(datafile, str):
+        with fits.open(datafile) as file:
+            grating = file[0].header['GRATING']
+    else:
+        with datamodels.open(datafile) as d:
+            grating = d.meta.instrument.grating
+
+    return grating
+
 
 def get_interp_box(data, box_size, i, j, dimx):
     """Get median and standard deviation of a box centered on a specified
