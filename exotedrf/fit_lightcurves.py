@@ -232,7 +232,8 @@ for order in config['orders']:
                   'limb-darkening coefficients.'
             assert np.all(np.array([m_h, logg, teff]) != None), msg
             # Get ExoTiC-LD instrument mode identifier.
-            modes = {'NIRISS/SOSS': 'JWST_NIRISS_SOSSo1',
+            modes = {'NIRISS/SOSS1': 'JWST_NIRISS_SOSSo1',
+                     'NIRISS/SOSS2': 'JWST_NIRISS_SOSSo2',
                      'NIRSpec/PRISM': 'JWST_NIRSpec_Prism',
                      'NIRSpec/G395H': 'JWST_NIRSpec_G395H',
                      'NIRSpec/G395M': 'JWST_NIRSpec_G395M',
@@ -240,11 +241,14 @@ for order in config['orders']:
                      'NIRSpec/G235M': 'JWST_NIRSpec_G235M',
                      'NIRSpec/G140H': 'JWST_NIRSpec_G140H',
                      'NIRSpec/G140M': 'JWST_NIRSpec_G140M'}
-            ld = stage4.gen_ld_coefs(wave_low, wave_up, order, m_h, logg,
-                                     teff, config['ld_data_path'],
+            if config['observing_mode'] != 'NIRISS/SOSS':
+                thismode = config['observing_mode']
+            else:
+                thismode = config['observing_mode'] + '{}'.format(order)
+            ld = stage4.gen_ld_coefs(wave_low, wave_up, m_h, logg, teff,
+                                     config['ld_data_path'],
                                      stellar_model_type=config['stellar_model_type'],
-                                     spectrace_ref=config['spectrace_ref'],
-                                     mode=modes[config['observing_mode']],
+                                     mode=modes[thismode],
                                      ld_model_type=config['ld_model_type'])
             u1 = np.array(ld[0])
             if config['ld_model_type'] != 'linear':
@@ -299,28 +303,28 @@ for order in config['orders']:
                     vals = u1[wavebin]
                 prior_dict[thisbin]['u1_inst']['distribution'] = dist
                 prior_dict[thisbin]['u1_inst']['value'] = vals
-            if config['ld_model_type'] != 'linear':
-                if config['ld_fit_type'] == 'prior':
-                    dist = 'truncated_normal'
-                    vals = [u2[wavebin], 0.2, low_lim, 1.0]
-                elif config['ld_fit_type'] == 'fixed':
-                    dist = 'fixed'
-                    vals = u2[wavebin]
-                prior_dict[thisbin]['u2_inst']['distribution'] = dist
-                prior_dict[thisbin]['u2_inst']['value'] = vals
-            if config['ld_model_type'] == 'nonlinear':
-                if config['ld_fit_type'] == 'prior':
-                    dist = 'truncated_normal'
-                    vals3 = [u3[wavebin], 0.2, low_lim, 1.0]
-                    vals4 = [u4[wavebin], 0.2, low_lim, 1.0]
-                elif config['ld_fit_type'] == 'fixed':
-                    dist = 'fixed'
-                    vals3 = u3[wavebin]
-                    vals4 = u4[wavebin]
-                prior_dict[thisbin]['u3_inst']['distribution'] = dist
-                prior_dict[thisbin]['u3_inst']['value'] = vals
-                prior_dict[thisbin]['u4_inst']['distribution'] = dist
-                prior_dict[thisbin]['u4_inst']['value'] = vals
+                if config['ld_model_type'] != 'linear':
+                    if config['ld_fit_type'] == 'prior':
+                        dist = 'truncated_normal'
+                        vals = [u2[wavebin], 0.2, low_lim, 1.0]
+                    elif config['ld_fit_type'] == 'fixed':
+                        dist = 'fixed'
+                        vals = u2[wavebin]
+                    prior_dict[thisbin]['u2_inst']['distribution'] = dist
+                    prior_dict[thisbin]['u2_inst']['value'] = vals
+                if config['ld_model_type'] == 'nonlinear':
+                    if config['ld_fit_type'] == 'prior':
+                        dist = 'truncated_normal'
+                        vals3 = [u3[wavebin], 0.2, low_lim, 1.0]
+                        vals4 = [u4[wavebin], 0.2, low_lim, 1.0]
+                    elif config['ld_fit_type'] == 'fixed':
+                        dist = 'fixed'
+                        vals3 = u3[wavebin]
+                        vals4 = u4[wavebin]
+                    prior_dict[thisbin]['u3_inst']['distribution'] = dist
+                    prior_dict[thisbin]['u3_inst']['value'] = vals
+                    prior_dict[thisbin]['u4_inst']['distribution'] = dist
+                    prior_dict[thisbin]['u4_inst']['value'] = vals
 
     # Get information about custom light curve model, if being used.
     if 'custom' in config['lc_model_type']:

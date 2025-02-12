@@ -420,27 +420,22 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix,
     return results
 
 
-def gen_ld_coefs(wavebin_low, wavebin_up, order, m_h, logg, teff,
-                 ld_data_path, mode, ld_model_type, spectrace_ref=None,
-                 stellar_model_type='stagger'):
+def gen_ld_coefs(wavebin_low, wavebin_up, m_h, logg, teff,
+                 ld_data_path, mode, ld_model_type, stellar_model_type='stagger'):
     """Generate estimates of quadratic limb-darkening coefficients using the
     ExoTiC-LD package.
 
     Parameters
     ----------
-    spectrace_ref : str, None
-        Path to spectrace reference file. Only necesary for SOSS.
     wavebin_low : array-like[float]
         Lower edge of wavelength bins.
     wavebin_up: array-like[float]
         Upper edge of wavelength bins.
-    order : int
-        SOSS diffraction order. Only necessary for SOSS.
     m_h : float
         Stellar metallicity as [M/H].
     logg : float
         Stellar log gravity.
-    teff : float
+    teff : int
         Stellar effective temperature in K.
     ld_data_path : str
         Path to ExoTiC-LD model data.
@@ -470,25 +465,13 @@ def gen_ld_coefs(wavebin_low, wavebin_up, order, m_h, logg, teff,
              'square-root': sld.compute_squareroot_ld_coeffs,
              'nonlinear': sld.compute_4_parameter_non_linear_ld_coeffs}
 
-    if spectrace_ref is not None:
-        # Load the most up to date throughput info for SOSS
-        spec_trace = datamodels.SpecTraceModel(spectrace_ref)
-        wavelengths = spec_trace.trace[order-1].data['WAVELENGTH'] * 10000
-        throughputs = spec_trace.trace[order-1].data['THROUGHPUT']
-        # Note that custom throughputs are used.
-        mode = 'custom'
-
     # Compute the LD coefficients over the given wavelength bins.
     u1s, u2s, u3s, u4s = [], [], [], []
     for wl, wu in tqdm(zip(wavebin_low * 10000, wavebin_up * 10000),
                        total=len(wavebin_low)):
         wr = [wl, wu]
         try:
-            if spectrace_ref is not None:
-                out = calls[ld_model_type](wr, mode, wavelengths,
-                                           throughputs)
-            else:
-                out = calls[ld_model_type](wr, mode)
+            out = calls[ld_model_type](wr, mode)
         except ValueError:
             out = [np.nan, np.nan, np.nan, np.nan]
         u1s.append(out[0])

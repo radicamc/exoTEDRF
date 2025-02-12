@@ -86,9 +86,6 @@ ld_data_path :
 # Stellar models to use for limb-darkening calculation.
 # See ExoTiC-LD documentation for more info.
 stellar_model_type : 'stagger'
-# (SOSS only) Path to JWST spectrace Reference File
-# Will be in crds_cache with file name like jwst_niriss_spectrace_XXXX.fits
-spectrace_ref : './crds_cache/references/jwst/niriss/jwst_niriss_spectrace_0023.fits'
 # Paths to files containing model limb-darkening coefficients for SOSS orders or NIRSpec detectors.
 # If provided, will take precedence over calculated values. Must be in format compatible with read_ld_coefs.
 ldcoef_file1 : None
