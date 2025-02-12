@@ -257,7 +257,11 @@ for order in config['orders']:
             target = fits.getheader(config['infile'], 0)['TARGET']
             outdir_ld = outdir + 'speclightcurve{}/'.format(fit_suffix)
             utils.verify_path(outdir_ld)
-            utils.save_ld_priors(wave, ld, order, target, m_h, teff, logg,
+            if config['observing_mode'] != 'NIRISS/SOSS' and config['detector'] == 'NRS2':
+                thisorder = 2
+            else:
+                thisorder = order
+            utils.save_ld_priors(wave, ld, thisorder, target, m_h, teff, logg,
                                  outdir_ld, config['ld_model_type'],
                                  config['observing_mode'])
 
