@@ -72,7 +72,7 @@ gp_parameter : ''
 # === Parameters for Limb-Darkening -- Transit Only ===
 # Options for limb-darkening fitting. One of 'fixed', 'prior', or 'free'.
 ld_fit_type : 'free'
-# Options for limb-darkening model. One of 'linear', 'quadratic', 'quadratic-kipping', 'square-root', or 'nonlinear'.
+# Options for limb-darkening model. One of 'linear', 'quadratic', 'quadratic-kipping', 'squareroot', or 'nonlinear'.
 ld_model_type : 'quadratic'
 # Stellar Metallicity
 m_h : None

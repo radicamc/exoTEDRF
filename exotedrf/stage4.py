@@ -462,7 +462,7 @@ def gen_ld_coefs(wavebin_low, wavebin_up, m_h, logg, teff,
     calls = {'linear': sld.compute_linear_ld_coeffs,
              'quadratic': sld.compute_quadratic_ld_coeffs,
              'quadratic-kipping': sld.compute_kipping_ld_coeffs,
-             'square-root': sld.compute_squareroot_ld_coeffs,
+             'squareroot': sld.compute_squareroot_ld_coeffs,
              'nonlinear': sld.compute_4_parameter_non_linear_ld_coeffs}
 
     # Compute the LD coefficients over the given wavelength bins.
