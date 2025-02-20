@@ -322,9 +322,9 @@ for order in config['orders']:
                         vals3 = u3[wavebin]
                         vals4 = u4[wavebin]
                     prior_dict[thisbin]['u3_inst']['distribution'] = dist
-                    prior_dict[thisbin]['u3_inst']['value'] = vals
+                    prior_dict[thisbin]['u3_inst']['value'] = vals3
                     prior_dict[thisbin]['u4_inst']['distribution'] = dist
-                    prior_dict[thisbin]['u4_inst']['value'] = vals
+                    prior_dict[thisbin]['u4_inst']['value'] = vals4
 
     # Get information about custom light curve model, if being used.
     if 'custom' in config['lc_model_type']:
