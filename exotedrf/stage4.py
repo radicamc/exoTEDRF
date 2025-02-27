@@ -18,7 +18,6 @@ os.environ["RAY_DEDUP_LOGS"] = "0"
 import ray
 from tqdm import tqdm
 
-from jwst import datamodels
 from exotedrf.utils import fancyprint
 
 
@@ -309,6 +308,36 @@ def bin_at_resolution(inwave_low, inwave_up, flux, flux_err, res,
         binned_ferr = binned_ferr[:, 0]
 
     return binned_waves, binned_werr, binned_flux, binned_ferr
+
+
+def calculate_residual_covariance(model_files):
+    """Calculate the covariance matrix for a set of light curve fitting
+    residuals.
+
+    Parameters
+    ----------
+    model_files : str, array-like(str)
+        List of paths to files with best-fitting light curve models.
+
+    Returns
+    -------
+    cov_matrix : ndarray(float)
+        Covariance matrix.
+    """
+
+    model_files = np.atleast_1d(model_files)
+    model_files = np.sort(model_files)[::-1]
+
+    for i, model in enumerate(model_files):
+        if i == 0:
+            models = np.load(model)
+        else:
+            models = np.concatenate([models, np.load(model)], axis=2)
+
+    res = models[3] - models[0]
+    cov_matrix = np.corrcoef(res.T)
+
+    return cov_matrix
 
 
 @ray.remote
