@@ -244,15 +244,15 @@ def bin_at_resolution(inwaves, flux, flux_err, res, method='sum'):
                     weight = np.array(weight)
                     if method == 'sum':
                         if np.ndim(current_flux) != 1:
-                            thisflux = np.nansum(current_flux * weight[:, None],
-                                                 axis=0)
+                            thisflux = np.nansum(current_flux *
+                                                 weight[:, None], axis=0)
                         else:
                             thisflux = np.nansum(current_flux * weight, axis=0)
                         thisferr = np.sqrt(np.nansum(current_ferr**2, axis=0))
                     elif method == 'average':
                         if np.ndim(current_flux) != 1:
-                            thisflux = np.nansum(current_flux * weight[:, None],
-                                                 axis=0)
+                            thisflux = np.nansum(current_flux *
+                                                 weight[:, None], axis=0)
                             thisflux /= np.nansum(weight)
                         else:
                             thisflux = np.nansum(current_flux * weight, axis=0)
@@ -525,13 +525,11 @@ def read_ld_coefs(filename, wavebin_low, wavebin_up):
     # Check that coeffs in file span the wavelength range of the observations
     # with at least the same resolution.
     if np.min(waves) < np.min(wavebin_low) or np.max(waves) > np.max(wavebin_up):
-        msg = 'LD coefficient file does not span the full wavelength range ' \
-              'of the observations.'
-        raise ValueError(msg)
+        raise ValueError('LD coefficient file does not span the full '
+                         'wavelength range of the observations.')
     if len(waves) < len(wavebin_low):
-        msg = 'LD coefficient file has a coarser wavelength grid than ' \
-              'the observations.'
-        raise ValueError(msg)
+        raise ValueError('LD coefficient file has a coarser wavelength grid '
+                         'than the observations.')
 
     # Loop over all fitting bins. Calculate mean of model LD coefs within that
     # range.
@@ -685,7 +683,8 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
     f.write('# 1D Extraction: {}\n'.format(extraction_type))
     f.write('# Spectral Resolution: {}\n'.format(resolution))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
-    f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0).isoformat()))
+    f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0)
+                                  .isoformat()))
     f.write(fit_meta)
     f.write('# Column wave: Central wavelength of bin (micron)\n')
     f.write('# Column wave_err: Wavelength bin halfwidth (micron)\n')

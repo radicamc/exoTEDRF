@@ -59,12 +59,14 @@ class DQInitStep:
         # Unpack deepframe.
         if isinstance(hot_pixel_map, str):
             # Want deepframe extension before bad pixel interpolation.
-            fancyprint('Reading hot pixel map file: {}...'.format(hot_pixel_map))
+            fancyprint('Reading hot pixel map file: {}...'
+                       .format(hot_pixel_map))
             self.hotpix = np.load(hot_pixel_map).astype(bool)
         elif isinstance(hot_pixel_map, np.ndarray) or hot_pixel_map is None:
             self.hotpix = hot_pixel_map
         else:
-            msg = 'Invalid type for hot_pixel_map: {}'.format(type(hot_pixel_map))
+            msg = 'Invalid type for hot_pixel_map: {}'\
+                .format(type(hot_pixel_map))
             raise ValueError(msg)
 
     def run(self, save_results=True, force_redo=False, **kwargs):
@@ -116,7 +118,8 @@ class DQInitStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -192,7 +195,8 @@ class SaturationStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -339,7 +343,8 @@ class SuperBiasStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -347,10 +352,10 @@ class SuperBiasStep:
         # Do step plot if requested.
         if do_plot is True:
             if save_results is True:
-                plot_file1 = self.output_dir + self.tag.replace('.fits',
-                                                                '_1.png')
-                plot_file2 = self.output_dir + self.tag.replace('.fits',
-                                                                '_2.png')
+                plot_file1 = (self.output_dir +
+                              self.tag.replace('.fits', '_ 1.png'))
+                plot_file2 = (self.output_dir +
+                              self.tag.replace('.fits', '_2.png'))
                 if self.instrument == 'NIRSPEC':
                     det = utils.get_detector_name(self.datafiles[0])
                     plot_file1 = plot_file1.replace('.png',
@@ -437,7 +442,8 @@ class RefPixStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -513,7 +519,8 @@ class DarkCurrentStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -577,25 +584,27 @@ class OneOverFStep:
 
         # Unpack timeseries.
         if isinstance(soss_timeseries, str):
-            fancyprint('Reading timeseries file: {}...'.format(soss_timeseries))
+            fancyprint('Reading timeseries file: {}...'
+                       .format(soss_timeseries))
             self.timeseries = np.load(soss_timeseries)
-        elif isinstance(soss_timeseries, np.ndarray) or soss_timeseries is None:
+        elif (isinstance(soss_timeseries, np.ndarray) or
+              soss_timeseries is None):
             self.timeseries = soss_timeseries
         else:
-            msg = 'Invalid type for timeseries: {}'.format(type(soss_timeseries))
-            raise ValueError(msg)
+            raise ValueError('Invalid type for timeseries: {}'
+                             .format(type(soss_timeseries)))
 
         # Unpack timeseries for order 2.
         if isinstance(soss_timeseries_o2, str):
             fancyprint('Reading order 2 timeseries file: {}...'
                        ''.format(soss_timeseries_o2))
             self.timeseries_o2 = np.load(soss_timeseries_o2)
-        elif isinstance(soss_timeseries_o2, np.ndarray) or soss_timeseries_o2 is None:
+        elif (isinstance(soss_timeseries_o2, np.ndarray) or
+              soss_timeseries_o2 is None):
             self.timeseries_o2 = soss_timeseries_o2
         else:
-            msg = 'Invalid type for timeseries_o2: {}' \
-                  ''.format(type(soss_timeseries_o2))
-            raise ValueError(msg)
+            raise ValueError('Invalid type for timeseries_o2: {}'
+                             .format(type(soss_timeseries_o2)))
 
         # Unpack pixel masks.
         if pixel_masks is not None:
@@ -608,21 +617,23 @@ class OneOverFStep:
                 elif isinstance(mask, np.ndarray):
                     self.pixel_masks.append(mask)
                 else:
-                    msg = 'Invalid type for pixel_masks: {}'.format(type(mask))
-                    raise ValueError(msg)
+                    raise ValueError('Invalid type for pixel_masks: {}'
+                                     .format(type(mask)))
             assert len(self.pixel_masks) == len(self.datafiles)
         else:
             self.pixel_masks = pixel_masks
 
         # Unpack background.
         if isinstance(soss_background, str):
-            fancyprint('Reading background file: {}...'.format(soss_background))
+            fancyprint('Reading background file: {}...'
+                       .format(soss_background))
             self.background = np.load(soss_background)
-        elif isinstance(soss_background, np.ndarray) or soss_background is None:
+        elif (isinstance(soss_background, np.ndarray) or
+              soss_background is None):
             self.background = soss_background
         else:
-            msg = 'Invalid type for background: {}'.format(type(soss_background))
-            raise ValueError(msg)
+            raise ValueError('Invalid type for background: {}'
+                             .format(type(soss_background)))
 
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
@@ -829,21 +840,24 @@ class OneOverFStep:
                         scale_e = np.concatenate([scale_e, this_e])
                         scale_o = np.concatenate([scale_o, this_o])
 
-                outfile_e = self.output_dir + self.fileroots[0][:-12] + \
-                    '_nis_oofscaling_even_order{}.npy'.format(order)
+                outfile_e = (self.output_dir + self.fileroots[0][:-12] +
+                             '_nis_oofscaling_even_order{}.npy'.format(order))
                 np.save(outfile_e, scale_e)
-                outfile_o = self.output_dir + self.fileroots[0][:-12] + \
-                    '_nis_oofscaling_odd_order{}.npy'.format(order)
+                outfile_o = (self.output_dir + self.fileroots[0][:-12] +
+                             '_nis_oofscaling_odd_order{}.npy'.format(order))
                 np.save(outfile_o, scale_o)
                 fancyprint('Light curves saved to files {0} and {1}'
-                           ''.format(outfile_e, outfile_o))
+                           .format(outfile_e, outfile_o))
 
         # Do step plots if requested.
         if do_plot is True:
             if save_results is True:
-                plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
-                plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
-                plot_file3 = self.output_dir + self.tag.replace('.fits', '_o1_3.png')
+                plot_file1 = (self.output_dir +
+                              self.tag.replace('.fits', '_1.png'))
+                plot_file2 = (self.output_dir +
+                              self.tag.replace('.fits', '_2.png'))
+                plot_file3 = (self.output_dir +
+                              self.tag.replace('.fits', '_o1_3.png'))
                 if self.instrument == 'NIRSPEC':
                     det = utils.get_detector_name(self.datafiles[0])
                     plot_file1 = plot_file1.replace('_1.png',
@@ -1009,7 +1023,8 @@ class LinearityStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -1155,7 +1170,8 @@ class JumpStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
                 results.append(res)
@@ -1282,7 +1298,8 @@ class RampFitStep:
                     hdu = fits.PrimaryHDU()
                     hdu1 = fits.ImageHDU(flags)
                     hdul = fits.HDUList([hdu, hdu1])
-                    outfile = self.output_dir + self.fileroots[i] + 'pixelflags.fits'
+                    outfile = (self.output_dir + self.fileroots[i] +
+                               'pixelflags.fits')
                     hdul.writeto(outfile, overwrite=True)
 
                     # Remove rate file because we don't need it and I don't
@@ -1296,7 +1313,8 @@ class RampFitStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -1369,7 +1387,8 @@ class GainScaleStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -1546,11 +1565,13 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
         # Filter the data using the specified window
         cube_filt = medfilt(cube[:, g], (window, 1, 1))
         # Calculate the point-to-point scatter along the temporal axis.
-        scatter = np.median(np.abs(0.5 * (cube[0:-2, g] + cube[2:, g]) - cube[1:-1, g]), axis=0)
+        scatter = np.median(np.abs(0.5 * (cube[0:-2, g] + cube[2:, g]) -
+                                   cube[1:-1, g]), axis=0)
         scatter = np.where(scatter == 0, np.inf, scatter)
         # Find pixels which deviate more than the specified threshold.
         scale = np.abs(cube[:, g] - cube_filt) / scatter
-        ii = (scale >= thresh) & (cube[:, g] > np.nanpercentile(cube, 10)) & (artifact == 0)
+        ii = ((scale >= thresh) & (cube[:, g] > np.nanpercentile(cube, 10)) &
+              (artifact == 0))
 
         # If ngroup<=2, replace the pixel with the stack median so that a
         # ramp can still be fit.
@@ -1891,9 +1912,8 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
 
     # Ensure method is correct.
     if method not in ['chromatic', 'achromatic', 'achromatic-window']:
-        msg = 'Method must be one of "chromatic", "achromatic", or ' \
-              '"achromatic-window".'
-        raise ValueError(msg)
+        raise ValueError('Method must be one of "chromatic", "achromatic", '
+                         'or "achromatic-window".')
 
     # Load in data, accept both strings (open as fits) and datamodels.
     if isinstance(datafile, str):
@@ -1972,7 +1992,8 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
 
     # Add the appropriate trace mask to the outliers cube for the selected 1/f
     # method.
-    tracemask = mask1_in.astype(bool) | mask2_in.astype(bool) | mask3.astype(bool)
+    tracemask = (mask1_in.astype(bool) | mask2_in.astype(bool) |
+                 mask3.astype(bool))
     # For the scale-achromatic, just need to mask the cores of each trace,
     # defined by inner_mask_width.
     if method == 'achromatic':
@@ -2037,30 +2058,26 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
             timeseries = median_filter(timeseries,
                                        int(0.02 * np.shape(cube)[0]))
         else:
-            msg = '2D light curves must be provided to use chromatic ' \
-                  'method.'
-            raise ValueError(msg)
+            raise ValueError('2D light curves must be provided to use '
+                             'chromatic method.')
 
     # If passed light curve is 1D, extend to 2D.
     if np.ndim(timeseries) == 1:
         # If 1D timeseries is passed cannot do chromatic correction.
         if method == 'chromatic':
-            msg = '2D light curves are required for chromatic correction, ' \
-                  'but 1D ones were passed.'
-            raise ValueError(msg)
+            raise ValueError('2D light curves are required for chromatic '
+                             'correction, but 1D ones were passed.')
         else:
             timeseries = np.repeat(timeseries[:, np.newaxis], dimx, axis=1)
     # Get timeseries for order 2.
     if method == 'chromatic':
         if timeseries_o2 is None:
-            msg = '2D light curves for order 2 must be provided to use ' \
-                  'chromatic method.'
-            raise ValueError(msg)
+            raise ValueError('2D light curves for order 2 must be provided to '
+                             'use chromatic method.')
         if np.ndim(timeseries_o2) == 1:
             # If 1D timeseries is passed cannot do chromatic correction.
-            msg = '2D light curves are required for chromatic correction,' \
-                  ' but 1D ones were passed.'
-            raise ValueError(msg)
+            raise ValueError('2D light curves are required for chromatic '
+                             'correction, but 1D ones were passed.')
 
     # Set up things that are needed for the 1/f correction with each method.
     if method == 'achromatic':
@@ -2539,7 +2556,6 @@ def subtract_custom_superbias(datafile, superbias, method='constant',
                            'frame dimensions. New centroids will be '
                            'calculated.', msg_type='WARNING')
                 centroids = None
-
         if centroids is None:
             # If no centroids file is provided, get the trace positions from
             # the data now.
@@ -2580,7 +2596,8 @@ def subtract_custom_superbias(datafile, superbias, method='constant',
         # Calculate the superbias scaling relative to each integration.
         scale_factors = np.nanmedian(group0 / superbias, axis=(1, 2))
         # Rescale custom superbias and subtract from each integration.
-        cube_corr = cube - scale_factors[:, None, None, None] * superbias[None, None, :, :]
+        cube_corr = (cube - scale_factors[:, None, None, None] *
+                     superbias[None, None, :, :])
 
     # Save superbias corrected data.
     if save_results is True:
@@ -2766,10 +2783,12 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                 step_kwargs = kwargs['BackgroundStep']
             else:
                 step_kwargs = {}
-            step = stage2.BackgroundStep(results,
-                                         baseline_ints=baseline_ints,
-                                         background_model=soss_background_model,
-                                         output_dir=outdir)
+            step = stage2.BackgroundStep(
+                input_data=results,
+                baseline_ints=baseline_ints,
+                background_model=soss_background_model,
+                output_dir=outdir
+            )
             results = step.run(save_results=save_results,
                                force_redo=force_redo, do_plot=do_plot,
                                show_plot=show_plot, **step_kwargs)

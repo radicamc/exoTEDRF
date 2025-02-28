@@ -72,7 +72,9 @@ class SpecProfileStep:
 
         all_files = glob.glob(self.output_dir + '*')
         # If an output file for this segment already exists, skip the step.
-        expected_file = self.output_dir + 'APPLESOSS_ref_2D_profile_{}_os1_pad20.fits'.format(self.subarray)
+        expected_file = (self.output_dir +
+                         'APPLESOSS_ref_2D_profile_{}_os1_pad20.fits'
+                         .format(self.subarray))
         if expected_file in all_files and force_redo is False:
             fancyprint('File {} already exists.'.format(expected_file))
             fancyprint('Skipping SpecProfile Reference Construction Step.')
@@ -176,8 +178,8 @@ class Extract1DStep:
 
         # Initialize loop and storange variables.
         all_files = glob.glob(self.output_dir + '*')
-        expected_file = self.output_dir + self.target_name + '_' + \
-            self.extract_method + '_spectra_fullres.fits'
+        expected_file = (self.output_dir + self.target_name + '_' +
+                         self.extract_method + '_spectra_fullres.fits')
         # If an output file already exists, skip the step.
         if expected_file in all_files and force_redo is False:
             fancyprint('File {} already exists.'.format(expected_file))
@@ -237,7 +239,8 @@ class Extract1DStep:
                     plot_file = None
                 models = []
                 for name in self.fileroots:
-                    models.append(self.output_dir + name + 'SossExtractModel.fits')
+                    models.append(self.output_dir + name +
+                                  'SossExtractModel.fits')
                 plotting.make_decontamination_plot(self.datafiles, models,
                                                    outfile=plot_file,
                                                    show_plot=show_plot)
@@ -405,7 +408,8 @@ def atoca_extract_soss(datafiles, specprofile, output_dir='./',
                 # create a soss_estimate if one does not already
                 # exist.
                 if first_time is True and soss_estimate is None:
-                    atoca_spectra = output_dir + fileroots[int(i)] + 'AtocaSpectra.fits'
+                    atoca_spectra = (output_dir + fileroots[int(i)] +
+                                     'AtocaSpectra.fits')
                     soss_estimate = get_soss_estimate(atoca_spectra,
                                                       output_dir=output_dir)
                     first_time = False
@@ -421,17 +425,15 @@ def atoca_extract_soss(datafiles, specprofile, output_dir='./',
                     # If every segment has been tested and none
                     # work, just fail.
                     if int(i) == len(datafiles) and len(extracted) == 0:
-                        msg = 'No segments could be properly ' \
-                              'extracted.'
-                        fancyprint(msg, msg_type='Error')
+                        fancyprint('No segments could be properly '
+                                   'extracted.', msg_type='Error')
                         raise err
                     # If there's still hope, then just skip this
                     # segment for now and move onto the next one.
                     else:
-                        msg = 'Initial flux estimate failed, ' \
-                              'and no soss estimate provided. ' \
-                              'Moving to next segment.'
-                        fancyprint(msg, msg_type='WARNING')
+                        fancyprint('Initial flux estimate failed, and no soss '
+                                   'estimate provided. Moving to next '
+                                   'segment.', msg_type='WARNING')
                         continue
                 # If any other error pops up, raise it.
                 else:
@@ -955,8 +957,8 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
-    filename = output_dir + target_name[:-2] + '_' + detector + '_' + \
-        extract_params['method'] + '_spectra_fullres.fits'
+    filename = (output_dir + target_name[:-2] + '_' + detector + '_' +
+                extract_params['method'] + '_spectra_fullres.fits')
     header_dict, header_comments = utils.get_default_header()
     header_dict['Target'] = target_name[:-2]
     header_dict['Contents'] = 'Full resolution stellar spectra'
@@ -1041,10 +1043,12 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
                 flux_o2 = segment[2]['FLUX']
                 ferr_o2 = segment[2]['FLUX_ERROR']
             else:
-                wave2d_o1 = np.concatenate([wave2d_o1, segment[1]['WAVELENGTH']])
+                wave2d_o1 = np.concatenate([wave2d_o1,
+                                            segment[1]['WAVELENGTH']])
                 flux_o1 = np.concatenate([flux_o1, segment[1]['FLUX']])
                 ferr_o1 = np.concatenate([ferr_o1, segment[1]['FLUX_ERROR']])
-                wave2d_o2 = np.concatenate([wave2d_o2, segment[2]['WAVELENGTH']])
+                wave2d_o2 = np.concatenate([wave2d_o2,
+                                            segment[2]['WAVELENGTH']])
                 flux_o2 = np.concatenate([flux_o2, segment[2]['FLUX']])
                 ferr_o2 = np.concatenate([ferr_o2, segment[2]['FLUX_ERROR']])
         # Create 1D wavelength axes from the 2D wavelength solution.
@@ -1110,8 +1114,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
-    filename = output_dir + target_name[:-2] + '_' + extract_params['method'] \
-        + '_spectra_fullres.fits'
+    filename = (output_dir + target_name[:-2] + '_' +
+                extract_params['method'] + '_spectra_fullres.fits')
     header_dict, header_comments = utils.get_default_header()
     header_dict['Target'] = target_name[:-2]
     header_dict['Contents'] = 'Full resolution stellar spectra'
@@ -1315,7 +1319,8 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False,
         output_tag = '_' + output_tag
     # Create output directories and define output paths.
     utils.verify_path(root_dir + 'pipeline_outputs_directory' + output_tag)
-    utils.verify_path(root_dir + 'pipeline_outputs_directory' + output_tag + '/Stage3')
+    utils.verify_path(root_dir + 'pipeline_outputs_directory' + output_tag +
+                      '/Stage3')
     outdir = root_dir + 'pipeline_outputs_directory' + output_tag + '/Stage3/'
 
     # ===== SpecProfile Construction Step =====
