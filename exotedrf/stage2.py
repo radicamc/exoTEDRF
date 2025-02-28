@@ -419,32 +419,42 @@ class BackgroundStep:
                     # Format the baseline integrations -- for fits inputs.
                     if isinstance(segment, str):
                         nints = fits.getheader(segment)['NINTS']
-                        baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                  nints)
+                        baseline_ints = utils.format_out_frames_2(
+                            out_frames=self.baseline_ints,
+                            max_nint=nints
+                        )
                         # Generate the baseline stack.
-                        deepstack = utils.make_baseline_stack_fits(self.datafiles,
-                                                                   baseline_ints)
+                        deepstack = utils.make_baseline_stack_fits(
+                            datafiles=self.datafiles,
+                            baseline_ints=baseline_ints
+                        )
                     # Format the baseline integrations -- using datamodels.
                     else:
                         with utils.open_filetype(segment) as file:
                             nints = file.meta.exposure.nints
-                            baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                      nints)
+                            baseline_ints = utils.format_out_frames_2(
+                                out_frames=self.baseline_ints,
+                                max_nint=nints
+                            )
                             # Generate the baseline stack.
-                            deepstack = utils.make_baseline_stack_dm(self.datafiles,
-                                                                     baseline_ints)
+                            deepstack = utils.make_baseline_stack_dm(
+                                datafiles=self.datafiles,
+                                baseline_ints=baseline_ints
+                            )
                     first_time = False
 
                 with warnings.catch_warnings():
                     warnings.filterwarnings('ignore')
-                    step_results = backgroundstep(segment,
-                                                  self.background_model,
-                                                  deepstack=deepstack,
-                                                  output_dir=self.output_dir,
-                                                  save_results=save_results,
-                                                  fileroot=self.fileroots[i],
-                                                  fileroot_noseg=self.fileroot_noseg,
-                                                  **kwargs)
+                    step_results = backgroundstep(
+                        datafile=segment,
+                        background_model=self.background_model,
+                        deepstack=deepstack,
+                        output_dir=self.output_dir,
+                        save_results=save_results,
+                        fileroot=self.fileroots[i],
+                        fileroot_noseg=self.fileroot_noseg,
+                        **kwargs
+                    )
                     res, bkg_model = step_results
             results.append(res)
 
@@ -770,15 +780,17 @@ class PCAReconstructStep:
             msg = 'If you run into memory issues, the PCA component of this ' \
                   'step can be skipped by specifying skip_pca=True.'
             fancyprint(msg, msg_type='WARNING')
-            results = pcareconstructionstep(self.datafiles,
-                                            pca_components=pca_components,
-                                            remove_components=remove_components,
-                                            output_dir=self.output_dir,
-                                            save_results=save_results,
-                                            fileroot_noseg=self.fileroot_noseg,
-                                            fileroots=self.fileroots,
-                                            do_plot=do_plot,
-                                            show_plot=show_plot)
+            results = pcareconstructionstep(
+                datafiles=self.datafiles,
+                pca_components=pca_components,
+                remove_components=remove_components,
+                output_dir=self.output_dir,
+                save_results=save_results,
+                fileroot_noseg=self.fileroot_noseg,
+                fileroots=self.fileroots,
+                do_plot=do_plot,
+                show_plot=show_plot
+            )
         else:
             results = self.datafiles
 
@@ -924,17 +936,21 @@ class TracingStep:
             tracemask, order0mask, smoothed_lc = None, None, None
         # If no output files are detected, run the step.
         else:
-            step_results = tracingstep(self.datafiles, self.deepframe,
-                                       pixel_flags=pixel_flags,
-                                       generate_order0_mask=self.generate_order0_mask,
-                                       f277w=self.f277w,
-                                       generate_lc=self.generate_lc,
-                                       baseline_ints=self.baseline_ints,
-                                       smoothing_scale=smoothing_scale,
-                                       output_dir=self.output_dir,
-                                       save_results=save_results,
-                                       fileroot_noseg=self.fileroot_noseg,
-                                       do_plot=do_plot, show_plot=show_plot)
+            step_results = tracingstep(
+                datafiles=self.datafiles,
+                deepframe=self.deepframe,
+                pixel_flags=pixel_flags,
+                generate_order0_mask=self.generate_order0_mask,
+                f277w=self.f277w,
+                generate_lc=self.generate_lc,
+                baseline_ints=self.baseline_ints,
+                smoothing_scale=smoothing_scale,
+                output_dir=self.output_dir,
+                save_results=save_results,
+                fileroot_noseg=self.fileroot_noseg,
+                do_plot=do_plot,
+                show_plot=show_plot
+            )
             centroids, order0mask, smoothed_lc = step_results
 
         fancyprint('Step TracingStep done.')
