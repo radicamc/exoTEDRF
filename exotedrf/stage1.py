@@ -709,20 +709,28 @@ class OneOverFStep:
                         # Format the baseline integrations -- for fits inputs.
                         if isinstance(segment, str):
                             nints = fits.getheader(segment)['NINTS']
-                            baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                      nints)
+                            baseline_ints = utils.format_out_frames_2(
+                                out_frames=self.baseline_ints,
+                                max_nint=nints
+                            )
                             # Generate the baseline stack.
-                            deepstack = utils.make_baseline_stack_fits(self.datafiles,
-                                                                       baseline_ints)
+                            deepstack = utils.make_baseline_stack_fits(
+                                datafiles=self.datafiles,
+                                baseline_ints=baseline_ints
+                            )
                         # Format the baseline integrations -- using datamodels.
                         else:
                             with utils.open_filetype(segment) as file:
                                 nints = file.meta.exposure.nints
-                                baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                          nints)
+                                baseline_ints = utils.format_out_frames_2(
+                                    out_frames=self.baseline_ints,
+                                    max_nint=nints
+                                )
                                 # Generate the baseline stack.
-                                deepstack = utils.make_baseline_stack_dm(self.datafiles,
-                                                                         baseline_ints)
+                                deepstack = utils.make_baseline_stack_dm(
+                                    datafiles=self.datafiles,
+                                    baseline_ints=baseline_ints
+                                )
 
                         # Initialize some storage arrays for the NIRISS
                         # solving method.
@@ -752,31 +760,35 @@ class OneOverFStep:
                                        'scale-achromatic-window']:
                         # To use "reference files" to calculate 1/f noise.
                         method = self.method.split('scale-')[-1]
-                        res = oneoverfstep_scale(segment,
-                                                 deepstack=deepstack,
-                                                 inner_mask_width=soss_inner_mask_width,
-                                                 outer_mask_width=soss_outer_mask_width,
-                                                 background=self.background,
-                                                 timeseries=thistso,
-                                                 timeseries_o2=thistso_o2,
-                                                 output_dir=self.output_dir,
-                                                 save_results=save_results,
-                                                 pixel_mask=thismask,
-                                                 fileroot=self.fileroots[i],
-                                                 method=method,
-                                                 centroids=self.centroids,
-                                                 **kwargs)
+                        res = oneoverfstep_scale(
+                            datafile=segment,
+                            deepstack=deepstack,
+                            inner_mask_width=soss_inner_mask_width,
+                            outer_mask_width=soss_outer_mask_width,
+                            background=self.background,
+                            timeseries=thistso,
+                            timeseries_o2=thistso_o2,
+                            output_dir=self.output_dir,
+                            save_results=save_results,
+                            pixel_mask=thismask,
+                            fileroot=self.fileroots[i],
+                            method=method,
+                            centroids=self.centroids,
+                            **kwargs
+                        )
                     elif self.method == 'solve':
                         # To use MLE to solve for the 1/f noise.
-                        res = oneoverfstep_solve(segment,
-                                                 deepstack=deepstack,
-                                                 trace_width=soss_outer_mask_width,
-                                                 background=self.background,
-                                                 output_dir=self.output_dir,
-                                                 save_results=save_results,
-                                                 pixel_mask=thismask,
-                                                 fileroot=self.fileroots[i],
-                                                 centroids=self.centroids)
+                        res = oneoverfstep_solve(
+                            datafile=segment,
+                            deepstack=deepstack,
+                            trace_width=soss_outer_mask_width,
+                            background=self.background,
+                            output_dir=self.output_dir,
+                            save_results=save_results,
+                            pixel_mask=thismask,
+                            fileroot=self.fileroots[i],
+                            centroids=self.centroids
+                        )
                         res, calc_vals = res
                         mle_results.append(calc_vals)
                     else:
