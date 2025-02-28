@@ -13,9 +13,9 @@ import glob
 import numpy as np
 import pandas as pd
 import pastasoss
-from scipy.interpolate import interp1d
 from scipy.signal import butter, filtfilt, correlate
 import spectres
+from spectres.spectral_resampling import make_bins
 from tqdm import tqdm
 
 from applesoss import applesoss
@@ -818,9 +818,9 @@ def do_ccf(wave, flux, mod_flux, oversample=5):
 def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path,
                         orders=[1, 2]):
     """Perform the flux calibration (to erg/s/cm^2/µm) for extracted SOSS
-    sepctra. Note that the spectra must have been extracted ith a box width of
-    40 pixels, and also that the rev2 photom referebce file produced by Kevin
-    Volk during commissioning should be used instead of the default one.
+    sepctra. Note that the spectra must have been extracted with a box width
+    of 0 pixels, and also that the rev2 photom referebce file produced by
+    Kevin Volk during commissioning should be used instead of the default one.
 
     Parameters
     ----------
@@ -846,24 +846,26 @@ def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path,
     spec = fits.open(spectrum_file)
     for order in orders:
         if order == 1:
-            wave = np.mean([spec[1].data[0], spec[2].data[0]], axis=0)
+            wave = spec[1].data
             fi, ei = 3, 4
         else:
-            wave = np.mean([spec[5].data[0], spec[6].data[0]], axis=0)
+            wave = spec[5].data
             fi, ei = 7, 8
 
         # Calculate the ADU/s to Jy flux calibration.
-        flux_scaling = wave_and_flux_calibrations(pwcpos=pwcpos,
-                                                  obs_x_pixel=np.arange(2048),
-                                                  photom_path=photom_path,
-                                                  spectrace_path=spectrace_path,
-                                                  order=order)
+        flux_scaling = wave_and_flux_calibrations(
+            pwcpos=pwcpos,
+            obs_x_pixel=np.arange(2048),
+            photom_path=photom_path,
+            spectrace_path=spectrace_path,
+            order=order
+        )
         # Apply the flux calibration.
         spec[fi].data *= flux_scaling
         spec[ei].data *= flux_scaling
         # Convert to erg/s/cm2/µm.
-        spec[fi].data *= (1e-23 * (3e8 * 1e6) / wave ** 2)
-        spec[ei].data *= (1e-23 * (3e8 * 1e6) / wave ** 2)
+        spec[fi].data *= (1e-23 * (3e8 * 1e6) / wave**2)
+        spec[ei].data *= (1e-23 * (3e8 * 1e6) / wave**2)
 
     newfile = spectrum_file[:-5] + '_FluxCalibrated.fits'
     fancyprint('Flux calibrated spectra saved to {}'.format(newfile))
@@ -961,15 +963,12 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
     header_dict['Method'] = extract_params['method']
     header_dict['Width'] = extract_params['extract_width']
     # Calculate the limits of each wavelength bin.
-    nint = np.shape(flux_clip)[0]
-    wl, wu = utils.get_wavebin_limits(wave1d)
-    wl = np.repeat(wl[np.newaxis, :], nint, axis=0)
-    wu = np.repeat(wu[np.newaxis, :], nint, axis=0)
+    half_width = make_bins(wave1d)[1] / 2
 
     # Pack the stellar spectra and save to file if requested.
-    data = [wl, wu, flux_clip, ferr, times]
-    names = ['Wave Low', 'Wave Up', 'Flux', 'Flux Err', 'Time']
-    units = ['Micron', 'Micron', 'e/s', 'e/s', 'BJD']
+    data = [wave1d, half_width, flux_clip, ferr, times]
+    names = ['Wave', 'Wave Err', 'Flux', 'Flux Err', 'Time']
+    units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD']
     spectra = utils.save_extracted_spectra(filename, data, names, units,
                                            header_dict, header_comments,
                                            save_results=save_results)
@@ -1119,21 +1118,16 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
     header_dict['Method'] = extract_params['method']
     header_dict['Width'] = extract_params['extract_width']
     # Calculate the limits of each wavelength bin.
-    nint = np.shape(flux_o1_clip)[0]
-    wl1, wu1 = utils.get_wavebin_limits(wave1d_o1)
-    wl2, wu2 = utils.get_wavebin_limits(wave1d_o2)
-    wl1 = np.repeat(wl1[np.newaxis, :], nint, axis=0)
-    wu1 = np.repeat(wu1[np.newaxis, :], nint, axis=0)
-    wl2 = np.repeat(wl2[np.newaxis, :], nint, axis=0)
-    wu2 = np.repeat(wu2[np.newaxis, :], nint, axis=0)
+    half_width_o1 = make_bins(wave1d_o1)[1] / 2
+    half_width_o2 = make_bins(wave1d_o2)[1] / 2
 
     # Pack the stellar spectra and save to file if requested.
-    data = [wl1, wu1, flux_o1_clip, ferr_o1,
-            wl2, wu2, flux_o2_clip, ferr_o2, times]
-    names = ['Wave Low O1', 'Wave Up O1', 'Flux O1', 'Flux Err O1',
-             'Wave Low O2', 'Wave Up O2', 'Flux O2', 'Flux Err O2', 'Time']
+    data = [wave1d_o1, half_width_o1, flux_o1_clip, ferr_o1,
+            wave1d_o2, half_width_o2, flux_o2_clip, ferr_o2, times]
+    names = ['Wave O1', 'Wave Err O1', 'Flux O1', 'Flux Err O1',
+             'Wave O2', 'Wave Err O2', 'Flux O2', 'Flux Err O2', 'Time']
     units = ['Micron', 'Micron', 'DN/s', 'DN/s',
-             'Micron', 'Micron', 'DN/s', 'DN/s', 'BJD']
+             'Micron', 'Micron', 'DN/s', 'DN/s', 'MJD']
     spectra = utils.save_extracted_spectra(filename, data, names, units,
                                            header_dict, header_comments,
                                            save_results=save_results)
