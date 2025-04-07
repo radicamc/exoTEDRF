@@ -124,16 +124,19 @@ baseline_ints = utils.format_out_frames(config['baseline_ints'])
 # === Fit Light Curves ===
 # Start the light curve fitting.
 results_dict = {}
+model_file_names = []
 if config['observing_mode'] != 'NIRISS/SOSS':
     config['orders'] = [1]
 for order in config['orders']:
     first_time = True
     if config['do_plots'] is True:
         if config['observing_mode'] == 'NIRISS/SOSS':
-            expected_file = outdir + 'lightcurve_fit_order{0}{1}.pdf'.format(order, fit_suffix)
+            expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_' \
+                                     'order{0}.pdf'.format(order, fit_suffix)
             outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
         else:
-            expected_file = outdir + 'lightcurve_fit_{0}{1}.pdf'.format(config['detector'], fit_suffix)
+            expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_' \
+                                     '{0}.pdf'.format(config['detector'], fit_suffix)
             outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
     else:
         outpdf = None
@@ -232,7 +235,8 @@ for order in config['orders']:
                   'limb-darkening coefficients.'
             assert np.all(np.array([m_h, logg, teff]) != None), msg
             # Get ExoTiC-LD instrument mode identifier.
-            modes = {'NIRISS/SOSS': 'JWST_NIRISS_SOSSo1',
+            modes = {'NIRISS/SOSS1': 'JWST_NIRISS_SOSSo1',
+                     'NIRISS/SOSS2': 'JWST_NIRISS_SOSSo2',
                      'NIRSpec/PRISM': 'JWST_NIRSpec_Prism',
                      'NIRSpec/G395H': 'JWST_NIRSpec_G395H',
                      'NIRSpec/G395M': 'JWST_NIRSpec_G395M',
@@ -240,11 +244,14 @@ for order in config['orders']:
                      'NIRSpec/G235M': 'JWST_NIRSpec_G235M',
                      'NIRSpec/G140H': 'JWST_NIRSpec_G140H',
                      'NIRSpec/G140M': 'JWST_NIRSpec_G140M'}
-            ld = stage4.gen_ld_coefs(wave_low, wave_up, order, m_h, logg,
-                                     teff, config['ld_data_path'],
+            if config['observing_mode'] != 'NIRISS/SOSS':
+                thismode = config['observing_mode']
+            else:
+                thismode = config['observing_mode'] + '{}'.format(order)
+            ld = stage4.gen_ld_coefs(wave_low, wave_up, m_h, logg, teff,
+                                     config['ld_data_path'],
                                      stellar_model_type=config['stellar_model_type'],
-                                     spectrace_ref=config['spectrace_ref'],
-                                     mode=modes[config['observing_mode']],
+                                     mode=modes[thismode],
                                      ld_model_type=config['ld_model_type'])
             u1 = np.array(ld[0])
             if config['ld_model_type'] != 'linear':
@@ -257,7 +264,11 @@ for order in config['orders']:
             target = fits.getheader(config['infile'], 0)['TARGET']
             outdir_ld = outdir + 'speclightcurve{}/'.format(fit_suffix)
             utils.verify_path(outdir_ld)
-            utils.save_ld_priors(wave, ld, order, target, m_h, teff, logg,
+            if config['observing_mode'] != 'NIRISS/SOSS' and config['detector'] == 'NRS2':
+                thisorder = 2
+            else:
+                thisorder = order
+            utils.save_ld_priors(wave, ld, thisorder, target, m_h, teff, logg,
                                  outdir_ld, config['ld_model_type'],
                                  config['observing_mode'])
 
@@ -295,28 +306,28 @@ for order in config['orders']:
                     vals = u1[wavebin]
                 prior_dict[thisbin]['u1_inst']['distribution'] = dist
                 prior_dict[thisbin]['u1_inst']['value'] = vals
-            if config['ld_model_type'] != 'linear':
-                if config['ld_fit_type'] == 'prior':
-                    dist = 'truncated_normal'
-                    vals = [u2[wavebin], 0.2, low_lim, 1.0]
-                elif config['ld_fit_type'] == 'fixed':
-                    dist = 'fixed'
-                    vals = u2[wavebin]
-                prior_dict[thisbin]['u2_inst']['distribution'] = dist
-                prior_dict[thisbin]['u2_inst']['value'] = vals
-            if config['ld_model_type'] == 'nonlinear':
-                if config['ld_fit_type'] == 'prior':
-                    dist = 'truncated_normal'
-                    vals3 = [u3[wavebin], 0.2, low_lim, 1.0]
-                    vals4 = [u4[wavebin], 0.2, low_lim, 1.0]
-                elif config['ld_fit_type'] == 'fixed':
-                    dist = 'fixed'
-                    vals3 = u3[wavebin]
-                    vals4 = u4[wavebin]
-                prior_dict[thisbin]['u3_inst']['distribution'] = dist
-                prior_dict[thisbin]['u3_inst']['value'] = vals
-                prior_dict[thisbin]['u4_inst']['distribution'] = dist
-                prior_dict[thisbin]['u4_inst']['value'] = vals
+                if config['ld_model_type'] != 'linear':
+                    if config['ld_fit_type'] == 'prior':
+                        dist = 'truncated_normal'
+                        vals = [u2[wavebin], 0.2, low_lim, 1.0]
+                    elif config['ld_fit_type'] == 'fixed':
+                        dist = 'fixed'
+                        vals = u2[wavebin]
+                    prior_dict[thisbin]['u2_inst']['distribution'] = dist
+                    prior_dict[thisbin]['u2_inst']['value'] = vals
+                if config['ld_model_type'] == 'nonlinear':
+                    if config['ld_fit_type'] == 'prior':
+                        dist = 'truncated_normal'
+                        vals3 = [u3[wavebin], 0.2, low_lim, 1.0]
+                        vals4 = [u4[wavebin], 0.2, low_lim, 1.0]
+                    elif config['ld_fit_type'] == 'fixed':
+                        dist = 'fixed'
+                        vals3 = u3[wavebin]
+                        vals4 = u4[wavebin]
+                    prior_dict[thisbin]['u3_inst']['distribution'] = dist
+                    prior_dict[thisbin]['u3_inst']['value'] = vals3
+                    prior_dict[thisbin]['u4_inst']['distribution'] = dist
+                    prior_dict[thisbin]['u4_inst']['value'] = vals4
 
     # Get information about custom light curve model, if being used.
     if 'custom' in config['lc_model_type']:
@@ -346,7 +357,6 @@ for order in config['orders']:
         thisorder = int(config['detector'][-1])
     else:
         thisorder = order
-    print(thisorder)
     fit_results = stage4.fit_lightcurves(data_dict, prior_dict,
                                          order=thisorder,
                                          output_dir=outdir,
@@ -397,8 +407,8 @@ for order in config['orders']:
                 err_up = ((up + md)**2 - md**2)*1e6
             order_results['dppm_err'].append(np.max([err_up, err_low]))
 
-        # Make summary plots.
-        if skip is False and config['do_plots'] is True:
+        # Summarize fits and make plots if necessary.
+        if skip is False:
             # Get dictionary of best-fitting parameters from fit.
             param_dict = fit_results[wavebin].get_param_dict_from_fit()
             # Calculate best-fitting light curve model.
@@ -441,24 +451,25 @@ for order in config['orders']:
                     gp_model = result.flux_decomposed['inst']['gp']['total']
                     systematics += gp_model
 
-            make_lightcurve_plot(t=(t - t0)*24, data=norm_flux[:, i],
-                                 model=transit_model, scatter=scatter,
-                                 errors=norm_err[:, i], outpdf=outpdf,
-                                 title='bin {0} | {1:.3f}µm'.format(i, wave[i]),
-                                 systematics=systematics, nbin=int(len(t)/35),
-                                 rasterized=True, nfit=nfit)
-            # Corner plot for fit.
-            if config['include_corner'] is True:
-                posterior_names = []
-                for param in prior_dict[wavebin].keys():
-                    dist = prior_dict[wavebin][param]['distribution']
-                    if dist != 'fixed':
-                        if param in formatted_names.keys():
-                            posterior_names.append(formatted_names[param])
-                        else:
-                            posterior_names.append(param)
-                fit_results[wavebin].make_corner_plot(labels=posterior_names,
-                                                      outpdf=outpdf)
+            if config['do_plots'] is True:
+                make_lightcurve_plot(t=(t - t0)*24, data=norm_flux[:, i],
+                                     model=transit_model, scatter=scatter,
+                                     errors=norm_err[:, i], outpdf=outpdf,
+                                     title='bin {0} | {1:.3f}µm'.format(i, wave[i]),
+                                     systematics=systematics, nfit=nfit,
+                                     nbin=int(len(t)/35), rasterized=True)
+                # Corner plot for fit.
+                if config['include_corner'] is True:
+                    posterior_names = []
+                    for param in prior_dict[wavebin].keys():
+                        dist = prior_dict[wavebin][param]['distribution']
+                        if dist != 'fixed':
+                            if param in formatted_names.keys():
+                                posterior_names.append(formatted_names[param])
+                            else:
+                                posterior_names.append(param)
+                    fit_results[wavebin].make_corner_plot(labels=posterior_names,
+                                                          outpdf=outpdf)
 
             data[:, i] = norm_flux[:, i]
             models[0, :, i] = transit_model
@@ -476,8 +487,10 @@ for order in config['orders']:
         order_txt = 'order{}'.format(order)
     else:
         order_txt = config['detector']
-    np.save(outdir + 'speclightcurve{0}/'
-                     '_models_{1}.npy'.format(fit_suffix, order_txt), models)
+    filename = outdir + 'speclightcurve{0}/_models_{1}.npy'.format(fit_suffix,
+                                                                   order_txt)
+    np.save(filename, models)
+    model_file_names.append(filename)
 
     # Plot 2D lightcurves.
     if config['do_plots'] is True:
@@ -488,6 +501,7 @@ for order in config['orders']:
         plotting.make_2d_lightcurve_plot(wave, residuals, outpdf=outpdf,
                                          title='Residuals')
         outpdf.close()
+        fancyprint('Plot saved to {}'.format(expected_file))
 
 # === Transmission Spectrum ===
 # Save the transmission spectrum.
@@ -558,5 +572,4 @@ stage4.save_transmission_spectrum(waves, wave_errors, depths, errors, orders,
                                   occultation_type=config['lc_model_type'],
                                   observing_mode=config['observing_mode'])
 fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir+filename))
-
 fancyprint('Done')
