@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [2.1.1] -- 2025-04-07
+#### Added
+- Improve compatability with ExoTiC-LD for non-quadratic limb darkening.
+- Misc. bug fixes. 
+
 ### [2.1.0] -- 2025-02-03
 #### Added
 - Massive improvements to speed and memory usage.
