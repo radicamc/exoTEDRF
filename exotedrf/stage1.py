@@ -643,8 +643,8 @@ class OneOverFStep:
                 self.method = 'median'
 
     def run(self, soss_inner_mask_width=40, soss_outer_mask_width=70,
-            nirspec_mask_width=16, save_results=True, force_redo=False,
-            do_plot=False, show_plot=False, **kwargs):
+            nirspec_mask_width=16, smoothing_scale=None, save_results=True,
+            force_redo=False, do_plot=False, show_plot=False, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -657,6 +657,9 @@ class OneOverFStep:
             SOSS.
         nirspec_mask_width : int
             Full-width (in pixels) around the target trace to mask for NIRSpec.
+        smoothing_scale : int, None
+            If no timseries is provided, the scale (in number of integrations)
+            on which to smooth the self-extracted timseries.
         save_results : bool
             If True, save results.
         force_redo : bool
@@ -765,6 +768,7 @@ class OneOverFStep:
                                                  fileroot=self.fileroots[i],
                                                  method=method,
                                                  centroids=self.centroids,
+                                                 smoothing_scale=smoothing_scale,
                                                  **kwargs)
                     elif self.method == 'solve':
                         # To use MLE to solve for the 1/f noise.
@@ -1816,7 +1820,8 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
                        outer_mask_width=70, even_odd_rows=True,
                        background=None, timeseries=None, timeseries_o2=None,
                        output_dir=None, save_results=True, pixel_mask=None,
-                       fileroot=None, method='achromatic', centroids=None):
+                       fileroot=None, method='achromatic', centroids=None,
+                       smoothing_scale=None):
     """Custom 1/f correction routine to be applied at the group or
     integration level. A median stack is constructed using all out-of-transit
     integrations and subtracted from each individual integration. The
@@ -1859,6 +1864,9 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
         Options are "chromatic", "achromatic", or "achromatic-window".
     centroids : dict, None
         Dictionary containing trace positions for each order.
+    smoothing_scale : int, None
+        If no timseries is provided, the scale (in number of integrations) on
+        which to smooth the self-extracted timseries.
 
     Returns
     -------
@@ -2021,13 +2029,16 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
                 zero_point = deepstack[20:60, 1500:1550]
             timeseries = np.nansum(postage, axis=(1, 2))
             timeseries /= np.nansum(zero_point)
-            # Smooth the time series on a timescale of roughly 2%.
-            timeseries = median_filter(timeseries,
-                                       int(0.02 * np.shape(cube)[0]))
+            if smoothing_scale is None:
+                # If no timescale provided, smooth the time series on a
+                # timescale of ~2%.
+                smoothing_scale = 0.02 * np.shape(cube)[0]
+            fancyprint('Smoothing self-calibrated timeseries on a scale of '
+                       '{} integrations.'.format(int(smoothing_scale)))
+            timeseries = median_filter(timeseries, int(smoothing_scale))
         else:
-            msg = '2D light curves must be provided to use chromatic ' \
-                  'method.'
-            raise ValueError(msg)
+            raise ValueError('2D light curves must be provided to use '
+                             'chromatic method.')
 
     # If passed light curve is 1D, extend to 2D.
     if np.ndim(timeseries) == 1:

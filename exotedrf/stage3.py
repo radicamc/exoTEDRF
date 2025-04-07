@@ -973,7 +973,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
     # Pack the stellar spectra and save to file if requested.
     data = [wl, wu, flux_clip, ferr, times]
     names = ['Wave Low', 'Wave Up', 'Flux', 'Flux Err', 'Time']
-    units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD']
+    units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD_TDB']
     spectra = utils.save_extracted_spectra(filename, data, names, units,
                                            header_dict, header_comments,
                                            save_results=save_results)
@@ -1137,7 +1137,7 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
     names = ['Wave Low O1', 'Wave Up O1', 'Flux O1', 'Flux Err O1',
              'Wave Low O2', 'Wave Up O2', 'Flux O2', 'Flux Err O2', 'Time']
     units = ['Micron', 'Micron', 'DN/s', 'DN/s',
-             'Micron', 'Micron', 'DN/s', 'DN/s', 'MJD']
+             'Micron', 'Micron', 'DN/s', 'DN/s', 'MJD_TDB']
     spectra = utils.save_extracted_spectra(filename, data, names, units,
                                            header_dict, header_comments,
                                            save_results=save_results)
