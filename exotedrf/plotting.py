@@ -444,31 +444,6 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
         plt.show()
 
 
-def make_lightcurve_covariance_plot(matrix, wave_ax, outfile=None):
-    """Plot the covariance matrix for a set of light curve fit residuals.
-    """
-
-    fig, ax = plt.subplots(figsize=(7, 5))
-    im = plt.imshow(matrix, vmin=np.nanpercentile(matrix, 10), vmax=1,
-                    origin='lower', aspect='auto')
-    fig.colorbar(im, label='Correlation')
-
-    xs = np.linspace(0, matrix.shape[0] - 1, 10).astype(int)
-    xls = []
-    for x in xs:
-        xls.append('{:.2f}'.format(wave_ax[x]))
-    plt.xticks(xs, xls)
-    plt.yticks(xs, xls)
-    plt.xlabel('Wavelength [µm]', fontsize=12)
-    plt.ylabel('Wavelength [µm]', fontsize=12)
-
-    if outfile is not None:
-        plt.savefig(outfile, bbox_inches='tight')
-        fancyprint('Plot saved to {}'.format(outfile))
-    else:
-        plt.show()
-
-
 def make_linearity_plot(results, old_results, outfile=None, show_plot=True):
     """Plot group differences before and after linearity correction.
     """
@@ -1073,37 +1048,6 @@ def basic_nine_panel_plot(results, outfile=None, show_plot=True, **kwargs):
                     **kwargs)
     if outfile is not None:
         fancyprint('Plot saved to {}'.format(outfile))
-
-
-def plot_average_covariance(matrices, labels=None, xspan=None):
-    """Collapse a covariance matrix along the diagonal to show the average
-    covariance.
-    """
-
-    colours = ['black', 'red', 'blue', 'green']
-    colours2 = ['grey', 'salmon', 'royalblue', 'limegreen']
-    if labels is None:
-        labels = [None for m in matrices]
-
-    for j, matrix in enumerate(matrices):
-        nbins = matrix.shape[1]
-        stack = np.ones((nbins, 2 * nbins)) * np.nan
-
-        for i in range(nbins):
-            ax = (np.arange(nbins) - i + nbins).astype(int)
-            stack[i, ax] = matrix[:, i]
-            plt.plot(np.arange(nbins) - i, matrix[:, i], c=colours2[j], lw=0.1,
-                     alpha=0.5)
-        plt.plot(np.arange(2 * nbins) - nbins, np.nanmean(stack, axis=0),
-                 c=colours[j], label=labels[j], zorder=1000)
-    plt.axhline(0, ls='--', c='grey')
-    plt.xlabel('Bin Shift', fontsize=11)
-    plt.ylabel('Correlation', fontsize=11)
-    if labels[j] is not None:
-        plt.legend()
-    if xspan is not None:
-        plt.xlim(xspan[0], xspan[1])
-    plt.show()
 
 
 def plot_quicklook_lightcurve(datafiles):

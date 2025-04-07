@@ -572,25 +572,4 @@ stage4.save_transmission_spectrum(waves, wave_errors, depths, errors, orders,
                                   occultation_type=config['lc_model_type'],
                                   observing_mode=config['observing_mode'])
 fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir+filename))
-
-# === Covariance Matrix ===
-# Get the covariance matrix for the residuals.
-fancyprint('Calculating covariance matrix.')
-cov_matrix = stage4.calculate_residual_covariance(model_file_names)
-# Save covariance matrix.
-if config['observing_mode'].upper() == 'NIRISS/SOSS':
-    order_txt = ''
-else:
-    order_txt = '_{}'.format(config['detector'])
-filename = outdir + 'speclightcurve{0}/_covariance_matrix{1}' \
-                    '.npy'.format(fit_suffix, order_txt)
-np.save(filename, cov_matrix)
-
-# Do the covariance matrix plot if requested.
-if config['do_plots'] is True:
-    plotfile = outdir + 'speclightcurve{1}/covariance_matrix{0}.pdf'.format(order_txt,
-                                                                            fit_suffix)
-    plotting.make_lightcurve_covariance_plot(cov_matrix, waves,
-                                             outfile=plotfile)
-
 fancyprint('Done')
