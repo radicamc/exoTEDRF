@@ -1030,6 +1030,65 @@ def open_filetype(datafile):
     return data
 
 
+def mask_reset_artifact(datafile):
+    """ Routine to mask the detector reset artifact.
+
+    Parameters
+    ----------
+    datafile : str, jwst.datamodel
+        Path to datafile, or opened jwst.datamodel.
+
+    Returns
+    -------
+    artifact : np.ndarray
+        Integer array with 1s denoting locations of the reset artifact.
+    """
+
+    # Load in the datafile.
+    instrument = get_instrument_name(datafile)
+    # Set maximum integration where reset artifact impacts the data frames for masking purposes.
+    if instrument == 'NIRISS':
+        max_reset_int = 256
+    else:
+        det = get_detector_name(datafile)
+        # Max integration is different for NRS1 vs NRS2.
+        if det == 'NRS1':
+            max_reset_int = 62
+        else:
+            max_reset_int = 58
+    if isinstance(datafile, str):
+        datafile = fits.open(datafile)
+        cube = datafile[1].data
+        # Get start and end integrations for reset artifact masking.
+        int_start = datafile[0].header['INTSTART']
+        int_end = np.min([datafile[0].header['INTEND'], max_reset_int])
+    else:
+        datafile = open_filetype(datafile)
+        cube = datafile.data
+        # Get start and end integrations for reset artifact masking.
+        int_start = datafile.meta.exposure.integration_start
+        int_end = np.min([datafile.meta.exposure.integration_end, max_reset_int])
+
+    nints, ngroups, dimy, dimx = np.shape(cube)
+
+    # Mask the detector reset artifact which is picked up by this flagging.
+    # Artifact only affects first 256 integrations for SOSS and first 60 for NIRSpec
+    artifact = np.zeros((nints, dimy, dimx)).astype(int)
+    if int_start < max_reset_int:
+        for j, jj in enumerate(range(int_start, int_end)):
+            # j counts ints from start of this segment, jj is integrations from start of exposure
+            # (1-indexed). Mask rows from jj to jj+3 for detector reset artifact.
+            if instrument == 'NIRISS':
+                min_row = np.max([max_reset_int - (jj + 3), 0])
+                max_row = np.min([((max_reset_int + 2) - jj), dimy])
+            else:
+                min_row = np.max([max_reset_int - (jj + 2), 0])
+                max_row = np.min([(max_reset_int - jj), dimy])
+            artifact[j, min_row:max_row, :] = 1
+
+    return artifact
+
+
 def outlier_resistant_variance(data):
     """Calculate the varaince of some data along the 0th axis in an outlier resistant manner.
     """

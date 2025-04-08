@@ -1173,18 +1173,9 @@ class RampFitStep:
                     # one row at a time each integration. IDK why exactly, its a "detector reset
                     # artifact" according to Loïc. It needs to be masked.
                     if self.instrument == 'NIRISS':
-                        # Mask detector reset artifact.
-                        int_start = res.meta.exposure.integration_start
-                        int_end = np.min([res.meta.exposure.integration_end, 256])
-                        # Artifact only affects first 256 integrations.
-                        if int_start < 255:
-                            for j, jj in enumerate(range(int_start, int_end)):
-                                # j counts ints from start of this segment, jj is integrations from
-                                # start of exposure (1-indexed).
-                                # Mask rows from jj to jj+3 for detector reset artifact.
-                                min_row = np.max([256-(jj+3), 0])
-                                max_row = np.min([(258 - jj), 256])
-                                flags[j, min_row:max_row, :] = 1
+                        artifact = utils.mask_reset_artifact(res.data)
+                        flags = (flags.astype(bool) | artifact.astype(bool)).astype(int)
+
                     # Save flags to file.
                     hdu = fits.PrimaryHDU()
                     hdu1 = fits.ImageHDU(flags)
@@ -1388,32 +1379,15 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
             output_dir += '/'
 
     # Load in the datafile.
-    instrument = utils.get_instrument_name(datafile)
-    # Set maximum integration where reset artifact impacts the data frames for masking purposes.
-    if instrument == 'NIRISS':
-        max_reset_int = 255
-    else:
-        det = utils.get_detector_name(datafile)
-        # Max integration is different for NRS1 vs NRS2.
-        if det == 'NRS1':
-            max_reset_int = 62
-        else:
-            max_reset_int = 58
     if isinstance(datafile, str):
         datafile = fits.open(datafile)
         cube = datafile[1].data
         dqcube = datafile[3].data
-        # Get start and end integrations for reset artifact masking.
-        int_start = datafile[0].header['INTSTART']
-        int_end = np.min([datafile[0].header['INTEND'], max_reset_int])
         filename = datafile[0].header['FILENAME']
     else:
         datafile = utils.open_filetype(datafile)
         cube = datafile.data
         dqcube = datafile.groupdq
-        # Get start and end integrations for reset artifact masking.
-        int_start = datafile.meta.exposure.integration_start
-        int_end = np.min([datafile.meta.exposure.integration_end, max_reset_int])
         filename = datafile.meta.filename
     fancyprint('Processing file {}.'.format(filename))
 
@@ -1421,18 +1395,7 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
 
     # Mask the detector reset artifact which is picked up by this flagging.
     # Artifact only affects first 256 integrations for SOSS and first 60 for NIRSpec
-    artifact = np.zeros((nints, dimy, dimx)).astype(int)
-    if int_start < max_reset_int:
-        for j, jj in enumerate(range(int_start, int_end)):
-            # j counts ints from start of this segment, jj is integrations from start of exposure
-            # (1-indexed). Mask rows from jj to jj+3 for detector reset artifact.
-            if instrument == 'NIRISS':
-                min_row = np.max([256 - (jj + 3), 0])
-                max_row = np.min([(258 - jj), dimy])
-            else:
-                min_row = np.max([max_reset_int - (jj + 2), 0])
-                max_row = np.min([(max_reset_int - jj), dimy])
-            artifact[j, min_row:max_row, :] = 1
+    artifact = utils.mask_reset_artifact(datafile)
 
     # Jump detection algorithm based on Nikolov+ (2014). For each integration, create a difference
     # image using the median of surrounding integrations. Flag all pixels with deviations more
@@ -2195,20 +2158,10 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
     # If no outlier masks were provided and correction is at group level, mask detector reset
     # artifact. Only necessary for first 256 integrations.
     if pixel_mask is None and np.ndim(cube) == 4:
-        if isinstance(datafile, str):
-            istart = fits.getheader(datafile)['INTSTART'] - 1
-            iend = fits.getheader(datafile)['INTEND']
-        else:
-            with utils.open_filetype(datafile) as file:
-                istart = file.meta.exposure.integration_start - 1
-                iend = file.meta.exposure.integration_end
-        if istart < 256:
-            for j in range(istart, np.min([iend, 256])):
-                # Mask rows from j to j+3 for detector reset artifact.
-                max_row = np.min([(258 - j), iend])
-                min_row = np.max([258 - (j + 4), istart])
-                err1[j, :, min_row:max_row, :] = np.inf
-                err2[j, :, min_row:max_row, :] = np.inf
+        artifact = utils.mask_reset_artifact(datafile)
+        ii = np.where(artifact == 1)
+        err1[ii] = np.inf
+        err2[ii] = np.inf
 
     # Calculate 1/f noise using a wavelength-dependent scaling.
     calc_vals = {}
