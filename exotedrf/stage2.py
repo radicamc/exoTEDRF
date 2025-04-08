@@ -104,7 +104,8 @@ class AssignWCSStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -174,7 +175,8 @@ class Extract2DStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -244,7 +246,8 @@ class SourceTypeStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -314,7 +317,8 @@ class WaveCorrStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -355,14 +359,14 @@ class BackgroundStep:
         # Unpack background model.
         if isinstance(background_model, str):
             fancyprint('Reading background model file: {}...'
-                       ''.format(background_model))
+                       .format(background_model))
             self.background_model = np.load(background_model)
-        elif isinstance(background_model, np.ndarray) or background_model is None:
+        elif (isinstance(background_model, np.ndarray) or
+              background_model is None):
             self.background_model = background_model
         else:
-            msg = 'Invalid type for background model: {}' \
-                  ''.format(type(background_model))
-            raise ValueError(msg)
+            raise ValueError('Invalid type for background model: {}'
+                             .format(type(background_model)))
 
     def run(self, save_results=True, force_redo=False, do_plot=False,
             show_plot=False, **kwargs):
@@ -402,7 +406,8 @@ class BackgroundStep:
         for i, segment in enumerate(self.datafiles):
             # If an output file for this segment already exists, skip the step.
             expected_file = self.output_dir + self.fileroots[i] + self.tag
-            expected_bkg = self.output_dir + self.fileroot_noseg + 'background.npy'
+            expected_bkg = (self.output_dir + self.fileroot_noseg +
+                            'background.npy')
             if expected_file in all_files and force_redo is False:
                 fancyprint('File {} already exists.'.format(expected_file))
                 fancyprint('Skipping Background Subtraction Step.')
@@ -419,40 +424,52 @@ class BackgroundStep:
                     # Format the baseline integrations -- for fits inputs.
                     if isinstance(segment, str):
                         nints = fits.getheader(segment)['NINTS']
-                        baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                  nints)
+                        baseline_ints = utils.format_out_frames_2(
+                            out_frames=self.baseline_ints,
+                            max_nint=nints
+                        )
                         # Generate the baseline stack.
-                        deepstack = utils.make_baseline_stack_fits(self.datafiles,
-                                                                   baseline_ints)
+                        deepstack = utils.make_baseline_stack_fits(
+                            datafiles=self.datafiles,
+                            baseline_ints=baseline_ints
+                        )
                     # Format the baseline integrations -- using datamodels.
                     else:
                         with utils.open_filetype(segment) as file:
                             nints = file.meta.exposure.nints
-                            baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                      nints)
+                            baseline_ints = utils.format_out_frames_2(
+                                out_frames=self.baseline_ints,
+                                max_nint=nints
+                            )
                             # Generate the baseline stack.
-                            deepstack = utils.make_baseline_stack_dm(self.datafiles,
-                                                                     baseline_ints)
+                            deepstack = utils.make_baseline_stack_dm(
+                                datafiles=self.datafiles,
+                                baseline_ints=baseline_ints
+                            )
                     first_time = False
 
                 with warnings.catch_warnings():
                     warnings.filterwarnings('ignore')
-                    step_results = backgroundstep(segment,
-                                                  self.background_model,
-                                                  deepstack=deepstack,
-                                                  output_dir=self.output_dir,
-                                                  save_results=save_results,
-                                                  fileroot=self.fileroots[i],
-                                                  fileroot_noseg=self.fileroot_noseg,
-                                                  **kwargs)
+                    step_results = backgroundstep(
+                        datafile=segment,
+                        background_model=self.background_model,
+                        deepstack=deepstack,
+                        output_dir=self.output_dir,
+                        save_results=save_results,
+                        fileroot=self.fileroots[i],
+                        fileroot_noseg=self.fileroot_noseg,
+                        **kwargs
+                    )
                     res, bkg_model = step_results
             results.append(res)
 
         # Do step plot if requested.
         if do_plot is True:
             if save_results is True:
-                plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
-                plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
+                plot_file1 = (self.output_dir +
+                              self.tag.replace('.fits', '_1.png'))
+                plot_file2 = (self.output_dir +
+                              self.tag.replace('.fits', '_2.png'))
             else:
                 plot_file1 = None
                 plot_file2 = None
@@ -531,7 +548,8 @@ class FlatFieldStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
+                                                          self.tag)
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -628,20 +646,28 @@ class BadPixStep:
                     # Format the baseline integrations -- for fits inputs.
                     if isinstance(segment, str):
                         nints = fits.getheader(segment)['NINTS']
-                        baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                  nints)
+                        baseline_ints = utils.format_out_frames_2(
+                            out_frames=self.baseline_ints,
+                            max_nint=nints
+                        )
                         # Generate the baseline stack.
-                        deepstack = utils.make_baseline_stack_fits(self.datafiles,
-                                                                   baseline_ints)
+                        deepstack = utils.make_baseline_stack_fits(
+                            datafiles=self.datafiles,
+                            baseline_ints=baseline_ints
+                        )
                     # Format the baseline integrations -- using datamodels.
                     else:
                         with utils.open_filetype(segment) as file:
                             nints = file.meta.exposure.nints
-                            baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                      nints)
+                            baseline_ints = utils.format_out_frames_2(
+                                out_frames=self.baseline_ints,
+                                max_nint=nints
+                            )
                             # Generate the baseline stack.
-                            deepstack = utils.make_baseline_stack_dm(self.datafiles,
-                                                                     baseline_ints)
+                            deepstack = utils.make_baseline_stack_dm(
+                                datafiles=self.datafiles,
+                                baseline_ints=baseline_ints
+                            )
 
                     to_flag = None  # No pixels yet identified to flag.
                     first_time = False
@@ -744,7 +770,8 @@ class PCAReconstructStep:
         # missing, then rerun.
         for i in range(len(self.datafiles)):
             expected_file = self.output_dir + self.fileroots[i] + self.tag
-            expected_deep = self.output_dir + self.fileroot_noseg + 'deepframe.fits'
+            expected_deep = (self.output_dir + self.fileroot_noseg +
+                             'deepframe.fits')
             # If an output is missing, then we need to re run.
             if expected_file not in all_files:
                 do_step = 0
@@ -764,21 +791,22 @@ class PCAReconstructStep:
 
         # Run the step.
         if skip_pca is False:
-            msg = 'The PCA can be memory intensive, especially for large ' \
-                  'datasets.'
-            fancyprint(msg, msg_type='WARNING')
-            msg = 'If you run into memory issues, the PCA component of this ' \
-                  'step can be skipped by specifying skip_pca=True.'
-            fancyprint(msg, msg_type='WARNING')
-            results = pcareconstructionstep(self.datafiles,
-                                            pca_components=pca_components,
-                                            remove_components=remove_components,
-                                            output_dir=self.output_dir,
-                                            save_results=save_results,
-                                            fileroot_noseg=self.fileroot_noseg,
-                                            fileroots=self.fileroots,
-                                            do_plot=do_plot,
-                                            show_plot=show_plot)
+            fancyprint('The PCA can be memory intensive, especially for large '
+                       'datasets.', msg_type='WARNING')
+            fancyprint('If you run into memory issues, the PCA component of '
+                       'this step can be skipped by specifying '
+                       'skip_pca=True.', msg_type='WARNING')
+            results = pcareconstructionstep(
+                datafiles=self.datafiles,
+                pca_components=pca_components,
+                remove_components=remove_components,
+                output_dir=self.output_dir,
+                save_results=save_results,
+                fileroot_noseg=self.fileroot_noseg,
+                fileroots=self.fileroots,
+                do_plot=do_plot,
+                show_plot=show_plot
+            )
         else:
             results = self.datafiles
 
@@ -924,17 +952,21 @@ class TracingStep:
             tracemask, order0mask, smoothed_lc = None, None, None
         # If no output files are detected, run the step.
         else:
-            step_results = tracingstep(self.datafiles, self.deepframe,
-                                       pixel_flags=pixel_flags,
-                                       generate_order0_mask=self.generate_order0_mask,
-                                       f277w=self.f277w,
-                                       generate_lc=self.generate_lc,
-                                       baseline_ints=self.baseline_ints,
-                                       smoothing_scale=smoothing_scale,
-                                       output_dir=self.output_dir,
-                                       save_results=save_results,
-                                       fileroot_noseg=self.fileroot_noseg,
-                                       do_plot=do_plot, show_plot=show_plot)
+            step_results = tracingstep(
+                datafiles=self.datafiles,
+                deepframe=self.deepframe,
+                pixel_flags=pixel_flags,
+                generate_order0_mask=self.generate_order0_mask,
+                f277w=self.f277w,
+                generate_lc=self.generate_lc,
+                baseline_ints=self.baseline_ints,
+                smoothing_scale=smoothing_scale,
+                output_dir=self.output_dir,
+                save_results=save_results,
+                fileroot_noseg=self.fileroot_noseg,
+                do_plot=do_plot,
+                show_plot=show_plot
+            )
             centroids, order0mask, smoothed_lc = step_results
 
         fancyprint('Step TracingStep done.')
@@ -1047,7 +1079,8 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
                 xl, xu, yl, yu = background_coords1
             scale_factor1 = -1000
             while scale_factor1 < 0:
-                bkg_ratio = (deepstack[i, xl:xu, yl:yu] + shifts[i]) / background_model[xl:xu, yl:yu]
+                bkg_ratio = ((deepstack[i, xl:xu, yl:yu] + shifts[i]) /
+                             background_model[xl:xu, yl:yu])
                 # Instead of a straight median, use the median of the 2nd
                 # quartile to limit the effect of any remaining illuminated
                 # pixels.
@@ -1056,7 +1089,8 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
                 ii = np.where((bkg_ratio > q1) & (bkg_ratio < q2))
                 scale_factor1 = np.nanmedian(bkg_ratio[ii])
                 if scale_factor1 < 0:
-                    shifts[i] -= scale_factor1 * np.median(background_model[xl:xu, yl:yu])
+                    shifts[i] -= (scale_factor1 *
+                                  np.median(background_model[xl:xu, yl:yu]))
         else:
             scale_factor1 = scale1[i]
 
@@ -1076,7 +1110,8 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
                 # Convert to int if not already.
                 background_coords2 = np.array(background_coords2).astype(int)
                 xl, xu, yl, yu = background_coords2
-            bkg_ratio = (deepstack[i, xl:xu, yl:yu] + shifts[i]) / background_model[xl:xu, yl:yu]
+            bkg_ratio = ((deepstack[i, xl:xu, yl:yu] + shifts[i]) /
+                         background_model[xl:xu, yl:yu])
             # Instead of a straight median, use the median of the 2nd quartile
             # to limit the effect of any remaining illuminated pixels.
             q1 = np.nanpercentile(bkg_ratio, 25)
@@ -1093,14 +1128,17 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
         # Apply scaling to background model.
         if differential is True:
             fancyprint('Using differential background scale factors: {0:.5f}, '
-                       '{1:.5f}, and shift: {2:.5f}'.format(scale_factor1, scale_factor2, shifts[i]))
+                       '{1:.5f}, and shift: {2:.5f}'
+                       .format(scale_factor1, scale_factor2, shifts[i]))
             # Locate background step.
             grad_bkg = np.gradient(background_model, axis=1)
             step_pos = np.argmax(grad_bkg[:, 10:-10], axis=1) + 10 - 4
             # Apply differential scaling to either side of step.
             for j in range(256):
-                model_scaled[i, j, :step_pos[j]] = background_model[j, :step_pos[j]] * scale_factor1 - shifts[i]
-                model_scaled[i, j, step_pos[j]:] = background_model[j, step_pos[j]:] * scale_factor2 - shifts[i]
+                model_scaled[i, j, :step_pos[j]] = (background_model[j, :step_pos[j]] *
+                                                    scale_factor1 - shifts[i])
+                model_scaled[i, j, step_pos[j]:] = (background_model[j, step_pos[j]:] *
+                                                    scale_factor2 - shifts[i])
         else:
             fancyprint('Using background scale factor: {0:.5f}, and shift: '
                        '{1:.5f}'.format(scale_factor1, shifts[i]))
@@ -1257,7 +1295,8 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
                         otherpix[j, i] = 1
 
         # Combine all flagged pixel maps.
-        badpix = hotpix.astype(bool) | nanpix.astype(bool) | otherpix.astype(bool)
+        badpix = (hotpix.astype(bool) | nanpix.astype(bool) |
+                  otherpix.astype(bool))
         badpix = badpix.astype(int)
         fancyprint('{0} hot, {1} nan, and {2} deviant pixels '
                    'identified.'.format(int(np.sum(hotpix)),
@@ -1291,7 +1330,8 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
         cube_filt[:5] = np.median(cube_filt[5:15], axis=0)
         cube_filt[-5:] = np.median(cube_filt[-16:-6], axis=0)
     # Check along the time axis for outlier pixels.
-    std_dev = bn.nanmedian(np.abs(0.5*(newdata[0:-2] + newdata[2:]) - newdata[1:-1]), axis=0)
+    std_dev = bn.nanmedian(np.abs(0.5*(newdata[0:-2] + newdata[2:]) -
+                                  newdata[1:-1]), axis=0)
     std_dev = np.where(std_dev == 0, np.nanmedian(std_dev), std_dev)
     scale = np.abs(newdata - cube_filt) / std_dev
     ii = np.where((scale > time_thresh))
@@ -1482,7 +1522,8 @@ def pcareconstructionstep(datafiles, pca_components=10,
                 thisfile[1].data = newcube[current_int:(current_int + nints)]
                 # Save reconstructed data.
                 result = output_dir + fileroots[n] + 'pcareconstructstep.fits'
-                thisfile[0].header['FILENAME'] = fileroots[n] + 'pcareconstructstep.fits'
+                thisfile[0].header['FILENAME'] = (fileroots[n] +
+                                                  'pcareconstructstep.fits')
                 thisfile.writeto(result, overwrite=True)
                 fancyprint('File saved to: {}.'.format(result))
             # If not saving results, need to work in datamodels to not break
@@ -1654,7 +1695,9 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None,
                 # Combine with existing flags and overwrite old file.
                 for flag_file in pixel_flags:
                     with fits.open(flag_file) as old_flags:
-                        old_flags[1].data = (old_flags[1].data.astype(bool) | order0mask.astype(bool)).astype(int)
+                        old_flags[1].data = (old_flags[1].data.astype(bool) |
+                                             order0mask.astype(bool))
+                        old_flags[1].data = old_flags[1].data.astype(int)
                         old_flags.writeto(flag_file, overwrite=True)
                 # Overwrite old flags file.
                 parts = pixel_flags[0].split('seg')
@@ -1934,7 +1977,8 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
         output_tag = '_' + output_tag
     # Create output directories and define output paths.
     utils.verify_path(root_dir + 'pipeline_outputs_directory' + output_tag)
-    utils.verify_path(root_dir + 'pipeline_outputs_directory' + output_tag + '/Stage2')
+    utils.verify_path(root_dir + 'pipeline_outputs_directory' + output_tag +
+                      '/Stage2')
     outdir = root_dir + 'pipeline_outputs_directory' + output_tag + '/Stage2/'
 
     if skip_steps is None:

@@ -16,25 +16,26 @@ import os
 import pandas as pd
 os.environ["RAY_DEDUP_LOGS"] = "0"
 import ray
+from spectres.spectral_resampling import make_bins
 from tqdm import tqdm
 
 from exotedrf.utils import fancyprint
 
 
-def bin_at_bins(flux, err, inwave_low, inwave_up, outwave_low, outwave_up):
+def bin_at_bins(inwave_low, inwave_up, flux, err, outwave_low, outwave_up):
     """Similar to both other binning functions, except this one will bin the
     flux data to preset bin edges.
 
     Parameters
     ----------
-    flux : array-like(float)
-        2D Flux to bin.
-    err : array-like(float)
-        2D Flux error to bin.
     inwave_low : array-like(float)
         Lower edge of flux wavelength bins.
     inwave_up : array-like(float)
         Upper edge of flux wavelength bins.
+    flux : array-like(float)
+        2D Flux to bin.
+    err : array-like(float)
+        2D Flux error to bin.
     outwave_low : array-like(float)
         Lower edge of bins to which to bin flux.
     outwave_up : array-like(float)
@@ -76,18 +77,18 @@ def bin_at_bins(flux, err, inwave_low, inwave_up, outwave_low, outwave_up):
     return binlow, binup, binspec, binerr
 
 
-def bin_at_pixel(flux, error, wave, npix):
+def bin_at_pixel(wave, flux, error, npix):
     """Similar to bin_at_resolution, but will bin in widths of a set number of
     pixels instead of at a fixed resolution.
 
     Parameters
     ----------
+    wave : array-like[float]
+        Input wavelength axis.
     flux : array-like[float]
         Flux values.
     error : array-like[float]
         Flux error values.
-    wave : array-like[float]
-        Wavelength values.
     npix : int
         Number of pixels per bin.
 
@@ -95,10 +96,8 @@ def bin_at_pixel(flux, error, wave, npix):
     -------
     wave_bin : np.ndarray[float]
         Central bin wavelength.
-    wave_low : np.ndarray[float]
-        Lower edge of wavelength bin.
-    wave_up : np.ndarray[float]
-        Upper edge of wavelength bin.
+    wave_err : np.ndarray[float]
+        Wavelength bin half widths.
     dout : np.ndarray[float]
         Binned depth.
     derrout : np.ndarray[float]
@@ -123,36 +122,21 @@ def bin_at_pixel(flux, error, wave, npix):
     err_bin = np.sqrt(np.nansum(np.reshape(error, (nint, nbin, npix))**2,
                                 axis=2))
     # Calculate mean wavelength per bin.
-    wave_bin = np.nanmean(np.reshape(wave, (nint, nbin, npix)), axis=2)
-    # Get bin wavelength limits.
-    up = np.concatenate([wave_bin[0][:, None],
-                         np.roll(wave_bin[0][:, None], 1)], axis=1)
-    lw = np.concatenate([wave_bin[0][:, None],
-                         np.roll(wave_bin[0][:, None], -1)], axis=1)
-    wave_up = (np.mean(up, axis=1) - wave_bin[0])[:-1]
-    wave_up = np.insert(wave_up, -1, wave_up[-1])
-    wave_up = np.repeat(wave_up, nint).reshape(nbin, nint).transpose(1, 0)
-    wave_up = wave_bin + wave_up
-    wave_low = (wave_bin[0] - np.mean(lw, axis=1))[1:]
-    wave_low = np.insert(wave_low, 0, wave_low[0])
-    wave_low = np.repeat(wave_low, nint).reshape(nbin, nint).transpose(1, 0)
-    wave_low = wave_bin - wave_low
+    wave_bin = np.nanmean(np.reshape(wave, (nbin, npix)), axis=1)
+    wave_err = make_bins(wave_bin)[1] / 2
 
-    return wave_bin, wave_low, wave_up, flux_bin, err_bin
+    return wave_bin, wave_err, flux_bin, err_bin
 
 
-def bin_at_resolution(inwave_low, inwave_up, flux, flux_err, res,
-                      method='sum'):
+def bin_at_resolution(wave, flux, flux_err, res, method='sum'):
     """Function that bins input wavelengths and transit depths (or any other
     observable, like flux) to a given resolution "res". Can handle 1D or 2D
     flux arrays.
 
     Parameters
     ----------
-    inwave_low : array-like[float]
-        Lower edge of wavelength bin. Must be 1D.
-    inwave_up : array-like[float]
-        Upper edge of wavelength bin. Must be 1D.
+    wave : array-like[float]
+        Input wavelength axis. Must be 1D.
     flux : array-like[float]
         Flux values at each wavelength. Can be 1D or 2D. If 2D, the first axis
         must be the one corresponding to wavelength.
@@ -176,16 +160,13 @@ def bin_at_resolution(inwave_low, inwave_up, flux, flux_err, res,
         Error on binned flux.
     """
 
-    def nextstep(w, r):
-        return w * (2 * r + 1) / (2 * r - 1)
-
     # Sort quantities in order of increasing wavelength.
-    waves = np.nanmean([inwave_low, inwave_up], axis=0)
-    if np.ndim(waves) > 1:
+    if np.ndim(wave) > 1:
         raise ValueError('Input wavelength array must be 1D.')
-    ii = np.argsort(waves)
-    waves, flux, flux_err = waves[ii], flux[ii], flux_err[ii]
-    inwave_low, inwave_up = inwave_low[ii], inwave_up[ii]
+    ii = np.argsort(wave)
+    waves, flux, flux_err = wave[ii], flux[ii], flux_err[ii]
+    werr = make_bins(waves)[1] / 2
+    inwave_low, inwave_up = waves - werr, waves + werr
     # Calculate the input resolution and check that we are not trying to bin
     # to a higher R.
     average_input_res = np.mean(waves[1:] / np.diff(waves))
@@ -196,17 +177,15 @@ def bin_at_resolution(inwave_low, inwave_up, flux, flux_err, res,
         fancyprint('Binning from an average resolution of '
                    'R={:.0f} to R={}'.format(average_input_res, res))
 
-    # Make the binned wavelength grid.
-    outwave_low = []
-    w_i, w_ip1 = waves[0], waves[0]
-    while w_ip1 < waves[-1]:
-        outwave_low.append(w_ip1)
-        w_ip1 = nextstep(w_i, res)
-        w_i = w_ip1
-    outwave_low = np.array(outwave_low)
-    outwave_up = np.append(outwave_low[1:], waves[-1])
-    binned_waves = np.mean([outwave_low, outwave_up], axis=0)
-    binned_werr = (outwave_up - outwave_low) / 2
+    # Create binned wavelength axis at resolution res.
+    dlog_wl = 1.0/res
+    nbins = (np.log(waves[-1]) - np.log(waves[0])) / dlog_wl
+    nbins = np.around(nbins).astype(np.int64)
+    log_wave_bin = np.linspace(np.log(waves[0]), np.log(waves[-1]), nbins)
+    binned_waves = np.exp(log_wave_bin)
+    binned_werr = make_bins(binned_waves)[1] / 2
+    outwave_low = binned_waves - binned_werr
+    outwave_up = binned_waves + binned_werr
 
     # Loop over all wavelengths in the input and bin flux and error into the
     # new wavelength grid.
@@ -265,15 +244,15 @@ def bin_at_resolution(inwave_low, inwave_up, flux, flux_err, res,
                     weight = np.array(weight)
                     if method == 'sum':
                         if np.ndim(current_flux) != 1:
-                            thisflux = np.nansum(current_flux * weight[:, None],
-                                                 axis=0)
+                            thisflux = np.nansum(current_flux *
+                                                 weight[:, None], axis=0)
                         else:
                             thisflux = np.nansum(current_flux * weight, axis=0)
                         thisferr = np.sqrt(np.nansum(current_ferr**2, axis=0))
                     elif method == 'average':
                         if np.ndim(current_flux) != 1:
-                            thisflux = np.nansum(current_flux * weight[:, None],
-                                                 axis=0)
+                            thisflux = np.nansum(current_flux *
+                                                 weight[:, None], axis=0)
                             thisflux /= np.nansum(weight)
                         else:
                             thisflux = np.nansum(current_flux * weight, axis=0)
@@ -546,13 +525,11 @@ def read_ld_coefs(filename, wavebin_low, wavebin_up):
     # Check that coeffs in file span the wavelength range of the observations
     # with at least the same resolution.
     if np.min(waves) < np.min(wavebin_low) or np.max(waves) > np.max(wavebin_up):
-        msg = 'LD coefficient file does not span the full wavelength range ' \
-              'of the observations.'
-        raise ValueError(msg)
+        raise ValueError('LD coefficient file does not span the full '
+                         'wavelength range of the observations.')
     if len(waves) < len(wavebin_low):
-        msg = 'LD coefficient file has a coarser wavelength grid than ' \
-              'the observations.'
-        raise ValueError(msg)
+        raise ValueError('LD coefficient file has a coarser wavelength grid '
+                         'than the observations.')
 
     # Loop over all fitting bins. Calculate mean of model LD coefs within that
     # range.
@@ -685,10 +662,6 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
         Type of occultation; either 'transit' or 'eclipse'.
     """
 
-    # Hack to fix weird end bin errors.
-    ii = np.where(wave_err < 0)
-    wave_err[ii] = np.median(wave_err)
-
     # Pack the quantities into a dictionary.
     dd = {'wave': wave,
           'wave_err': wave_err,
@@ -710,7 +683,8 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir,
     f.write('# 1D Extraction: {}\n'.format(extraction_type))
     f.write('# Spectral Resolution: {}\n'.format(resolution))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
-    f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0).isoformat()))
+    f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0)
+                                  .isoformat()))
     f.write(fit_meta)
     f.write('# Column wave: Central wavelength of bin (micron)\n')
     f.write('# Column wave_err: Wavelength bin halfwidth (micron)\n')

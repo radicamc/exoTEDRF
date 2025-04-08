@@ -186,7 +186,8 @@ def format_out_frames(out_frames):
     elif len(out_frames) == 2:
         out_frames = np.abs(out_frames)
         baseline_ints = np.concatenate([np.arange(out_frames[0]),
-                                        np.arange(out_frames[1]) - out_frames[1]])
+                                        np.arange(out_frames[1]) -
+                                        out_frames[1]])
     else:
         raise ValueError('out_frames must have length 1 or 2.')
 
@@ -240,7 +241,8 @@ def get_default_header():
     # Header with important keywords.
     header_dict = {'Target': None,
                    'Inst': 'NIRISS/SOSS',
-                   'Date': datetime.utcnow().replace(microsecond=0).isoformat(),
+                   'Date': (datetime.utcnow().replace(microsecond=0)
+                            .isoformat()),
                    'Pipeline': 'exoTEDRF',
                    'Author': 'MCR',
                    'Contents': None,
@@ -1060,7 +1062,8 @@ def outlier_resistant_variance(data):
     resistant manner.
     """
 
-    var = (bn.nanmedian(np.abs(data - bn.nanmedian(data, axis=0)), axis=0) / 0.6745)**2
+    var = (bn.nanmedian(np.abs(data - bn.nanmedian(data, axis=0)), axis=0) /
+           0.6745)**2
     return var
 
 
@@ -1187,9 +1190,11 @@ def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir,
     df = pd.DataFrame(data=dd)
     # Remove old LD file if one exists.
     if observing_mode == 'NIRISS/SOSS':
-        filename = target+'_order' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type)
+        filename = (target+'_order' + str(order) + '_exotic-ld_{}.csv'
+                    .format(ld_model_type))
     else:
-        filename = target + '_NRS' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type)
+        filename = (target + '_NRS' + str(order) + '_exotic-ld_{}.csv'
+                    .format(ld_model_type))
     if os.path.exists(outdir + filename):
         os.remove(outdir + filename)
     # Add header info.
@@ -1198,7 +1203,8 @@ def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir,
     f.write('# Instrument: {}\n'.format(observing_mode))
     f.write('# SOSS Order/NRS Detector: {}\n'.format(order))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
-    f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0).isoformat()))
+    f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0)
+                                  .isoformat()))
     f.write('# Stellar M/H: {}\n'.format(m_h))
     f.write('# Stellar log g: {}\n'.format(logg))
     f.write('# Stellar Teff: {}\n'.format(teff))
@@ -1246,14 +1252,16 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
     flux_filt[-ii:] = np.median(flux_filt[-(ii+1+window):-(ii+1)], axis=0)
 
     # Check along the time axis for outlier pixels.
-    std_dev = np.median(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)
+    std_dev = np.median(np.abs(0.5 * (flux[0:-2] + flux[2:]) -
+                               flux[1:-1]), axis=0)
     std_dev = np.where(std_dev == 0, np.inf, std_dev)
     scale = np.abs(flux - flux_filt) / std_dev
     ii = np.where((scale > thresh))
     # Replace outliers.
     flux_clipped[ii] = flux_filt[ii]
 
-    fancyprint('{0} pixels clipped ({1:.3f}%)'.format(len(ii[0]), len(ii[0])/nints/nwaves*100))
+    fancyprint('{0} pixels clipped ({1:.3f}%)'
+               .format(len(ii[0]), len(ii[0])/nints/nwaves*100))
 
     return flux_clipped
 
@@ -1367,12 +1375,14 @@ def unpack_input_dir(indir, mode, filter_detector, filetag=''):
             continue
         # Keep files of the correct exposure with the correct tag.
         try:
-            if header['INSTRUME'] == instrument.upper() and instrument == 'NIRISS':
+            if (header['INSTRUME'] == instrument.upper() and
+                    instrument == 'NIRISS'):
                 if header['EXP_TYPE'].split('_')[1] == exposure_type:
                     if header['FILTER'] == filter_detector:
                         if filetag in file:
                             segments.append(file)
-            elif header['INSTRUME'] == instrument.upper() and instrument == 'NIRSpec':
+            elif (header['INSTRUME'] == instrument.upper() and
+                  instrument == 'NIRSpec'):
                 if header['EXP_TYPE'] == 'NRS_BRIGHTOBJ':
                     if header['GRATING'] == exposure_type:
                         if header['DETECTOR'] == filter_detector:

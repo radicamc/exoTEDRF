@@ -888,17 +888,13 @@ def make_photon_noise_plot(spectrum_files, ngroup, baseline_ints, order=1,
         with fits.open(spectrum_file) as spectrum:
             if order == 1:
                 spec = spectrum[3].data
-            else:
-                spec = spectrum[7].data
-            spec *= tframe * gain * ngroup
-            if order == 1:
-                wave = np.mean([spectrum[1].data[0], spectrum[2].data[0]],
-                               axis=0)
+                wave = spectrum[1].data
                 ii = np.arange(len(wave)).astype(int)
             else:
-                wave = np.mean([spectrum[5].data[0], spectrum[6].data[0]],
-                               axis=0)
+                spec = spectrum[7].data
+                wave = spectrum[5].data
                 ii = np.where((wave >= 0.6) & (wave < 0.85))[0]
+            spec *= tframe * gain * ngroup
 
         scatter = []
         for i in ii:
