@@ -145,8 +145,8 @@ def download_stellar_spectra(st_teff, st_logg, st_met, outdir, silent=False):
 
 
 def fancyprint(message, msg_type='INFO'):
-    """Fancy printing statement mimicking logging. Basically a hack to get
-    around complications with the STScI pipeline logging.
+    """Fancy printing statement mimicking logging. Basically a hack to get around complications
+    with the STScI pipeline logging.
 
     Parameters
     ----------
@@ -186,8 +186,7 @@ def format_out_frames(out_frames):
     elif len(out_frames) == 2:
         out_frames = np.abs(out_frames)
         baseline_ints = np.concatenate([np.arange(out_frames[0]),
-                                        np.arange(out_frames[1]) -
-                                        out_frames[1]])
+                                        np.arange(out_frames[1]) - out_frames[1]])
     else:
         raise ValueError('out_frames must have length 1 or 2.')
 
@@ -241,8 +240,7 @@ def get_default_header():
     # Header with important keywords.
     header_dict = {'Target': None,
                    'Inst': 'NIRISS/SOSS',
-                   'Date': (datetime.utcnow().replace(microsecond=0)
-                            .isoformat()),
+                   'Date': (datetime.utcnow().replace(microsecond=0).isoformat()),
                    'Pipeline': 'exoTEDRF',
                    'Author': 'MCR',
                    'Contents': None,
@@ -286,9 +284,8 @@ def get_detector_name(datafile):
 
 
 def get_dq_flag_metrics(dq_map, flags):
-    """Take a data quality map and extract a map of pixels which are flagged
-    for a specific reason. A list of data quality flags can be found here:
-    https://jwst-reffiles.stsci.edu/source/data_quality.html.
+    """Take a data quality map and extract a map of pixels which are flagged for a specific reason.
+    A list of data quality flags can be found here: https://jwst-reffiles.stsci.edu/source/data_quality.html.
 
     Parameters
     ----------
@@ -308,17 +305,13 @@ def get_dq_flag_metrics(dq_map, flags):
     dimy, dimx, nint = np.shape(dq_map)
 
     # From here: https://jwst-reffiles.stsci.edu/source/data_quality.html
-    flags_dict = {'DO_NOT_USE': 0, 'SATURATED': 1, 'JUMP_DET': 2,
-                  'DROPOUT': 3, 'OUTLIER': 4, 'PERSISTENCE': 5,
-                  'AD_FLOOR': 6, 'RESERVED': 7, 'UNRELIABLE_ERROR': 8,
-                  'NON_SCIENCE': 9, 'DEAD': 10, 'HOT': 11, 'WARM': 12,
-                  'LOW_QE': 13, 'RC': 14, 'TELEGRAPH': 15, 'NONLINEAR': 16,
-                  'BAD_REF_PIXEL': 17, 'NO_FLAT_FIELD': 18,
-                  'NO_GAIN_VALUE': 19,
-                  'NO_LIN_CORR': 20, 'NO_SAT_CHECK': 21, 'UNRELIABLE_BIAS': 22,
-                  'UNRELIABLE_DARK': 23, 'UNRELIABLE_SLOPE': 24,
-                  'UNRELIABLE_FLAT': 25, 'OPEN': 26, 'ADJ_OPEN': 27,
-                  'UNRELIABLE_RESET': 28, 'MSA_FAILED_OPEN': 29,
+    flags_dict = {'DO_NOT_USE': 0, 'SATURATED': 1, 'JUMP_DET': 2, 'DROPOUT': 3, 'OUTLIER': 4,
+                  'PERSISTENCE': 5, 'AD_FLOOR': 6, 'RESERVED': 7, 'UNRELIABLE_ERROR': 8,
+                  'NON_SCIENCE': 9, 'DEAD': 10, 'HOT': 11, 'WARM': 12, 'LOW_QE': 13, 'RC': 14,
+                  'TELEGRAPH': 15, 'NONLINEAR': 16, 'BAD_REF_PIXEL': 17, 'NO_FLAT_FIELD': 18,
+                  'NO_GAIN_VALUE': 19, 'NO_LIN_CORR': 20, 'NO_SAT_CHECK': 21, 'UNRELIABLE_BIAS': 22,
+                  'UNRELIABLE_DARK': 23, 'UNRELIABLE_SLOPE': 24, 'UNRELIABLE_FLAT': 25, 'OPEN': 26,
+                  'ADJ_OPEN': 27, 'UNRELIABLE_RESET': 28, 'MSA_FAILED_OPEN': 29,
                   'OTHER_BAD_PIXEL': 30, 'REFERENCE_PIXEL': 31}
 
     flagged = np.zeros_like(dq_map).astype(bool)
@@ -357,9 +350,8 @@ def get_exouprf_built_in_models(model):
 
 
 def get_filename_root(datafiles):
-    """Get the file name roots for each segment. Assumes that file names
-    follow the default jwst pipeline structure and are in correct segment
-    order.
+    """Get the file name roots for each segment. Assumes that file names follow the default jwst
+    pipeline structure and are in correct segment order.
 
     Parameters
     ----------
@@ -491,8 +483,7 @@ def get_interp_box(data, xbox_size, ybox_size, i, j):
     up_y = np.min([j + ybox_size + 1, dimy - 1])
 
     # Calculate median and std deviation of box - excluding central pixel.
-    box = np.concatenate([data[j, low_x:i], data[j, (i + 1):up_x],
-                          data[low_y, low_x:up_x],
+    box = np.concatenate([data[j, low_x:i], data[j, (i + 1):up_x], data[low_y, low_x:up_x],
                           data[up_y, low_x:up_x]])
     median = np.nanmedian(box)
     stddev = np.sqrt(outlier_resistant_variance(box))
@@ -527,8 +518,8 @@ def get_nirspec_grating(datafile):
 
 
 def get_stellar_param_grid(st_teff, st_logg, st_met):
-    """Given a set of stellar parameters, determine the neighbouring grid
-    points based on the PHOENIX grid steps.
+    """Given a set of stellar parameters, determine the neighbouring grid points based on the
+    PHOENIX grid steps.
 
     Parameters
     ----------
@@ -606,8 +597,7 @@ def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
         xend = dimx
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        cens = apl.get_centroids_edgetrigger(deepframe[:, xstart:xend],
-                                             mode='mean', poly_order=2,
+        cens = apl.get_centroids_edgetrigger(deepframe[:, xstart:xend], mode='mean', poly_order=2,
                                              halfwidth=3)
 
     x1, y1 = cens[0]+xstart, cens[1]
@@ -636,10 +626,8 @@ def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
     return cens
 
 
-def get_centroids_soss(deepframe, tracetable, subarray, save_results=True,
-                       save_filename=''):
-    """Get the SOSS trace centroids for all three orders via the edgetrigger
-    method.
+def get_centroids_soss(deepframe, tracetable, subarray, save_results=True, save_filename=''):
+    """Get the SOSS trace centroids for all three orders via the edgetrigger method.
 
     Parameters
     ----------
@@ -667,8 +655,7 @@ def get_centroids_soss(deepframe, tracetable, subarray, save_results=True,
     dimy, dimx = np.shape(deepframe)
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
-        cens = apl.get_soss_centroids(deepframe, tracetable,
-                                      subarray=subarray)
+        cens = apl.get_soss_centroids(deepframe, tracetable, subarray=subarray)
 
     x1, y1 = cens['order 1']['X centroid'], cens['order 1']['Y centroid']
     ii = np.where((x1 >= 0) & (y1 <= dimx - 1))
@@ -696,8 +683,7 @@ def get_centroids_soss(deepframe, tracetable, subarray, save_results=True,
         yyy3 = np.ones_like(xx1) * np.nan
         yyy3[:len(yy3)] = yy3
 
-        centroids_dict = {'xpos': xx1, 'ypos o1': yy1, 'ypos o2': yyy2,
-                          'ypos o3': yyy3}
+        centroids_dict = {'xpos': xx1, 'ypos o1': yy1, 'ypos o2': yyy2, 'ypos o3': yyy3}
         df = pd.DataFrame(data=centroids_dict)
         if save_filename[-1] != '_':
             save_filename += '_'
@@ -719,8 +705,7 @@ def get_centroids_soss(deepframe, tracetable, subarray, save_results=True,
 
 
 def get_wavebin_limits(wave):
-    """Determine the upper and lower limits of wavelength bins centered on a
-    given wavelength axis.
+    """Determine the upper and lower limits of wavelength bins centered on a given wavelength axis.
 
     Parameters
     ----------
@@ -735,14 +720,13 @@ def get_wavebin_limits(wave):
         Upper edge of wavelength bin.
     """
 
-    # Shift wavelength array by one element forward and backwards, and create
-    # 2D stack where each wavelength is sandwiched between its upper or lower
-    # neighbour respectively.
+    # Shift wavelength array by one element forward and backwards, and create 2D stack where each
+    # wavelength is sandwiched between its upper or lower neighbour respectively.
     up = np.concatenate([wave[:, None], np.roll(wave, 1)[:, None]], axis=1)
     low = np.concatenate([wave[:, None], np.roll(wave, -1)[:, None]], axis=1)
 
-    # Take the mean in the vertical direction to get the midpoint between the
-    # two wavelengths. Use this as the bin limits.
+    # Take the mean in the vertical direction to get the midpoint between the two wavelengths. Use
+    # this as the bin limits.
     bin_low = (np.mean(low, axis=1))[:-1]
     bin_low = np.append(bin_low, 2*bin_low[-1] - bin_low[-2])
     bin_up = (np.mean(up, axis=1))[1:]
@@ -752,8 +736,8 @@ def get_wavebin_limits(wave):
 
 
 def interpolate_stellar_model_grid(model_files, st_teff, st_logg, st_met):
-    """Given a grid of stellar spectrum files, interpolate the model spectra
-    to a set of stellar parameters.
+    """Given a grid of stellar spectrum files, interpolate the model spectra to a set of stellar
+    parameters.
 
     Parameters
     ----------
@@ -799,8 +783,8 @@ def interpolate_stellar_model_grid(model_files, st_teff, st_logg, st_met):
 
 
 def line_mle(x, y, e):
-    """Analytical solution for Chi^2 of fitting a straight line to data.
-    All inputs are assumed to be 2D (dimy, dimx).
+    """Analytical solution for Chi^2 of fitting a straight line to data. All inputs are assumed to
+    be 2D (dimy, dimx).
 
     Parameters
     ----------
@@ -824,8 +808,7 @@ def line_mle(x, y, e):
     """
 
     assert np.shape(x) == np.shape(y) == np.shape(e)
-    # Following "Numerical recipes in C. The art of scientific computing"
-    # Press, William H. (1989)
+    # Following "Numerical recipes in C. The art of scientific computing" Press, William H. (1989)
     # pdf: https://www.grad.hr/nastava/gs/prg/NumericalRecipesinC.pdf S15.2
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', category=RuntimeWarning)
@@ -852,8 +835,8 @@ def line_mle(x, y, e):
 
 
 def make_baseline_stack_dm(datafiles, baseline_ints):
-    """For a given set of input files, make a deep stack of only the
-    integrations part of the timeseries baseline -- for datamodel inputs.
+    """For a given set of input files, make a deep stack of only the integrations part of the
+    timeseries baseline -- for datamodel inputs.
 
     Parameters
     ----------
@@ -869,18 +852,15 @@ def make_baseline_stack_dm(datafiles, baseline_ints):
     """
 
     firsttime = True
-    # Go through all passed files and figure out which integrations
-    # correspond to the baseline.
+    # Go through all passed files and figure out which integrations correspond to the baseline.
     for file in datafiles:
         with open_filetype(file) as currentfile:
             # Start and end integrations of current segment.
             start = currentfile.meta.exposure.integration_start
             end = currentfile.meta.exposure.integration_end
-            # Figure out which integrations (if any) are part of the
-            # baseline.
+            # Figure out which integrations (if any) are part of the baseline.
             ints = np.linspace(start - 1, end - 1, end - start + 1)
-            ii = np.where(
-                (ints < baseline_ints[0]) | (ints >= baseline_ints[-1]))[0]
+            ii = np.where((ints < baseline_ints[0]) | (ints >= baseline_ints[-1]))[0]
             # Add only these integrations to the cube.
             if firsttime:
                 cube = currentfile.data[ii]
@@ -895,8 +875,8 @@ def make_baseline_stack_dm(datafiles, baseline_ints):
 
 
 def make_baseline_stack_fits(datafiles, baseline_ints):
-    """For a given set of input files, make a deep stack of only the
-    integrations part of the timeseries baseline -- for fits file inputs.
+    """For a given set of input files, make a deep stack of only the integrations part of the
+    timeseries baseline -- for fits file inputs.
 
     Parameters
     ----------
@@ -912,18 +892,15 @@ def make_baseline_stack_fits(datafiles, baseline_ints):
     """
 
     firsttime = True
-    # Go through all passed files and figure out which integrations
-    # correspond to the baseline.
+    # Go through all passed files and figure out which integrations correspond to the baseline.
     for file in datafiles:
         with fits.open(file) as thisfile:
             # Start and end integrations of current segment.
             start = thisfile[0].header['INTSTART']
             end = thisfile[0].header['INTEND']
-            # Figure out which integrations (if any) are part of the
-            # baseline.
+            # Figure out which integrations (if any) are part of the baseline.
             ints = np.linspace(start - 1, end - 1, end - start + 1)
-            ii = np.where(
-                (ints < baseline_ints[0]) | (ints >= baseline_ints[-1]))[0]
+            ii = np.where((ints < baseline_ints[0]) | (ints >= baseline_ints[-1]))[0]
             # Add only these integrations to the cube.
             if firsttime:
                 cube = thisfile[1].data[ii]
@@ -938,8 +915,7 @@ def make_baseline_stack_fits(datafiles, baseline_ints):
 
 
 def make_custom_superbias(datafiles):
-    """Cunstruct a custom superbias frame by stacking all of the 0th group
-    frames in a TSO.
+    """Cunstruct a custom superbias frame by stacking all of the 0th group frames in a TSO.
 
     Parameters
     ----------
@@ -985,8 +961,8 @@ def make_deepstack(cube):
 
 
 def make_soss_tracemask(xpix, ypix, mask_width, dimy, dimx, invert=False):
-    """Construct a mask of a SOSS trace where 1-valued pixels denote the trace
-    and 0-valued pixels not the trace.
+    """Construct a mask of a SOSS trace where 1-valued pixels denote the trace and 0-valued pixels
+    not the trace.
 
     Parameters
     ----------
@@ -1010,10 +986,8 @@ def make_soss_tracemask(xpix, ypix, mask_width, dimy, dimx, invert=False):
     """
 
     # Define the upper and lower boundaries of the mask.
-    low = np.max([np.zeros_like(ypix),
-                  ypix - mask_width/2], axis=0).astype(int)
-    up = np.min([dimy * np.ones_like(ypix),
-                 ypix + mask_width/2], axis=0).astype(int)
+    low = np.max([np.zeros_like(ypix), ypix - mask_width/2], axis=0).astype(int)
+    up = np.min([dimy * np.ones_like(ypix), ypix + mask_width/2], axis=0).astype(int)
 
     # Add trace positions to mask.
     mask = np.zeros((dimy, dimx))
@@ -1048,8 +1022,7 @@ def open_filetype(datafile):
     if isinstance(datafile, str):
         data = datamodels.open(datafile)
     elif isinstance(datafile, (datamodels.CubeModel, datamodels.RampModel,
-                               datamodels.MultiSpecModel,
-                               datamodels.SlitModel)):
+                               datamodels.MultiSpecModel, datamodels.SlitModel)):
         data = datafile
     else:
         raise ValueError('Invalid filetype: {}'.format(type(datafile)))
@@ -1058,12 +1031,10 @@ def open_filetype(datafile):
 
 
 def outlier_resistant_variance(data):
-    """Calculate the varaince of some data along the 0th axis in an outlier
-    resistant manner.
+    """Calculate the varaince of some data along the 0th axis in an outlier resistant manner.
     """
 
-    var = (bn.nanmedian(np.abs(data - bn.nanmedian(data, axis=0)), axis=0) /
-           0.6745)**2
+    var = (bn.nanmedian(np.abs(data - bn.nanmedian(data, axis=0)), axis=0) / 0.6745)**2
     return var
 
 
@@ -1091,8 +1062,8 @@ def parse_config(config_file):
     return config
 
 
-def save_extracted_spectra(filename, data, names, units, header_dict=None,
-                           header_comments=None, save_results=True):
+def save_extracted_spectra(filename, data, names, units, header_dict=None, header_comments=None,
+                           save_results=True):
     """Pack stellar spectra into a fits file.
 
     Parameters
@@ -1146,10 +1117,8 @@ def save_extracted_spectra(filename, data, names, units, header_dict=None,
     return param_dict
 
 
-def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir,
-                   ld_model_type, observing_mode):
-    """Write model limb darkening parameters to a file to be used as priors
-    for light curve fitting.
+def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir, ld_model_type, observing_mode):
+    """Write model limb darkening parameters to a file to be used as priors for light curve fitting.
 
     Parameters
     ----------
@@ -1190,11 +1159,9 @@ def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir,
     df = pd.DataFrame(data=dd)
     # Remove old LD file if one exists.
     if observing_mode == 'NIRISS/SOSS':
-        filename = (target+'_order' + str(order) + '_exotic-ld_{}.csv'
-                    .format(ld_model_type))
+        filename = (target+'_order' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type))
     else:
-        filename = (target + '_NRS' + str(order) + '_exotic-ld_{}.csv'
-                    .format(ld_model_type))
+        filename = (target + '_NRS' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type))
     if os.path.exists(outdir + filename):
         os.remove(outdir + filename)
     # Add header info.
@@ -1203,8 +1170,7 @@ def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir,
     f.write('# Instrument: {}\n'.format(observing_mode))
     f.write('# SOSS Order/NRS Detector: {}\n'.format(order))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
-    f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0)
-                                  .isoformat()))
+    f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0).isoformat()))
     f.write('# Stellar M/H: {}\n'.format(m_h))
     f.write('# Stellar log g: {}\n'.format(logg))
     f.write('# Stellar Teff: {}\n'.format(teff))
@@ -1260,15 +1226,13 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
     # Replace outliers.
     flux_clipped[ii] = flux_filt[ii]
 
-    fancyprint('{0} pixels clipped ({1:.3f}%)'
-               .format(len(ii[0]), len(ii[0])/nints/nwaves*100))
+    fancyprint('{0} pixels clipped ({1:.3f}%)'.format(len(ii[0]), len(ii[0])/nints/nwaves*100))
 
     return flux_clipped
 
 
 def sort_datamodels(datafiles):
-    """Sort a list of jwst datamodels or filenames in chronological order by
-    segment.
+    """Sort a list of jwst datamodels or filenames in chronological order by segment.
 
     Parameters
     ----------
@@ -1297,8 +1261,7 @@ def sort_datamodels(datafiles):
     return files_sorted
 
 
-def unpack_atoca_spectra(datafile,
-                         quantities=('WAVELENGTH', 'FLUX', 'FLUX_ERROR')):
+def unpack_atoca_spectra(datafile, quantities=('WAVELENGTH', 'FLUX', 'FLUX_ERROR')):
     """Unpack useful quantities from extract1d outputs.
 
     Parameters
@@ -1317,8 +1280,7 @@ def unpack_atoca_spectra(datafile,
     multi_spec = open_filetype(datafile)
 
     # Initialize output dictionary.
-    all_spec = {sp_ord: {quantity: [] for quantity in quantities}
-                for sp_ord in [1, 2, 3]}
+    all_spec = {sp_ord: {quantity: [] for quantity in quantities} for sp_ord in [1, 2, 3]}
     # Unpack desired quantities into dictionary.
     for spec in multi_spec.spec:
         sp_ord = spec.spectral_order
@@ -1334,27 +1296,25 @@ def unpack_atoca_spectra(datafile,
 
 
 def unpack_input_dir(indir, mode, filter_detector, filetag=''):
-    """Get all segment files of a specified exposure type from an input data
-     directory.
+    """Get all segment files of a specified exposure type from an input data directory.
 
     Parameters
     ----------
     indir : str
         Path to input directory.
     mode : str
-        Instrument mode. Currently tested are "NIRISS/SOSS" and
-        "NIRSpec/G395H". Though other NIRSpec gratings are also supported.
+        Instrument mode. Currently tested are "NIRISS/SOSS" and "NIRSpec/G395H". Though other
+        NIRSpec gratings are also supported.
     filter_detector : str
-        Filter or detector used. For SOSS, either "CLEAR" or "F277W". For
-        NIRSpec, either "NRS1" or "NRS2".
+        Filter or detector used. For SOSS, either "CLEAR" or "F277W". For NIRSpec, either "NRS1"
+        or "NRS2".
     filetag : str
         File name extension of files to unpack.
 
     Returns
     -------
     segments: ndarray[str]
-        File names of the requested exposure and file tag in chronological
-        order.
+        File names of the requested exposure and file tag in chronological order.
     """
 
     if indir[-1] != '/':

@@ -31,8 +31,8 @@ from exotedrf.utils import fancyprint
 
 
 class DQInitStep:
-    """Wrapper around default calwebb_detector1 Data Quality Initialization
-    step with additional hot pixel flagging.
+    """Wrapper around default calwebb_detector1 Data Quality Initialization step with additional
+    hot pixel flagging.
     """
 
     def __init__(self, input_data, output_dir, hot_pixel_map=None):
@@ -59,14 +59,12 @@ class DQInitStep:
         # Unpack deepframe.
         if isinstance(hot_pixel_map, str):
             # Want deepframe extension before bad pixel interpolation.
-            fancyprint('Reading hot pixel map file: {}...'
-                       .format(hot_pixel_map))
+            fancyprint('Reading hot pixel map file: {}...'.format(hot_pixel_map))
             self.hotpix = np.load(hot_pixel_map).astype(bool)
         elif isinstance(hot_pixel_map, np.ndarray) or hot_pixel_map is None:
             self.hotpix = hot_pixel_map
         else:
-            raise ValueError('Invalid type for hot_pixel_map: '
-                             '{}'.format(type(hot_pixel_map)))
+            raise ValueError('Invalid type for hot_pixel_map: {}'.format(type(hot_pixel_map)))
 
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
@@ -88,8 +86,7 @@ class DQInitStep:
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory '
-                       'intensive.', msg_type='WARNING')
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
         all_files = glob.glob(self.output_dir + '*')
@@ -103,8 +100,8 @@ class DQInitStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_detector1.dq_init_step.DQInitStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results, **kwargs)
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
                 # Flag additional hot pixels not in the default map.
                 if self.hotpix is not None:
                     res = flag_hot_pixels(res, hot_pix=self.hotpix)[0]
@@ -117,8 +114,7 @@ class DQInitStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
-                                                          self.tag)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -170,8 +166,7 @@ class SaturationStep:
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory '
-                       'intensive.', msg_type='WARNING')
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
         all_files = glob.glob(self.output_dir + '*')
@@ -185,8 +180,8 @@ class SaturationStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_detector1.saturation_step.SaturationStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results, **kwargs)
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -194,8 +189,7 @@ class SaturationStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
-                                                          self.tag)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -204,8 +198,8 @@ class SaturationStep:
 
 
 class SuperBiasStep:
-    """Wrapper around default calwebb_detector1 Super Bias Subtraction step
-    with some custom modifications.
+    """Wrapper around default calwebb_detector1 Super Bias Subtraction step with some custom
+    modifications.
     """
 
     def __init__(self, input_data, output_dir, centroids=None, method='crds'):
@@ -218,11 +212,11 @@ class SuperBiasStep:
         output_dir : str
             Path to directory to which to save outputs.
         centroids : str, dict, None
-            Path to file containing trace positions for each order or the
-            centroids dictionary itself.
+            Path to file containing trace positions for each order or the centroids dictionary
+            itself.
         method : str
-            Method via which to calculate the superbias level. Options are
-            'crds', 'custom', or 'custom-rescale'. NIRSpec only.
+            Method via which to calculate the superbias level. Options are 'crds', 'custom', or
+            'custom-rescale'. NIRSpec only.
         """
 
         # Set up easy attributes.
@@ -247,13 +241,11 @@ class SuperBiasStep:
 
         # Make sure instrument is compatible with the superbias method.
         if self.instrument == 'NIRISS' and method != 'crds':
-            fancyprint('Custom bias subtractions are not available for {} '
-                       'observations. Changing method to '
-                       'crds'.format(self.instrument), msg_type='WARNING')
+            fancyprint('Custom bias subtractions are not available for {} observations. Changing '
+                       'method to crds'.format(self.instrument), msg_type='WARNING')
             self.method = 'crds'
 
-    def run(self, save_results=True, force_redo=False, do_plot=False,
-            show_plot=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -267,8 +259,7 @@ class SuperBiasStep:
         show_plot : bool
             If True, show the step diagnostic plot.
         kwargs : dict
-            Keyword arguments for
-            calwebb_detector1.superbias_step.SuperBiasStep.
+            Keyword arguments for calwebb_detector1.superbias_step.SuperBiasStep.
 
         Returns
         -------
@@ -278,8 +269,7 @@ class SuperBiasStep:
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory '
-                       'intensive.', msg_type='WARNING')
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         # If not using the crds reference file, make the custom superbias now.
         if self.method != 'crds':
@@ -306,31 +296,28 @@ class SuperBiasStep:
                 # To subtract the default crds superbias reference file.
                 if self.method == 'crds':
                     step = calwebb_detector1.superbias_step.SuperBiasStep()
-                    res = step.call(segment, output_dir=self.output_dir,
-                                    save_results=save_results, **kwargs)
+                    res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                    **kwargs)
                 # To calculate the superbias level directly from the data.
                 else:
                     if self.method == 'custom':
                         method = 'constant'
                     else:
                         method = 'rescale'
-                    res = subtract_custom_superbias(segment, superbias,
-                                                    method=method,
+                    res = subtract_custom_superbias(segment, superbias, method=method,
                                                     centroids=self.centroids,
                                                     output_dir=self.output_dir,
                                                     save_results=save_results,
-                                                    fileroot=self.fileroots[i],
-                                                    **kwargs)
+                                                    fileroot=self.fileroots[i], **kwargs)
                     res, scale_factor = res
-                    # For rescaling method, want to plot the timeseries of
-                    # scale factors. So keep track of this.
+                    # For rescaling method, want to plot the timeseries of scale factors. So keep
+                    # track of this.
                     if method == 'rescale':
                         if first_time is True:
                             scale_factors = scale_factor
                             first_time = False
                         else:
-                            scale_factors = np.concatenate([scale_factors,
-                                                            scale_factor])
+                            scale_factors = np.concatenate([scale_factors, scale_factor])
 
                 # Verify that filename is correct.
                 if save_results is True:
@@ -342,7 +329,7 @@ class SuperBiasStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = (self.fileroots[i] + self.tag)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -350,31 +337,24 @@ class SuperBiasStep:
         # Do step plot if requested.
         if do_plot is True:
             if save_results is True:
-                plot_file1 = (self.output_dir +
-                              self.tag.replace('.fits', '_ 1.png'))
-                plot_file2 = (self.output_dir +
-                              self.tag.replace('.fits', '_2.png'))
+                plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
+                plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
                 if self.instrument == 'NIRSPEC':
                     det = utils.get_detector_name(self.datafiles[0])
-                    plot_file1 = plot_file1.replace('.png',
-                                                    '_{}.png'.format(det))
-                    plot_file2 = plot_file2.replace('.png',
-                                                    '_{}.png'.format(det))
+                    plot_file1 = plot_file1.replace('.png', '_{}.png'.format(det))
+                    plot_file2 = plot_file2.replace('.png', '_{}.png'.format(det))
             else:
                 plot_file1, plot_file2 = None, None
-            plotting.make_superbias_plot(results, outfile=plot_file1,
-                                         show_plot=show_plot)
+            plotting.make_superbias_plot(results, outfile=plot_file1, show_plot=show_plot)
             if self.method == 'custom-rescale':
-                plotting.make_superbias_scale_plot(scale_factors,
-                                                   outfile=plot_file2,
+                plotting.make_superbias_scale_plot(scale_factors, outfile=plot_file2,
                                                    show_plot=show_plot)
 
         return results
 
 
 class RefPixStep:
-    """Wrapper around default calwebb_detector1 Reference Pixel Correction
-    step.
+    """Wrapper around default calwebb_detector1 Reference Pixel Correction step.
     """
 
     def __init__(self, input_data, output_dir):
@@ -416,8 +396,7 @@ class RefPixStep:
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory '
-                       'intensive.', msg_type='WARNING')
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
         all_files = glob.glob(self.output_dir + '*')
@@ -431,8 +410,8 @@ class RefPixStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_detector1.refpix_step.RefPixStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results, **kwargs)
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -440,8 +419,7 @@ class RefPixStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
-                                                          self.tag)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -482,8 +460,7 @@ class DarkCurrentStep:
         force_redo : bool
             If True, run step even if output files are detected.
         kwargs : dict
-            Keyword arguments for
-            calwebb_detector1.dark_current_step.DarkCurrentStep.
+            Keyword arguments for calwebb_detector1.dark_current_step.DarkCurrentStep.
 
         Returns
         -------
@@ -493,8 +470,7 @@ class DarkCurrentStep:
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory '
-                       'intensive.', msg_type='WARNING')
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
         all_files = glob.glob(self.output_dir + '*')
@@ -508,8 +484,8 @@ class DarkCurrentStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_detector1.dark_current_step.DarkCurrentStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results, **kwargs)
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -517,8 +493,7 @@ class DarkCurrentStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
-                                                          self.tag)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -530,9 +505,8 @@ class OneOverFStep:
     """Wrapper around custom 1/f Correction Step.
     """
 
-    def __init__(self, input_data, output_dir, baseline_ints=None,
-                 pixel_masks=None, centroids=None, soss_background=None,
-                 method='scale-achromatic', soss_timeseries=None,
+    def __init__(self, input_data, output_dir, baseline_ints=None, pixel_masks=None, centroids=None,
+                 soss_background=None, method='scale-achromatic', soss_timeseries=None,
                  soss_timeseries_o2=None):
         """Step initializer.
 
@@ -545,23 +519,20 @@ class OneOverFStep:
         output_dir : str
             Path to directory to which to save outputs.
         method : str
-            Correction method. SOSS options are "scale-chromatic",
-            "scale-achromatic", "scale-achromatic-window", or "solve".
-            NIRSpec options are "median" or "slope".
+            Correction method. SOSS options are "scale-chromatic", "scale-achromatic",
+            "scale-achromatic-window", or "solve". NIRSpec options are "median" or "slope".
         soss_timeseries : np.ndarray(float), str, None
-            Path to a file containing light curve(s) for order 1, or the
-            light curve(s) themselves.
+            Path to a file containing light curve(s) for order 1, or the light curve(s) themselves.
         soss_timeseries_o2 : np.ndarray(float), str, None
-            Path to a file containing light curves for order 2, or the
-            light curves themselves.
+            Path to a file containing light curves for order 2, or the light curves themselves.
         pixel_masks : array-like(str), np.ndarray(float), None
-            List of paths to maps of pixels to mask for each data segment or
-            the masks themselves. Should be 3D (nints, dimy, dimx).
+            List of paths to maps of pixels to mask for each data segment or the masks themselves.
+            Should be 3D (nints, dimy, dimx).
         soss_background : np.ndarray(float), str, None
             Model of background flux.
         centroids : str, dict, None
-            Path to file containing trace positions for each order or the
-            centroids dictionary itself.
+            Path to file containing trace positions for each order or the centroids dictionary
+            itself.
         """
 
         # Set up easy attributes.
@@ -582,27 +553,22 @@ class OneOverFStep:
 
         # Unpack timeseries.
         if isinstance(soss_timeseries, str):
-            fancyprint('Reading timeseries file: {}...'
-                       .format(soss_timeseries))
+            fancyprint('Reading timeseries file: {}...'.format(soss_timeseries))
             self.timeseries = np.load(soss_timeseries)
-        elif (isinstance(soss_timeseries, np.ndarray) or
-              soss_timeseries is None):
+        elif isinstance(soss_timeseries, np.ndarray) or soss_timeseries is None:
             self.timeseries = soss_timeseries
         else:
-            raise ValueError('Invalid type for timeseries: {}'
-                             .format(type(soss_timeseries)))
+            raise ValueError('Invalid type for timeseries: {}'.format(type(soss_timeseries)))
 
         # Unpack timeseries for order 2.
         if isinstance(soss_timeseries_o2, str):
-            fancyprint('Reading order 2 timeseries file: {}...'
-                       ''.format(soss_timeseries_o2))
+            fancyprint('Reading order 2 timeseries file: {}...'.format(soss_timeseries_o2))
             self.timeseries_o2 = np.load(soss_timeseries_o2)
         elif (isinstance(soss_timeseries_o2, np.ndarray) or
               soss_timeseries_o2 is None):
             self.timeseries_o2 = soss_timeseries_o2
         else:
-            raise ValueError('Invalid type for timeseries_o2: {}'
-                             .format(type(soss_timeseries_o2)))
+            raise ValueError('Invalid type for timeseries_o2: {}'.format(type(soss_timeseries_o2)))
 
         # Unpack pixel masks.
         if pixel_masks is not None:
@@ -615,31 +581,27 @@ class OneOverFStep:
                 elif isinstance(mask, np.ndarray):
                     self.pixel_masks.append(mask)
                 else:
-                    raise ValueError('Invalid type for pixel_masks: {}'
-                                     .format(type(mask)))
+                    raise ValueError('Invalid type for pixel_masks: {}'.format(type(mask)))
             assert len(self.pixel_masks) == len(self.datafiles)
         else:
             self.pixel_masks = pixel_masks
 
         # Unpack background.
         if isinstance(soss_background, str):
-            fancyprint('Reading background file: {}...'
-                       .format(soss_background))
+            fancyprint('Reading background file: {}...'.format(soss_background))
             self.background = np.load(soss_background)
         elif (isinstance(soss_background, np.ndarray) or
               soss_background is None):
             self.background = soss_background
         else:
-            raise ValueError('Invalid type for background: {}'
-                             .format(type(soss_background)))
+            raise ValueError('Invalid type for background: {}'.format(type(soss_background)))
 
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
         if self.instrument == 'NIRISS':
             assert baseline_ints is not None
             self.baseline_ints = baseline_ints
-        # Some attributes that are not needed for NIRSpec, but expected for
-        # plotting purposes.
+        # Some attributes that are not needed for NIRSpec, but expected for plotting purposes.
         if self.instrument == 'NIRSPEC':
             if isinstance(self.datafiles[0], str):
                 nint = fits.getheader(self.datafiles[0])['NINTS']
@@ -651,24 +613,22 @@ class OneOverFStep:
             if self.method == 'scale-achromatic':
                 self.method = 'median'
 
-    def run(self, soss_inner_mask_width=40, soss_outer_mask_width=70,
-            nirspec_mask_width=16, smoothing_scale=None, save_results=True,
-            force_redo=False, do_plot=False, show_plot=False, **kwargs):
+    def run(self, soss_inner_mask_width=40, soss_outer_mask_width=70, nirspec_mask_width=16,
+            smoothing_scale=None, save_results=True, force_redo=False, do_plot=False,
+            show_plot=False, **kwargs):
         """Method to run the step.
 
         Parameters
         ----------
         soss_inner_mask_width : int
-            Inner full-width (in pixels) around the target trace to mask for
-            SOSS.
+            Inner full-width (in pixels) around the target trace to mask for SOSS.
         soss_outer_mask_width : int
-            Outer full-width (in pixels) around the target trace to mask for
-            SOSS.
+            Outer full-width (in pixels) around the target trace to mask for SOSS.
         nirspec_mask_width : int
             Full-width (in pixels) around the target trace to mask for NIRSpec.
         smoothing_scale : int, None
-            If no timseries is provided, the scale (in number of integrations)
-            on which to smooth the self-extracted timseries.
+            If no timseries is provided, the scale (in number of integrations) on which to smooth
+            the self-extracted timseries.
         save_results : bool
             If True, save results.
         force_redo : bool
@@ -678,8 +638,8 @@ class OneOverFStep:
         show_plot : bool
             If True, show the step diagnostic plot.
         kwargs : dict
-            Keyword arguments for stage1.oneoverfstep_scale,
-            stage1.oneoverfstep_solve, or stage1.oneoverfstep_nirspec.
+            Keyword arguments for stage1.oneoverfstep_scale, stage1.oneoverfstep_solve, or
+            stage1.oneoverfstep_nirspec.
 
         Returns
         -------
@@ -689,8 +649,7 @@ class OneOverFStep:
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory '
-                       'intensive.', msg_type='WARNING')
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         fancyprint('OneOverFStep instance created.')
 
@@ -721,15 +680,11 @@ class OneOverFStep:
                         # Format the baseline integrations -- for fits inputs.
                         if isinstance(segment, str):
                             nints = fits.getheader(segment)['NINTS']
-                            baseline_ints = utils.format_out_frames_2(
-                                out_frames=self.baseline_ints,
-                                max_nint=nints
-                            )
+                            baseline_ints = utils.format_out_frames_2(out_frames=self.baseline_ints,
+                                                                      max_nint=nints)
                             # Generate the baseline stack.
-                            deepstack = utils.make_baseline_stack_fits(
-                                datafiles=self.datafiles,
-                                baseline_ints=baseline_ints
-                            )
+                            deepstack = utils.make_baseline_stack_fits(datafiles=self.datafiles,
+                                                                       baseline_ints=baseline_ints)
                         # Format the baseline integrations -- using datamodels.
                         else:
                             with utils.open_filetype(segment) as file:
@@ -772,56 +727,40 @@ class OneOverFStep:
                                        'scale-achromatic-window']:
                         # To use "reference files" to calculate 1/f noise.
                         method = self.method.split('scale-')[-1]
-                        res = oneoverfstep_scale(
-                            segment,
-                            deepstack=deepstack,
-                            inner_mask_width=soss_inner_mask_width,
-                            outer_mask_width=soss_outer_mask_width,
-                            background=self.background,
-                            timeseries=thistso,
-                            timeseries_o2=thistso_o2,
-                            output_dir=self.output_dir,
-                            save_results=save_results,
-                            pixel_mask=thismask,
-                            fileroot=self.fileroots[i],
-                            method=method,
-                            centroids=self.centroids,
-                            smoothing_scale=smoothing_scale,
-                            **kwargs
-                        )
+                        res = oneoverfstep_scale(segment, deepstack=deepstack,
+                                                 inner_mask_width=soss_inner_mask_width,
+                                                 outer_mask_width=soss_outer_mask_width,
+                                                 background=self.background,
+                                                 timeseries=thistso, timeseries_o2=thistso_o2,
+                                                 output_dir=self.output_dir,
+                                                 save_results=save_results, pixel_mask=thismask,
+                                                 fileroot=self.fileroots[i], method=method,
+                                                 centroids=self.centroids,
+                                                 smoothing_scale=smoothing_scale, **kwargs)
                     elif self.method == 'solve':
                         # To use MLE to solve for the 1/f noise.
-                        res = oneoverfstep_solve(
-                            datafile=segment,
-                            deepstack=deepstack,
-                            trace_width=soss_outer_mask_width,
-                            background=self.background,
-                            output_dir=self.output_dir,
-                            save_results=save_results,
-                            pixel_mask=thismask,
-                            fileroot=self.fileroots[i],
-                            centroids=self.centroids
-                        )
+                        res = oneoverfstep_solve(datafile=segment, deepstack=deepstack,
+                                                 trace_width=soss_outer_mask_width,
+                                                 background=self.background,
+                                                 output_dir=self.output_dir,
+                                                 save_results=save_results,
+                                                 pixel_mask=thismask, fileroot=self.fileroots[i],
+                                                 centroids=self.centroids)
                         res, calc_vals = res
                         mle_results.append(calc_vals)
                     else:
                         # Raise error otherwise.
-                        raise ValueError('Unrecognized 1/f correction: '
-                                         '{}'.format(self.method))
+                        raise ValueError('Unrecognized 1/f correction: {}'.format(self.method))
                 else:
                     if self.method not in ['median', 'slope']:
                         # Raise error for bad method.
-                        raise ValueError('Unrecognized 1/f correction: '
-                                         '{}'.format(self.method))
+                        raise ValueError('Unrecognized 1/f correction: {}'.format(self.method))
 
-                    res = oneoverfstep_nirspec(segment,
-                                               output_dir=self.output_dir,
-                                               save_results=save_results,
-                                               pixel_mask=thismask,
+                    res = oneoverfstep_nirspec(segment, output_dir=self.output_dir,
+                                               save_results=save_results, pixel_mask=thismask,
                                                fileroot=self.fileroots[i],
                                                mask_width=nirspec_mask_width,
-                                               centroids=self.centroids,
-                                               method=self.method)
+                                               centroids=self.centroids, method=self.method)
             results.append(res)
 
         # Save 2D scaling determined by solving method.
@@ -846,35 +785,28 @@ class OneOverFStep:
                 outfile_o = (self.output_dir + self.fileroots[0][:-12] +
                              '_nis_oofscaling_odd_order{}.npy'.format(order))
                 np.save(outfile_o, scale_o)
-                fancyprint('Light curves saved to files {0} and {1}'
-                           .format(outfile_e, outfile_o))
+                fancyprint('Light curves saved to files {0} and {1}'.format(outfile_e, outfile_o))
 
         # Do step plots if requested.
         if do_plot is True:
             if save_results is True:
-                plot_file1 = (self.output_dir +
-                              self.tag.replace('.fits', '_1.png'))
-                plot_file2 = (self.output_dir +
-                              self.tag.replace('.fits', '_2.png'))
-                plot_file3 = (self.output_dir +
-                              self.tag.replace('.fits', '_o1_3.png'))
+                plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
+                plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
+                plot_file3 = self.output_dir + self.tag.replace('.fits', '_o1_3.png')
                 if self.instrument == 'NIRSPEC':
                     det = utils.get_detector_name(self.datafiles[0])
-                    plot_file1 = plot_file1.replace('_1.png',
-                                                    '_1_{}.png'.format(det))
-                    plot_file2 = plot_file2.replace('_2.png',
-                                                    '_2_{}.png'.format(det))
+                    plot_file1 = plot_file1.replace('_1.png', '_1_{}.png'.format(det))
+                    plot_file2 = plot_file2.replace('_2.png', '_2_{}.png'.format(det))
             else:
                 plot_file1, plot_file2, plot_file3 = None, None, None
 
-            # make sure we have the correct frame time.
+            # Make sure we have the correct frame time.
             if self.instrument == 'NIRSPEC':
                 tframe = 0.902
             else:
                 tframe = 5.494
 
-            # For scale-chromatic correction, collapse the 2D timeseries to
-            # 1D for plotting purposes.
+            # For scale-chromatic correction, collapse 2D timeseries to 1D for plotting purposes.
             if self.method == 'scale-chromatic':
                 this_ts = np.nanmedian(self.timeseries, axis=1)
             else:
@@ -882,22 +814,14 @@ class OneOverFStep:
 
             # Make a deep stack of corrected obervations.
             if isinstance(results[0], str):
-                deepstack_new = utils.make_baseline_stack_fits(results,
-                                                               baseline_ints)
+                deepstack_new = utils.make_baseline_stack_fits(results, baseline_ints)
             else:
-                deepstack_new = utils.make_baseline_stack_dm(results,
-                                                             baseline_ints)
-            plotting.make_oneoverf_plot(results,
-                                        timeseries=this_ts,
-                                        deepstack=deepstack_new,
-                                        outfile=plot_file1,
-                                        show_plot=show_plot)
-            plotting.make_oneoverf_psd(results, self.datafiles,
-                                       timeseries=this_ts,
-                                       deepstack=deepstack_new,
-                                       old_deepstack=deepstack,
-                                       pixel_masks=self.pixel_masks,
-                                       outfile=plot_file2,
+                deepstack_new = utils.make_baseline_stack_dm(results, baseline_ints)
+            plotting.make_oneoverf_plot(results, timeseries=this_ts, deepstack=deepstack_new,
+                                        outfile=plot_file1, show_plot=show_plot)
+            plotting.make_oneoverf_psd(results, self.datafiles, timeseries=this_ts,
+                                       deepstack=deepstack_new, old_deepstack=deepstack,
+                                       pixel_masks=self.pixel_masks, outfile=plot_file2,
                                        show_plot=show_plot, tframe=tframe)
 
             # Plot MLE results if solving method was used.
@@ -935,10 +859,8 @@ class OneOverFStep:
                         plot_group = np.shape(deepstack)[0]
                     else:
                         plot_group = 1
-                    plotting.make_oneoverf_chromatic_plot(slopes_e, slopes_o,
-                                                          oofs_e, oofs_o,
-                                                          plot_group,
-                                                          outfile=plot_file3,
+                    plotting.make_oneoverf_chromatic_plot(slopes_e, slopes_o, oofs_e, oofs_o,
+                                                          plot_group, outfile=plot_file3,
                                                           show_plot=show_plot)
 
         fancyprint('Step OneOverFStep done.')
@@ -972,8 +894,7 @@ class LinearityStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, save_results=True, force_redo=False, do_plot=False,
-            show_plot=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -987,8 +908,7 @@ class LinearityStep:
         show_plot : bool
             If True, show the step diagnostic plot.
         kwargs : dict
-            Keyword arguments for
-            calwebb_detector1.linearity_step.LinearityStep.
+            Keyword arguments for calwebb_detector1.linearity_step.LinearityStep.
 
         Returns
         -------
@@ -998,8 +918,7 @@ class LinearityStep:
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory '
-                       'intensive.', msg_type='WARNING')
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
         all_files = glob.glob(self.output_dir + '*')
@@ -1014,8 +933,8 @@ class LinearityStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_detector1.linearity_step.LinearityStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results, **kwargs)
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -1023,39 +942,31 @@ class LinearityStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
-                                                          self.tag)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
         # Do step plot if requested.
         if do_plot is True:
             if save_results is True:
-                plot_file1 = self.output_dir + self.tag.replace('.fits',
-                                                                '_1.png')
-                plot_file2 = self.output_dir + self.tag.replace('.fits',
-                                                                '_2.png')
+                plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
+                plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
                 if self.instrument == 'NIRSPEC':
                     det = utils.get_detector_name(self.datafiles[0])
-                    plot_file1 = plot_file1.replace('.png',
-                                                    '_{}.png'.format(det))
-                    plot_file2 = plot_file2.replace('.png',
-                                                    '_{}.png'.format(det))
+                    plot_file1 = plot_file1.replace('.png', '_{}.png'.format(det))
+                    plot_file2 = plot_file2.replace('.png', '_{}.png'.format(det))
             else:
                 plot_file1, plot_file2 = None, None
-            plotting.make_linearity_plot(results, self.datafiles,
-                                         outfile=plot_file1,
+            plotting.make_linearity_plot(results, self.datafiles, outfile=plot_file1,
                                          show_plot=show_plot)
-            plotting.make_linearity_plot2(results, self.datafiles,
-                                          outfile=plot_file2,
+            plotting.make_linearity_plot2(results, self.datafiles, outfile=plot_file2,
                                           show_plot=show_plot)
 
         return results
 
 
 class JumpStep:
-    """Wrapper around default calwebb_detector1 Jump Detection step with some
-    custom modifications.
+    """Wrapper around default calwebb_detector1 Jump Detection step with some custom modifications.
     """
 
     def __init__(self, input_data, output_dir):
@@ -1081,9 +992,8 @@ class JumpStep:
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, flag_up_ramp=False,
-            rejection_threshold=15, flag_in_time=True,
-            time_rejection_threshold=10, time_window=5, do_plot=False,
-            show_plot=False, **kwargs):
+            rejection_threshold=15, flag_in_time=True, time_rejection_threshold=10, time_window=5,
+            do_plot=False, show_plot=False, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -1095,13 +1005,11 @@ class JumpStep:
         flag_up_ramp : bool
             If True, run up-the-ramp jump flagging.
         rejection_threshold : int
-            Sigma threshold for an outlier to be considered a jump for
-            up-the-ramp flagging.
+            Sigma threshold for an outlier to be considered a jump for up-the-ramp flagging.
         flag_in_time : bool
             If True, run time-domain flagging.
         time_rejection_threshold : int
-            Sigma threshold for an outlier to be considered a jump for
-            time-domain flagging.
+            Sigma threshold for an outlier to be considered a jump for time-domain flagging.
         time_window : int
             Integration window to consider for time-domain flagging.
         do_plot : bool
@@ -1129,12 +1037,10 @@ class JumpStep:
                 do_plot, show_plot = False, False
             # If no output files are detected, proceed.
             else:
-                # Get number of groups in the observation --- ngroup=2 must be
-                # treated in a special way as the default pipeline JumpStep
-                # will fail.
-                # Also need to set minimum_sigclip_groups to something >nints,
-                # else the up-the-ramp jump detection will be replaced by a
-                # time-domain sigma clipping.
+                # Get number of groups in the observation --- ngroup=2 must be treated in a special
+                # way as the default pipeline JumpStep will fail.
+                # Also need to set minimum_sigclip_groups to something >nints, else the up-the-ramp
+                # jump detection will be replaced by a time-domain sigma clipping.
                 if isinstance(self.datafiles[0], str):
                     ngroups = fits.getheader(self.datafiles[0], 0)['NGROUPS']
                 else:
@@ -1143,22 +1049,17 @@ class JumpStep:
                 # For ngroup > 2, default JumpStep can be used.
                 if ngroups > 2 and flag_up_ramp is True:
                     step = calwebb_detector1.jump_step.JumpStep()
-                    res = step.call(segment, output_dir=self.output_dir,
-                                    save_results=save_results,
+                    res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                     rejection_threshold=rejection_threshold,
-                                    maximum_cores='quarter',
-                                    minimum_sigclip_groups=1e6,
-                                    **kwargs)
+                                    maximum_cores='quarter', minimum_sigclip_groups=1e6, **kwargs)
                 # Time domain jump step must be run for ngroup=2.
                 else:
                     res = segment
                     flag_in_time = True
                 # Do time-domain flagging.
                 if flag_in_time is True:
-                    res = jumpstep_in_time(res, window=time_window,
-                                           thresh=time_rejection_threshold,
-                                           fileroot=self.fileroots[i],
-                                           save_results=save_results,
+                    res = jumpstep_in_time(res, window=time_window, thresh=time_rejection_threshold,
+                                           fileroot=self.fileroots[i], save_results=save_results,
                                            output_dir=self.output_dir)
                 # Verify that filename is correct.
                 if save_results is True:
@@ -1170,8 +1071,7 @@ class JumpStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
-                                                          self.tag)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
                 results.append(res)
@@ -1182,12 +1082,10 @@ class JumpStep:
                 plot_file = self.output_dir + self.tag.replace('.fits', '.png')
                 if self.instrument == 'NIRSPEC':
                     det = utils.get_detector_name(self.datafiles[0])
-                    plot_file = plot_file.replace('.png',
-                                                  '_{}.png'.format(det))
+                    plot_file = plot_file.replace('.png', '_{}.png'.format(det))
             else:
                 plot_file = None
-            plotting.make_jump_location_plot(results, outfile=plot_file,
-                                             show_plot=show_plot)
+            plotting.make_jump_location_plot(results, outfile=plot_file, show_plot=show_plot)
 
         fancyprint('Step JumpStep done.')
 
@@ -1250,24 +1148,20 @@ class RampFitStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_detector1.ramp_fit_step.RampFitStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results,
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 maximum_cores='quarter', **kwargs)[1]
-                # From jwst v1.9.0-1.11.0 ramp fitting algorithm was changed to
-                # make all pixels with DO_NOT_USE DQ flags be NaN after ramp
-                # fitting. These pixels are marked, ignored and interpolated
-                # anyways, so this does not change any actual functionality,
-                # but cosmetcically this annoys me, as now plots look terrible.
-                # Just griddata interpolate all NaNs so things look better.
-                # Note this does not supercede any interpolation done later in
-                # Stage 2.
+                # From jwst v1.9.0-1.11.0 ramp fitting algorithm was changed to make all pixels
+                # with DO_NOT_USE DQ flags be NaN after ramp fitting. These pixels are marked,
+                # ignored and interpolated anyways, so this does not change any actual
+                # functionality, but cosmetcically this annoys me, as now plots look terrible.
+                # Just griddata interpolate all NaNs so things look better. Note this does not
+                # supercede any interpolation done later in Stage 2.
                 nint, dimy, dimx = res.data.shape
                 px, py = np.meshgrid(np.arange(dimx), np.arange(dimy))
                 fancyprint('Doing cosmetic NaN interpolation.')
                 for j in range(nint):
                     ii = np.where(np.isfinite(res.data[j]))
-                    res.data[j] = griddata(ii, res.data[j][ii], (py, px),
-                                           method='nearest')
+                    res.data[j] = griddata(ii, res.data[j][ii], (py, px), method='nearest')
                 if save_results is True:
                     res.save(self.output_dir + res.meta.filename)
 
@@ -1275,9 +1169,8 @@ class RampFitStep:
                 if save_results is True:
                     flags = res.dq
                     flags[flags != 0] = 1  # Convert to binary mask.
-                    # NIRISS observations have a line of bright pixels that
-                    # move down the detector one row at a time each
-                    # integration. IDK why exactly, its a "detector reset
+                    # NIRISS observations have a line of bright pixels that move down the detector
+                    # one row at a time each integration. IDK why exactly, its a "detector reset
                     # artifact" according to Loïc. It needs to be masked.
                     if self.instrument == 'NIRISS':
                         # Mask detector reset artifact.
@@ -1286,11 +1179,9 @@ class RampFitStep:
                         # Artifact only affects first 256 integrations.
                         if int_start < 255:
                             for j, jj in enumerate(range(int_start, int_end)):
-                                # j counts ints from start of this segment, jj
-                                # is integrations from start of exposure
-                                # (1-indexed).
-                                # Mask rows from jj to jj+3 for detector reset
-                                # artifact.
+                                # j counts ints from start of this segment, jj is integrations from
+                                # start of exposure (1-indexed).
+                                # Mask rows from jj to jj+3 for detector reset artifact.
                                 min_row = np.max([256-(jj+3), 0])
                                 max_row = np.min([(258 - jj), 256])
                                 flags[j, min_row:max_row, :] = 1
@@ -1298,12 +1189,10 @@ class RampFitStep:
                     hdu = fits.PrimaryHDU()
                     hdu1 = fits.ImageHDU(flags)
                     hdul = fits.HDUList([hdu, hdu1])
-                    outfile = (self.output_dir + self.fileroots[i] +
-                               'pixelflags.fits')
+                    outfile = (self.output_dir + self.fileroots[i] + 'pixelflags.fits')
                     hdul.writeto(outfile, overwrite=True)
 
-                    # Remove rate file because we don't need it and I don't
-                    # like having extra files.
+                    # Remove rate file because we don't need it and I don't like having extra files.
                     rate = res.meta.filename.replace('_1_ramp', '_0_ramp')
                     os.remove(self.output_dir + rate)
 
@@ -1313,8 +1202,7 @@ class RampFitStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
-                                                          self.tag)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -1357,8 +1245,7 @@ class GainScaleStep:
         force_redo : bool
             If True, run step even if output files are detected.
         kwargs : dict
-            Keyword arguments for
-            calwebb_detector1.gain_scale_step.GainScaleStep.
+            Keyword arguments for calwebb_detector1.gain_scale_step.GainScaleStep.
 
         Returns
         -------
@@ -1387,8 +1274,7 @@ class GainScaleStep:
                         res.close()
                         os.rename(current_name, expected_file)
                         thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = (self.fileroots[i] +
-                                                          self.tag)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
@@ -1396,10 +1282,9 @@ class GainScaleStep:
         return results
 
 
-def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15,
-                    hot_pix=None):
-    """Identify and flag additional hot pixels in a SOSS TSO which are not
-    already in the default pipeline flags.
+def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15, hot_pix=None):
+    """Identify and flag additional hot pixels in a SOSS TSO which are not already in the default
+    pipeline flags.
 
     Parameters
     ----------
@@ -1441,14 +1326,12 @@ def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15,
         for i in tqdm(range(4, dimx - 4)):
             for j in range(dimy):
                 box_size_i = box_size
-                box_prop = utils.get_interp_box(deepframe, box_size_i, i, j,
-                                                dimx)
-                # Ensure that the median and std dev extracted are good.
-                # If not, increase the box size until they are.
+                box_prop = utils.get_interp_box(deepframe, box_size_i, i, j, dimx)
+                # Ensure that the median and std dev extracted are good. If not, increase the box
+                # size until they are.
                 while np.any(np.isnan(box_prop)):
                     box_size_i += 1
-                    box_prop = utils.get_interp_box(deepframe, box_size_i, i,
-                                                    j, dimx)
+                    box_prop = utils.get_interp_box(deepframe, box_size_i, i, j, dimx)
                 med, std = box_prop[0], box_prop[1]
 
                 # If central pixel is too deviant...
@@ -1467,12 +1350,11 @@ def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15,
     return result, hot_pix
 
 
-def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
-                     save_results=True, output_dir=None):
-    """Jump detection step in the temporal domain. This algorithm is based off
-    of Nikolov+ (2014) and identifies cosmic ray hits in the temporal domain.
-    All jumps for ngroup<=2 are replaced with the median of surrounding
-    integrations, whereas jumps for ngroup>3 are flagged.
+def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=True,
+                     output_dir=None):
+    """Jump detection step in the temporal domain. This algorithm is based off of Nikolov+ (2014)
+    and identifies cosmic ray hits in the temporal domain. All jumps for ngroup<=2 are replaced
+    with the median of surrounding integrations, whereas jumps for ngroup>3 are flagged.
 
     Parameters
     ----------
@@ -1507,8 +1389,7 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
 
     # Load in the datafile.
     instrument = utils.get_instrument_name(datafile)
-    # Set maximum integration where reset artifact impacts the data frames
-    # for masking purposes.
+    # Set maximum integration where reset artifact impacts the data frames for masking purposes.
     if instrument == 'NIRISS':
         max_reset_int = 255
     else:
@@ -1532,23 +1413,19 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
         dqcube = datafile.groupdq
         # Get start and end integrations for reset artifact masking.
         int_start = datafile.meta.exposure.integration_start
-        int_end = np.min([datafile.meta.exposure.integration_end,
-                          max_reset_int])
+        int_end = np.min([datafile.meta.exposure.integration_end, max_reset_int])
         filename = datafile.meta.filename
     fancyprint('Processing file {}.'.format(filename))
 
     nints, ngroups, dimy, dimx = np.shape(cube)
 
     # Mask the detector reset artifact which is picked up by this flagging.
-    # Artifact only affects first 256 integrations for SOSS and first 60 for
-    # NIRSpec
+    # Artifact only affects first 256 integrations for SOSS and first 60 for NIRSpec
     artifact = np.zeros((nints, dimy, dimx)).astype(int)
     if int_start < max_reset_int:
         for j, jj in enumerate(range(int_start, int_end)):
-            # j counts ints from start of this segment, jj is
-            # integrations from start of exposure (1-indexed).
-            # Mask rows from jj to jj+3 for detector reset
-            # artifact.
+            # j counts ints from start of this segment, jj is integrations from start of exposure
+            # (1-indexed). Mask rows from jj to jj+3 for detector reset artifact.
             if instrument == 'NIRISS':
                 min_row = np.max([256 - (jj + 3), 0])
                 max_row = np.min([(258 - jj), dimy])
@@ -1557,31 +1434,26 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
                 max_row = np.min([(max_reset_int - jj), dimy])
             artifact[j, min_row:max_row, :] = 1
 
-    # Jump detection algorithm based on Nikolov+ (2014). For each integration,
-    # create a difference image using the median of surrounding integrations.
-    # Flag all pixels with deviations more than X-sigma as comsic rays hits.
+    # Jump detection algorithm based on Nikolov+ (2014). For each integration, create a difference
+    # image using the median of surrounding integrations. Flag all pixels with deviations more
+    # than X-sigma as comsic rays hits.
     count, interp = 0, 0
     for g in tqdm(range(ngroups)):
         # Filter the data using the specified window
         cube_filt = medfilt(cube[:, g], (window, 1, 1))
         # Calculate the point-to-point scatter along the temporal axis.
-        scatter = np.median(np.abs(0.5 * (cube[0:-2, g] + cube[2:, g]) -
-                                   cube[1:-1, g]), axis=0)
+        scatter = np.median(np.abs(0.5 * (cube[0:-2, g] + cube[2:, g]) - cube[1:-1, g]), axis=0)
         scatter = np.where(scatter == 0, np.inf, scatter)
         # Find pixels which deviate more than the specified threshold.
         scale = np.abs(cube[:, g] - cube_filt) / scatter
-        ii = ((scale >= thresh) & (cube[:, g] > np.nanpercentile(cube, 10)) &
-              (artifact == 0))
+        ii = ((scale >= thresh) & (cube[:, g] > np.nanpercentile(cube, 10)) & (artifact == 0))
 
-        # If ngroup<=2, replace the pixel with the stack median so that a
-        # ramp can still be fit.
+        # If ngroup<=2, replace the pixel with the stack median so that a ramp can still be fit.
         if ngroups <= 2:
-            # Do not want to interpolate pixels which are flagged for
-            # another reason, so only select good pixels or those which
-            # are flagged for jumps.
+            # Do not want to interpolate pixels which are flagged for another reason, so only
+            # select good pixels or those which are flagged for jumps.
             jj = (dqcube[:, g] == 0) | (dqcube[:, g] == 4)
-            # Replace these pixels with the stack median and remove the
-            # dq flag.
+            # Replace these pixels with the stack median and remove the dq flag.
             replace = ii & jj
             cube[:, g][replace] = cube_filt[replace]
             dqcube[:, g][replace] = 0
@@ -1618,19 +1490,17 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None,
     return datafile
 
 
-def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
-                         pixel_mask=None, fileroot=None, mask_width=16,
-                         centroids=None, method='median',
+def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mask=None,
+                         fileroot=None, mask_width=16, centroids=None, method='median',
                          override_centroids=False):
-    """Custom 1/f correction routine to be applied at the group level. The
-    median level of each detector column is subtracted off while masking
-    outlier pixels and the target trace.
+    """Custom 1/f correction routine to be applied at the group level. The median level of each
+    detector column is subtracted off while masking outlier pixels and the target trace.
 
     Parameters
     ----------
     datafile : str, RampModel, CubeModel
-        Path to data files, or datamodel itself for a segment of the TSO.
-        Should be 4D ramps, but 3D rate files are also accepted.
+        Path to data files, or datamodel itself for a segment of the TSO. Should be 4D ramps,
+        but 3D rate files are also accepted.
     output_dir : str, None
         Directory to which to save results. Only necessary if saving results.
     save_results : bool
@@ -1646,8 +1516,8 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
     method : str
         1/f correction method. Options are "median" or "slope".
     override_centroids : bool
-        If True, when passed centroids do not match the shape of the data
-        frame, use passed centroids and do not recalculate.
+        If True, when passed centroids do not match the shape of the data frame, use passed
+        centroids and do not recalculate.
 
     Returns
     -------
@@ -1655,8 +1525,7 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
         RampModel for the segment, corrected for 1/f noise.
     """
 
-    fancyprint('Starting 1/f correction step using the {} method.'
-               ''.format(method))
+    fancyprint('Starting 1/f correction step using the {} method.'.format(method))
 
     # If saving results, ensure output directory and fileroots are provided.
     if save_results is True:
@@ -1687,20 +1556,17 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
         # Unpack centroids if provided.
         fancyprint('Unpacking centroids.')
         xpos, ypos = centroids['xpos'], centroids['ypos']
-        # If centroids on trimmed slit data frame are passed to be used on
-        # full frame data, recalculate centroids on data, unless overridden.
-        # This is mostly just cosmetic as we only care about the "in slit"
-        # data, however, I like my plots to look nice and not have part of the
-        # detector corrected and part not.
+        # If centroids on trimmed slit data frame are passed to be used on full frame data,
+        # recalculate centroids on data, unless overridden.
+        # This is mostly just cosmetic as we only care about the "in slit" data, however, I like my
+        # plots to look nice and not have part of the detector corrected and part not.
         if len(xpos) != dimx and override_centroids is False:
-            fancyprint('Dimension of passed centroids do not match data frame '
-                       'dimensions. New centroids will be calculated.',
-                       msg_type='WARNING')
+            fancyprint('Dimension of passed centroids do not match data frame dimensions. New '
+                       'centroids will be calculated.', msg_type='WARNING')
             centroids = None
 
     if centroids is None:
-        # If no centroids file is provided, get the trace positions from the
-        # data now.
+        # If no centroids file is provided, get the trace positions from the data now.
         fancyprint('No centroids provided, locating trace positions.')
         # Create deepstack.
         if np.ndim(cube) == 4:
@@ -1715,20 +1581,18 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
             xstart = 500
         else:
             xstart = 0
-        centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart,
-                                                save_results=False)
+        centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart, save_results=False)
         xpos, ypos = centroids[0], centroids[1]
 
     # Read in the outlier maps - (nints, dimy, dimx) 3D cubes.
     if pixel_mask is None:
-        fancyprint('No outlier map passed, ignoring outliers.',
-                   msg_type='WARNING')
+        fancyprint('No outlier map passed, ignoring outliers.', msg_type='WARNING')
         outliers = np.zeros((nint, dimy, dimx)).astype(bool)
     else:
         fancyprint('Constructing outlier map.')
-        # If the correction is at the integration level after performing
-        # the Extract2D step, the detector size will be limited to that
-        # illuminated by the slit. Trim pixel masks to match.
+        # If the correction is at the integration level after performing the Extract2D step,
+        # the detector size will be limited to that illuminated by the slit.
+        # Trim pixel masks to match.
         with utils.open_filetype(datafile) as thisfile:
             if isinstance(thisfile, datamodels.SlitModel):
                 xstart = thisfile.xstart - 1  # 1-indexed.
@@ -1741,10 +1605,8 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
 
     # Construct trace masks.
     fancyprint('Constructing trace mask.')
-    low = np.max([np.zeros_like(ypos),
-                  ypos - mask_width / 2], axis=0).astype(int)
-    up = np.min([dimy * np.ones_like(ypos),
-                 ypos + mask_width / 2], axis=0).astype(int)
+    low = np.max([np.zeros_like(ypos), ypos - mask_width / 2], axis=0).astype(int)
+    up = np.min([dimy * np.ones_like(ypos), ypos + mask_width / 2], axis=0).astype(int)
     tracemask = np.zeros((dimy, dimx))
     for i, x in enumerate(xpos):
         tracemask[low[i]:up[i], int(x)] = 1
@@ -1759,21 +1621,18 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
         thiscube = cube
     cube_filt = medfilt(thiscube, (5, 1, 1))
     # Calculate the point-to-point scatter along the temporal axis.
-    scatter = np.median(np.abs(0.5 * (thiscube[0:-2] + thiscube[2:]) -
-                               thiscube[1:-1]), axis=0)
+    scatter = np.median(np.abs(0.5 * (thiscube[0:-2] + thiscube[2:]) - thiscube[1:-1]), axis=0)
     scatter = np.where(scatter == 0, np.inf, scatter)
     # Find pixels which deviate more than 10 sigma.
     scale = np.abs(thiscube - cube_filt) / scatter
     ii = np.where(scale > 10)
     outliers[ii] = 1
 
-    # The outlier map is 0 where good and >0 otherwise. As this
-    # will be applied multiplicatively, replace 0s with 1s and
-    # others with NaNs.
+    # The outlier map is 0 where good and >0 otherwise. As this will be applied multiplicatively,
+    # replace 0s with 1s and others with NaNs.
     outliers = np.where(outliers == 0, 1, np.nan)
 
-    # Loop over all integrations to determine the 1/f noise level and correct
-    # it.
+    # Loop over all integrations to determine the 1/f noise level and correct it.
     fancyprint('Starting full frame correction.')
     cube_corr = copy.deepcopy(cube)
     for i in tqdm(range(nint)):
@@ -1783,8 +1642,8 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
             warnings.simplefilter('ignore', category=RuntimeWarning)
             # Single 1/f scaling for all rows.
             dc = np.zeros_like(cube[i])
-            # First method: simply take the column-wise median of all unmasked
-            # pixels as the 1/f + background level.
+            # First method: simply take the column-wise median of all unmasked pixels as the 1/f +
+            # background level.
             if method == 'median':
                 # For group-level corrections.
                 if np.ndim(cube) == 4:
@@ -1793,8 +1652,8 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
                 else:
                     dc[:, :] = bn.nanmedian(cube[i], axis=0)[None, :]
 
-            # Second method: fit a linear slope to each column as subtract
-            # that as the 1/f + background level.
+            # Second method: fit a linear slope to each column as subtract that as the 1/f +
+            # background level.
             elif method == 'slope':
                 # For group-level corrections.
                 if np.ndim(cube) == 4:
@@ -1835,8 +1694,8 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
         thisfile[0].header['FILENAME'] = fileroot + 'oneoverfstep.fits'
         thisfile.writeto(result, overwrite=True)
         fancyprint('File saved to: {}.'.format(result))
-    # If not saving results, need to work in datamodels to not break
-    # interoperability with jwst pipeline.
+    # If not saving results, need to work in datamodels to not break interoperability with stsci
+    # pipeline.
     else:
         result = utils.open_filetype(datafile)
         result.data = cube_corr
@@ -1844,30 +1703,25 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True,
     return result
 
 
-def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
-                       outer_mask_width=70, even_odd_rows=True,
-                       background=None, timeseries=None, timeseries_o2=None,
-                       output_dir=None, save_results=True, pixel_mask=None,
-                       fileroot=None, method='achromatic', centroids=None,
-                       smoothing_scale=None):
-    """Custom 1/f correction routine to be applied at the group or
-    integration level. A median stack is constructed using all out-of-transit
-    integrations and subtracted from each individual integration. The
-    column-wise median of this difference image is then subtracted from the
-    original frame to correct 1/f noise. Outlier pixels, background
-    contaminants, and the target trace itself can (should) be masked to
-    improve the estimation.
+def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_width=70,
+                       even_odd_rows=True, background=None, timeseries=None, timeseries_o2=None,
+                       output_dir=None, save_results=True, pixel_mask=None, fileroot=None,
+                       method='achromatic', centroids=None, smoothing_scale=None):
+    """Custom 1/f correction routine to be applied at the group or integration level. A median
+    stack is constructed using all out-of-transit integrations and subtracted from each individual
+    integration. The column-wise median of this difference image is then subtracted from the
+    original frame to correct 1/f noise. Outlier pixels, background contaminants, and the target
+    trace itself can (should) be masked to improve the estimation.
 
     Parameters
     ----------
     datafile : str, RampModel, CubeModel
-        Datamodel for a segment of the TSO, or a path to one. Should be 4D
-        ramps, but 3D rate files are also accepted.
+        Datamodel for a segment of the TSO, or a path to one. Should be 4D ramps, but 3D rate
+        files are also accepted.
     deepstack : array-like[float]
         Median stack of the baseline integrations.
     inner_mask_width : int
-        Width around the trace to mask. For windowed methods, defines the
-        inner window edge.
+        Width around the trace to mask. For windowed methods, defines the inner window edge.
     outer_mask_width : int
         For windowed methods, the outer edge of the window.
     even_odd_rows : bool
@@ -1877,15 +1731,13 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
     timeseries : array-like[float], None
         Estimate of normalized light curve(s).
     timeseries_o2 : array-like[float], None
-        Estimate of normalized light curve(s) for order 2. Only necessary if
-        method is chromatic.
+        Estimate of normalized light curve(s) for order 2. Only necessary if method is chromatic.
     output_dir : str, None
         Directory to which to save results. Only necessary if saving results.
     save_results : bool
         If True, save results to disk.
     pixel_mask : array-like[float], None
-        Maps of pixels to mask for each data segment. Should be 3D (nints,
-        dimy, dimx).
+        Maps of pixels to mask for each data segment. Should be 3D (nints, dimy, dimx).
     fileroot : str, None
         Root name for output file. Only necessary if saving results.
     method : str
@@ -1893,8 +1745,8 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
     centroids : dict, None
         Dictionary containing trace positions for each order.
     smoothing_scale : int, None
-        If no timseries is provided, the scale (in number of integrations) on
-        which to smooth the self-extracted timseries.
+        If no timseries is provided, the scale (in number of integrations) on which to smooth the
+        self-extracted timseries.
 
     Returns
     -------
@@ -1902,8 +1754,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
         RampModel for the segment, corrected for 1/f noise.
     """
 
-    fancyprint('Starting 1/f correction step using the scale-{} '
-               'method.'.format(method))
+    fancyprint('Starting 1/f correction step using the scale-{} method.'.format(method))
 
     # If saving results, ensure output directory and fileroots are provided.
     if save_results is True:
@@ -1915,8 +1766,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
 
     # Ensure method is correct.
     if method not in ['chromatic', 'achromatic', 'achromatic-window']:
-        raise ValueError('Method must be one of "chromatic", "achromatic", '
-                         'or "achromatic-window".')
+        raise ValueError('Method must be one of "chromatic", "achromatic", or "achromatic-window".')
 
     # Load in data, accept both strings (open as fits) and datamodels.
     if isinstance(datafile, str):
@@ -1940,8 +1790,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
 
     # Get the trace centroids.
     if centroids is None:
-        # If no centroids file is provided, get the trace positions from the
-        # data now.
+        # If no centroids file is provided, get the trace positions from the data now.
         fancyprint('No centroids provided, locating trace positions.')
         step = calwebb_spec2.extract_1d_step.Extract1dStep()
         tracetable = step.get_reference_file(datafile, 'spectrace')
@@ -1949,8 +1798,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
             thisdeep = deepstack[-1]
         else:
             thisdeep = deepstack
-        centroids = utils.get_centroids_soss(thisdeep, tracetable, subarray,
-                                             save_results=False)
+        centroids = utils.get_centroids_soss(thisdeep, tracetable, subarray, save_results=False)
         x1, y1 = centroids[0][0], centroids[0][1]
         x2, y2 = centroids[1][0], centroids[1][1]
         x3, y3 = centroids[2][0], centroids[2][1]
@@ -1963,8 +1811,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
 
     # Read in the outlier maps - (nints, dimy, dimx) 3D cubes.
     if pixel_mask is None:
-        fancyprint('No outlier maps passed, ignoring outliers.',
-                   msg_type='WARNING')
+        fancyprint('No outlier maps passed, ignoring outliers.', msg_type='WARNING')
         outliers1 = np.zeros((nint, dimy, dimx)).astype(bool)
     else:
         fancyprint('Constructing outlier map.')
@@ -1981,10 +1828,8 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
     # Include orders 2 and 3 for SUBSTRIP256.
     if subarray != 'SUBSTRIP96':
         # Order 2 -- inner and outer masks.
-        mask2_in = utils.make_soss_tracemask(x2, y2, inner_mask_width, dimy,
-                                             dimx)
-        mask2_out = utils.make_soss_tracemask(x2, y2, outer_mask_width, dimy,
-                                              dimx)
+        mask2_in = utils.make_soss_tracemask(x2, y2, inner_mask_width, dimy, dimx)
+        mask2_out = utils.make_soss_tracemask(x2, y2, outer_mask_width, dimy, dimx)
         # Order 3 -- only need inner mask.
         mask3 = utils.make_soss_tracemask(x3, y3, inner_mask_width, dimy, dimx)
     # But not for SUBSTRIP96.
@@ -1993,16 +1838,14 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
         mask2_out = np.zeros_like(mask1_in)
         mask3 = np.zeros_like(mask1_in)
 
-    # Add the appropriate trace mask to the outliers cube for the selected 1/f
-    # method.
-    tracemask = (mask1_in.astype(bool) | mask2_in.astype(bool) |
-                 mask3.astype(bool))
-    # For the scale-achromatic, just need to mask the cores of each trace,
-    # defined by inner_mask_width.
+    # Add the appropriate trace mask to the outliers cube for the selected 1/f method.
+    tracemask = (mask1_in.astype(bool) | mask2_in.astype(bool) | mask3.astype(bool))
+    # For the scale-achromatic, just need to mask the cores of each trace, defined by
+    # inner_mask_width.
     if method == 'achromatic':
         outliers1 = (outliers1 | tracemask).astype(int)
-    # For the windowed corrections, construct a window around each order
-    # defined by inner_mask_width and outer_mask_width.
+    # For the windowed corrections, construct a window around each order defined by
+    # inner_mask_width and outer_mask_width.
     else:
         window1 = ~(mask1_out - mask1_in).astype(bool)
         window2 = ~(mask2_out - mask2_in).astype(bool)
@@ -2018,8 +1861,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
     cube_filt = medfilt(thiscube, (5, 1, 1))
     cube_filt[-2:], cube_filt[2:] = cube_filt[-3], cube_filt[3]
     # Calculate the point-to-point scatter along the temporal axis.
-    scatter = np.median(np.abs(0.5 * (thiscube[0:-2] + thiscube[2:]) -
-                               thiscube[1:-1]), axis=0)
+    scatter = np.median(np.abs(0.5 * (thiscube[0:-2] + thiscube[2:]) - thiscube[1:-1]), axis=0)
     scatter = np.where(scatter == 0, np.inf, scatter)
     # Find pixels which deviate more than 10 sigma.
     scale = np.abs(thiscube - cube_filt) / scatter
@@ -2027,9 +1869,8 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
     outliers1[ii] = 1
     outliers2[ii] = 1
 
-    # The outlier map is 0 where good and >0 otherwise. As this
-    # will be applied multiplicatively, replace 0s with 1s and
-    # others with NaNs.
+    # The outlier map is 0 where good and >0 otherwise. As this will be applied multiplicatively,
+    # replace 0s with 1s and others with NaNs.
     if method in ['chromatic', 'achromatic-window']:
         outliers1 = np.where(outliers1 == 0, 1, np.nan)
         outliers2 = np.where(outliers2 == 0, 1, np.nan)
@@ -2038,16 +1879,15 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
     else:
         outliers1 = np.where(outliers1 == 0, 1, np.nan)
 
-    # In order to subtract off the trace as completely as possible, the median
-    # stack must be scaled, via the transit curve, to the flux level of each
-    # integration. This can be done via two methods: using the white light
-    # curve (i.e., assuming the scaling is not wavelength dependent), or using
-    # extracted 2D light curves, such that the scaling is wavelength dependent.
+    # In order to subtract off the trace as completely as possible, the median stack must be
+    # scaled, via the transit curve, to the flux level of each integration. This can be done via
+    # two methods: using the white light curve (i.e., assuming the scaling is not wavelength
+    # dependent), or using extracted 2D light curves, such that the scaling is wavelength dependent.
     # Get light curve. If not, estimate it (1D only) from data.
     if timeseries is None:
         if method == 'achromatic':
-            fancyprint('No timeseries passed. It will be estimated from '
-                       'current data.', msg_type='WARNING')
+            fancyprint('No timeseries passed. It will be estimated from current data.',
+                       msg_type='WARNING')
             # If no lightcurve is provided, estimate it from the current data.
             if np.ndim(cube) == 4:
                 postage = cube[:, -1, 20:60, 1500:1550]
@@ -2058,33 +1898,31 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
             timeseries = np.nansum(postage, axis=(1, 2))
             timeseries /= np.nansum(zero_point)
             if smoothing_scale is None:
-                # If no timescale provided, smooth the time series on a
-                # timescale of ~2%.
+                # If no timescale provided, smooth the time series on a timescale of ~2%.
                 smoothing_scale = 0.02 * np.shape(cube)[0]
             fancyprint('Smoothing self-calibrated timeseries on a scale of '
                        '{} integrations.'.format(int(smoothing_scale)))
             timeseries = median_filter(timeseries, int(smoothing_scale))
         else:
-            raise ValueError('2D light curves must be provided to use '
-                             'chromatic method.')
+            raise ValueError('2D light curves must be provided to use chromatic method.')
 
     # If passed light curve is 1D, extend to 2D.
     if np.ndim(timeseries) == 1:
         # If 1D timeseries is passed cannot do chromatic correction.
         if method == 'chromatic':
-            raise ValueError('2D light curves are required for chromatic '
-                             'correction, but 1D ones were passed.')
+            raise ValueError('2D light curves are required for chromatic correction, but 1D ones '
+                             'were passed.')
         else:
             timeseries = np.repeat(timeseries[:, np.newaxis], dimx, axis=1)
     # Get timeseries for order 2.
     if method == 'chromatic':
         if timeseries_o2 is None:
-            raise ValueError('2D light curves for order 2 must be provided to '
-                             'use chromatic method.')
+            raise ValueError('2D light curves for order 2 must be provided to use chromatic '
+                             'method.')
         if np.ndim(timeseries_o2) == 1:
             # If 1D timeseries is passed cannot do chromatic correction.
-            raise ValueError('2D light curves are required for chromatic '
-                             'correction, but 1D ones were passed.')
+            raise ValueError('2D light curves are required for chromatic correction, but 1D ones '
+                             'were passed.')
 
     # Set up things that are needed for the 1/f correction with each method.
     if method == 'achromatic':
@@ -2147,8 +1985,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
             dc = np.where(np.isfinite(dc), dc, 0)
             # Subtract the 1/f map.
             if method == 'achromatic':
-                # For achromatic method, just subtract the calculated 1/f
-                # values from the whole frame.
+                # For achromatic method, subtract the calculated 1/f values from the whole frame.
                 cube[i] -= dc
             else:
                 if order == 1:
@@ -2158,10 +1995,9 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
                     # For order 2, subtract in a window around the trace.
                     cube[i] -= (dc * mask2_in[None, :, :])
 
-    # Background must be subtracted to accurately subtract off the target
-    # trace and isolate 1/f noise. However, the background flux must also be
-    # corrected for non-linearity. Therefore, it should be added back after
-    # the 1/f is subtracted, in order to be re-subtracted later.
+    # Background must be subtracted to accurately subtract off the target trace and isolate 1/f
+    # noise. However, the background flux must also be corrected for non-linearity. Therefore, it
+    # should be added back after the 1/f is subtracted, in order to be re-subtracted later.
     # Note: only relevant for group-level corrections.
     if background is not None:
         # Add back the zodi background.
@@ -2176,8 +2012,8 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
         thisfile[0].header['FILENAME'] = fileroot + 'oneoverfstep.fits'
         thisfile.writeto(result, overwrite=True)
         fancyprint('File saved to: {}.'.format(result))
-    # If not saving results, need to work in datamodels to not break
-    # interoperability with jwst pipeline.
+    # If not saving results, need to work in datamodels to not break interoperability with stsci
+    # pipeline.
     else:
         result = utils.open_filetype(datafile)
         result.data = cube
@@ -2185,19 +2021,17 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40,
     return result
 
 
-def oneoverfstep_solve(datafile, deepstack, trace_width=70,
-                       background=None, output_dir=None, save_results=True,
-                       pixel_mask=None,  fileroot=None, centroids=None):
-    """Custom 1/f correction routine to be applied at the group or
-    integration level. 1/f noise level and median frame scaling is calculated
-    independently for each pixel column. Outlier pixels and background
-    contaminants can (should) be masked to improve the estimation.
+def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, output_dir=None,
+                       save_results=True, pixel_mask=None, fileroot=None, centroids=None):
+    """Custom 1/f correction routine to be applied at the group or integration level. 1/f noise
+    level and median frame scaling is calculated independently for each pixel column. Outlier
+    pixels and background contaminants can (should) be masked to improve the estimation.
 
     Parameters
     ----------
     datafile : str, RampModel, CubeModel
-        Datamodel for a segment of the TSO, or path to one. Should be 4D
-        ramp, but 3D rate files are also accepted.
+        Datamodel for a segment of the TSO, or path to one. Should be 4D ramp, but 3D rate files
+        are also accepted.
     deepstack : array-like[float]
         Median stack of the baseline integrations.
     trace_width : int
@@ -2209,8 +2043,7 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70,
     save_results : bool
         If True, save results to disk.
     pixel_mask : array-like[float], None
-        Maps of pixels to mask. Can be 3D (nints, dimy, dimx), or 2D
-        (dimy, dimx).
+        Maps of pixels to mask. Can be 3D (nints, dimy, dimx), or 2D (dimy, dimx).
     fileroot : str, None
         Root name for output files. Only necessary if saving results.
     centroids : dict, None
@@ -2273,11 +2106,9 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70,
         subarray = 'SUBSTRIP96'
 
     # Get outlier masks.
-    # Ideally, for this algorithm, we only want to consider pixels quite near
-    # to the trace.
+    # Ideally, for this algorithm, we only want to consider pixels quite near to the trace.
     if pixel_mask is None:
-        fancyprint('No outlier maps passed, ignoring outliers.',
-                   msg_type='WARNING')
+        fancyprint('No outlier maps passed, ignoring outliers.', msg_type='WARNING')
         outliers1 = np.zeros((nint, dimy, dimx)).astype(bool)
     else:
         fancyprint('Constructing outlier map.')
@@ -2306,14 +2137,12 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70,
 
     # Construct trace masks.
     # Order 1 necessary for all subarrays.
-    mask1 = utils.make_soss_tracemask(x1, y1, trace_width, dimy, dimx,
-                                      invert=True)
+    mask1 = utils.make_soss_tracemask(x1, y1, trace_width, dimy, dimx, invert=True)
     trace1 = np.where(mask1 == 1, 0, 1)
     # Include order 2 for SUBSTRIP256.
     if subarray != 'SUBSTRIP96':
         # Order 2.
-        mask2 = utils.make_soss_tracemask(x2, y2, trace_width, dimy, dimx,
-                                          invert=True)
+        mask2 = utils.make_soss_tracemask(x2, y2, trace_width, dimy, dimx, invert=True)
     # But not for SUBSTRIP96.
     else:
         mask2 = np.ones_like(mask1)
@@ -2350,8 +2179,7 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70,
     cube_filt = medfilt(thiscube, (5, 1, 1))
     cube_filt[-2:], cube_filt[2:] = cube_filt[-3], cube_filt[3]
     # Calculate the point-to-point scatter along the temporal axis.
-    scatter = np.median(np.abs(0.5 * (thiscube[0:-2] + thiscube[2:]) -
-                               thiscube[1:-1]), axis=0)
+    scatter = np.median(np.abs(0.5 * (thiscube[0:-2] + thiscube[2:]) - thiscube[1:-1]), axis=0)
     scatter = np.where(scatter == 0, np.inf, scatter)
     # Find pixels which deviate more than 10 sigma.
     scale = np.abs(thiscube - cube_filt) / scatter
@@ -2364,9 +2192,8 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70,
             err1[:, g][ii] = np.inf
             err2[:, g][ii2] = np.inf
 
-    # If no outlier masks were provided and correction is at group level, mask
-    # detector reset artifact.
-    # Only necessary for first 256 integrations.
+    # If no outlier masks were provided and correction is at group level, mask detector reset
+    # artifact. Only necessary for first 256 integrations.
     if pixel_mask is None and np.ndim(cube) == 4:
         if isinstance(datafile, str):
             istart = fits.getheader(datafile)['INTSTART'] - 1
@@ -2392,8 +2219,8 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70,
             continue
         calc_vals['o{}'.format(order)] = {}
 
-        # Loop over all integrations to determine the 1/f noise level via MLE
-        # estimation, and correct it.
+        # Loop over all integrations to determine the 1/f noise level via MLE estimation, and
+        # correct it.
         if ngroup == 0:
             scaling_e = np.zeros((nint, dimx))
             scaling_o = np.zeros((nint, dimx))
@@ -2411,43 +2238,36 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70,
                 scaling_e[i] = m_e
                 scaling_o[i] = m_o
 
-                # Replace any NaNs (that could happen if an entire column is
-                # masked) with zeros.
+                # Replace any NaNs (that could happen if an entire column is masked) with zeros.
                 oof[np.isnan(oof)] = 0
                 oof[np.isinf(oof)] = 0
                 # Subtract the 1/f contribution.
                 if order == 1:
-                    # For order 1, subtract the 1/f value in a window around
-                    # the trace.
+                    # For order 1, subtract the 1/f value in a window around the trace.
                     cube[i] -= (oof[i] * trace1)
                 else:
-                    # For order 2, only subtract it from around the order 2
-                    # trace.
+                    # For order 2, only subtract it from around the order 2 trace.
                     cube[i] -= (oof[i] * trace2)
 
             else:
                 # Group-level correction.
                 for g in range(ngroup):
                     # Do the chromatic 1/f calculation.
-                    m_e, b_e, m_o, b_o = utils.line_mle(deepstack[g],
-                                                        cube[i, g], err[i, g])
+                    m_e, b_e, m_o, b_o = utils.line_mle(deepstack[g], cube[i, g], err[i, g])
                     oof[i, g, ::2] = b_e[None, :]
                     oof[i, g, 1::2] = b_o[None, :]
                     scaling_e[i, g] = m_e
                     scaling_o[i, g] = m_o
 
-                    # Replace any NaNs (that could happen if an entire column
-                    # is masked) with zeros.
+                    # Replace any NaNs (that could happen if an entire column is masked) with zeros.
                     oof[np.isnan(oof)] = 0
                     oof[np.isinf(oof)] = 0
                     # Subtract the 1/f contribution.
                     if order == 1:
-                        # For order 1, subtract the 1/f value in a window
-                        # around the trace.
+                        # For order 1, subtract the 1/f value in a window around the trace.
                         cube[i, g] -= (oof[i, g] * trace1)
                     else:
-                        # For order 2, only subtract it from around the order
-                        # 2 trace.
+                        # For order 2, only subtract it from around the order 2 trace.
                         cube[i, g] -= (oof[i, g] * trace2)
 
         calc_vals['o{}'.format(order)]['oof'] = oof
@@ -2467,8 +2287,8 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70,
         thisfile[0].header['FILENAME'] = fileroot + 'oneoverfstep.fits'
         thisfile.writeto(result, overwrite=True)
         fancyprint('File saved to: {}.'.format(result))
-    # If not saving results, need to work in datamodels to not break
-    # interoperability with jwst pipeline.
+    # If not saving results, need to work in datamodels to not break interoperability with stsci
+    # pipeline.
     else:
         result = utils.open_filetype(datafile)
         result.data = cube
@@ -2476,15 +2296,13 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70,
     return result, calc_vals
 
 
-def subtract_custom_superbias(datafile, superbias, method='constant',
-                              centroids=None, mask_width=10, output_dir=None,
-                              save_results=True, fileroot=None,
+def subtract_custom_superbias(datafile, superbias, method='constant', centroids=None, mask_width=10,
+                              output_dir=None, save_results=True, fileroot=None,
                               override_centroids=False):
-    """Perform a custom superbias subtraction on NIRSpec data where the
-    superbias frame is calculated using the 0th group data from the
-    observation itself. The superbias can either be subtracted as is from the
-    data, or rescaled to account for minor bias level variations which cannot
-    be captured by reference pixels with NIRSpec subarrays.
+    """Perform a custom superbias subtraction on NIRSpec data where the superbias frame is
+    calculated using the 0th group data from the observation itself. The superbias can either be
+    subtracted as is from the data, or rescaled to account for minor bias level variations which
+    cannot be captured by reference pixels with NIRSpec subarrays.
 
     Parameters
     ----------
@@ -2505,8 +2323,8 @@ def subtract_custom_superbias(datafile, superbias, method='constant',
     fileroot : str, None
         Root name for output files. Only necessary if saving results.
     override_centroids : bool
-        If True, when passed centroids do not match the shape of the data
-        frame, use passed centroids and do not recalculate.
+        If True, when passed centroids do not match the shape of the data frame, use passed
+        centroids and do not recalculate.
 
     Returns
     -------
@@ -2516,8 +2334,7 @@ def subtract_custom_superbias(datafile, superbias, method='constant',
         Time series of superbias scale factors for each integration.
     """
 
-    fancyprint('Starting custom superbias subraction step using the custom-{} '
-               'method.'.format(method))
+    fancyprint('Starting superbias subraction step using the custom-{} method.'.format(method))
 
     # If saving results, ensure output directory and fileroots are provided.
     if save_results is True:
@@ -2547,25 +2364,21 @@ def subtract_custom_superbias(datafile, superbias, method='constant',
     if method == 'constant':
         cube_corr = cube - superbias
         scale_factors = None
-    # Rescale the custom superbias to match each integration before
-    # subtracting.
+    # Rescale the custom superbias to match each integration before subtracting.
     else:
         # Get trace centroids to mask.
         if centroids is not None:
             # Unpack centroids if provided.
             fancyprint('Unpacking centroids.')
             xpos, ypos = centroids['xpos'], centroids['ypos']
-            # If centroids on trimmed slit data frame are passed to be used on
-            # full frame data, recalculate centroids on data, unless
-            # overridden.
+            # If centroids on trimmed slit data frame are passed to be used on full frame data,
+            # recalculate centroids on data, unless overridden.
             if len(xpos) != dimx and override_centroids is False:
-                fancyprint('Dimension of passed centroids do not match data '
-                           'frame dimensions. New centroids will be '
-                           'calculated.', msg_type='WARNING')
+                fancyprint('Dimension of passed centroids do not match data frame dimensions. New '
+                           'centroids will be calculated.', msg_type='WARNING')
                 centroids = None
         if centroids is None:
-            # If no centroids file is provided, get the trace positions from
-            # the data now.
+            # If no centroids file is provided, get the trace positions from the data now.
             fancyprint('No centroids provided, locating trace positions.')
             # Create deepstack.
             if np.ndim(cube) == 4:
@@ -2580,16 +2393,13 @@ def subtract_custom_superbias(datafile, superbias, method='constant',
                 xstart = 500
             else:
                 xstart = 0
-            centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart,
-                                                    save_results=False)
+            centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart, save_results=False)
             xpos, ypos = centroids[0], centroids[1]
 
         # Construct trace masks.
         fancyprint('Constructing trace mask.')
-        low = np.max([np.zeros_like(ypos),
-                      ypos - mask_width / 2], axis=0).astype(int)
-        up = np.min([dimy * np.ones_like(ypos),
-                     ypos + mask_width / 2], axis=0).astype(int)
+        low = np.max([np.zeros_like(ypos), ypos - mask_width / 2], axis=0).astype(int)
+        up = np.min([dimy * np.ones_like(ypos), ypos + mask_width / 2], axis=0).astype(int)
         tracemask = np.ones((dimy, dimx))
         for i, x in enumerate(xpos):
             tracemask[low[i]:up[i], int(x)] = 0
@@ -2603,8 +2413,7 @@ def subtract_custom_superbias(datafile, superbias, method='constant',
         # Calculate the superbias scaling relative to each integration.
         scale_factors = np.nanmedian(group0 / superbias, axis=(1, 2))
         # Rescale custom superbias and subtract from each integration.
-        cube_corr = (cube - scale_factors[:, None, None, None] *
-                     superbias[None, None, :, :])
+        cube_corr = (cube - scale_factors[:, None, None, None] * superbias[None, None, :, :])
 
     # Save superbias corrected data.
     if save_results is True:
@@ -2615,8 +2424,8 @@ def subtract_custom_superbias(datafile, superbias, method='constant',
         thisfile[0].header['FILENAME'] = fileroot + 'superbiasstep.fits'
         thisfile.writeto(result, overwrite=True)
         fancyprint('File saved to: {}.'.format(result))
-    # If not saving results, need to work in datamodels to not break
-    # interoperability with jwst pipeline.
+    # If not saving results, need to work in datamodels to not break interoperability with stsci
+    # pipeline.
     else:
         result = utils.open_filetype(datafile)
         result.data = cube_corr
@@ -2626,23 +2435,19 @@ def subtract_custom_superbias(datafile, superbias, method='constant',
 
 def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                oof_method='scale-achromatic', superbias_method='crds',
-               soss_timeseries=None, soss_timeseries_o2=None,
-               save_results=True, pixel_masks=None, force_redo=False,
-               hot_pixel_map=None, flag_up_ramp=False, rejection_threshold=15,
-               flag_in_time=True, time_rejection_threshold=10, root_dir='./',
-               output_tag='', skip_steps=None, do_plot=False, show_plot=False,
-               soss_inner_mask_width=40, soss_outer_mask_width=70,
-               centroids=None, nirspec_mask_width=16, **kwargs):
-    """Run the exoTEDRF Stage 1 pipeline: detector level processing,
-    using a combination of official STScI DMS and custom steps. Documentation
-    for the official DMS steps can be found here:
+               soss_timeseries=None, soss_timeseries_o2=None, save_results=True, pixel_masks=None,
+               force_redo=False, hot_pixel_map=None, flag_up_ramp=False, rejection_threshold=15,
+               flag_in_time=True, time_rejection_threshold=10, root_dir='./', output_tag='',
+               skip_steps=None, do_plot=False, show_plot=False, soss_inner_mask_width=40,
+               soss_outer_mask_width=70, centroids=None, nirspec_mask_width=16, **kwargs):
+    """Run the exoTEDRF Stage 1 pipeline: detector level processing, using a combination of
+    official STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_detector1.html
 
     Parameters
     ----------
     results : array-like(str)
-        List of paths to input uncalibrated datafiles for all segments in an
-        exposure.
+        List of paths to input uncalibrated datafiles for all segments in an exposure.
     mode : str
         Instrument mode which produced the data being analyzed.
     soss_background_model : str, array-like(float), None
@@ -2650,35 +2455,31 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     baseline_ints : array-like(int)
         Integration numbers for transit ingress and egress.
     oof_method : str
-        1/f correction method. Options are "scale-chromatic",
-        "scale-achromatic", "scale-achromatic-window", or "solve".
+        1/f correction method. Options are "scale-chromatic", "scale-achromatic",
+        "scale-achromatic-window", or "solve".
     superbias_method : str
-        NIRSpec superbias correction method. Options are "crds", "custom", and
-        "custom-rescale".
+        NIRSpec superbias correction method. Options are "crds", "custom", and "custom-rescale".
     soss_timeseries : array-like(float), str, None
-        Estimate of the normalized light curve, either 1D or 2D, or path to
-        a file containing it.
+        Estimate of the normalized light curve, either 1D or 2D, or path to a file containing it.
     soss_timeseries_o2 : array-like(float), str, None
-        Estimate of the normalized light curve for order 2, either 1D or 2D,
-        or path to a file containing it.
+        Estimate of the normalized light curve for order 2, either 1D or 2D, or path to a file
+        containing it.
     save_results : bool
         If True, save results of each step to file.
     pixel_masks : array-like(str), None
-        For improved 1/f noise corecton. List of paths to outlier maps for each
-        data segment. Can be 3D (nints, dimy, dimx), or 2D (dimy, dimx) files.
+        For improved 1/f noise corecton. List of paths to outlier maps for each data segment. Can
+        be 3D (nints, dimy, dimx), or 2D (dimy, dimx) files.
     force_redo : bool
         If True, redo steps even if outputs files are already present.
     hot_pixel_map : str, None
         Path to a hot pixel map, such as one produced by BadPixStep.
     flag_up_ramp : bool
-        Whether to flag jumps up the ramp. This is the default flagging in the
-        STScI pipeline. Note that this is broken as of jwst v1.12.5.
+        Whether to flag jumps up the ramp. This is the default flagging in the STScI pipeline. Note
+        that this is broken as of jwst v1.12.5.
     rejection_threshold : int
-        For jump detection; sigma threshold for a pixel to be considered an
-        outlier.
+        For jump detection; sigma threshold for a pixel to be considered an outlier.
     flag_in_time : bool
-        If True, flag cosmic rays temporally in addition to the default
-        up-the-ramp jump detection.
+        If True, flag cosmic rays temporally in addition to the default up-the-ramp jump detection.
     time_rejection_threshold : int
         Sigma threshold to flag outliers in temporal flagging.
     root_dir : str
@@ -2690,15 +2491,14 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     do_plot : bool
         If True, make step diagnostic plots.
     show_plot : bool
-        Only necessary if do_plot is True. Show the diagnostic plots in
-        addition to/instead of saving to file.
+        Only necessary if do_plot is True. Show the diagnostic plots in addition to/instead of
+        saving to file.
     soss_inner_mask_width : int
-        For SOSS 1/f correction. For scale-achromatic, defines the width
-        around the trace to mask. For windowed methods, defines the inner edge
-        of the window.
+        For SOSS 1/f correction. For scale-achromatic, defines the width around the trace to mask.
+        For windowed methods, defines the inner edge of the window.
     soss_outer_mask_width : int
-        For SOSS 1/f correction. For windowed methods, defines the outer edge
-        of the window. For solve, defines the width around the trace to use.
+        For SOSS 1/f correction. For windowed methods, defines the outer edge of the window. For
+        solve, defines the width around the trace to use.
     centroids : str, None
         Path to file containing trace positions for each order.
     nirspec_mask_width : int
@@ -2732,10 +2532,8 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = kwargs['DQInitStep']
         else:
             step_kwargs = {}
-        step = DQInitStep(results, output_dir=outdir,
-                          hot_pixel_map=hot_pixel_map)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           **step_kwargs)
+        step = DQInitStep(results, output_dir=outdir, hot_pixel_map=hot_pixel_map)
+        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Saturation Detection Step =====
     # Default DMS step.
@@ -2745,8 +2543,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         else:
             step_kwargs = {}
         step = SaturationStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           **step_kwargs)
+        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Superbias Subtraction Step =====
     # Default/Custom DMS step.
@@ -2757,8 +2554,8 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = {}
         step = SuperBiasStep(results, output_dir=outdir, centroids=centroids,
                              method=superbias_method)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           do_plot=do_plot, show_plot=show_plot, **step_kwargs)
+        results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
+                           show_plot=show_plot, **step_kwargs)
 
     # ===== Reference Pixel Correction Step =====
     # Default DMS step.
@@ -2768,8 +2565,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         else:
             step_kwargs = {}
         step = RefPixStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           **step_kwargs)
+        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Dark Current Subtraction Step =====
     # Default DMS step.
@@ -2779,8 +2575,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         else:
             step_kwargs = {}
         step = DarkCurrentStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           **step_kwargs)
+        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     if 'OneOverFStep' not in skip_steps:
         if mode == 'NIRISS/SOSS':
@@ -2790,14 +2585,9 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                 step_kwargs = kwargs['BackgroundStep']
             else:
                 step_kwargs = {}
-            step = stage2.BackgroundStep(
-                input_data=results,
-                baseline_ints=baseline_ints,
-                background_model=soss_background_model,
-                output_dir=outdir
-            )
-            results = step.run(save_results=save_results,
-                               force_redo=force_redo, do_plot=do_plot,
+            step = stage2.BackgroundStep(input_data=results, baseline_ints=baseline_ints,
+                                         background_model=soss_background_model, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
                                show_plot=show_plot, **step_kwargs)
             results, soss_background_model = results
 
@@ -2807,18 +2597,14 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = kwargs['OneOverFStep']
         else:
             step_kwargs = {}
-        step = OneOverFStep(results, output_dir=outdir,
-                            baseline_ints=baseline_ints,
+        step = OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
                             pixel_masks=pixel_masks, centroids=centroids,
-                            soss_background=soss_background_model,
-                            method=oof_method, soss_timeseries=soss_timeseries,
-                            soss_timeseries_o2=soss_timeseries_o2)
+                            soss_background=soss_background_model, method=oof_method,
+                            soss_timeseries=soss_timeseries, soss_timeseries_o2=soss_timeseries_o2)
         results = step.run(soss_inner_mask_width=soss_inner_mask_width,
-                           soss_outer_mask_width=soss_outer_mask_width,
-                           save_results=save_results, force_redo=force_redo,
-                           do_plot=do_plot, show_plot=show_plot,
-                           nirspec_mask_width=nirspec_mask_width,
-                           **step_kwargs)
+                           soss_outer_mask_width=soss_outer_mask_width, save_results=save_results,
+                           force_redo=force_redo, do_plot=do_plot, show_plot=show_plot,
+                           nirspec_mask_width=nirspec_mask_width, **step_kwargs)
 
     # ===== Linearity Correction Step =====
     # Default DMS step.
@@ -2828,8 +2614,8 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         else:
             step_kwargs = {}
         step = LinearityStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           do_plot=do_plot, show_plot=show_plot, **step_kwargs)
+        results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
+                           show_plot=show_plot, **step_kwargs)
 
     # ===== Jump Detection Step =====
     # Default/Custom DMS step.
@@ -2840,11 +2626,10 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = {}
         step = JumpStep(results, output_dir=outdir)
         results = step.run(save_results=save_results, force_redo=force_redo,
-                           rejection_threshold=rejection_threshold,
-                           flag_in_time=flag_in_time,
+                           rejection_threshold=rejection_threshold, flag_in_time=flag_in_time,
                            flag_up_ramp=flag_up_ramp,
-                           time_rejection_threshold=time_rejection_threshold,
-                           do_plot=do_plot, show_plot=show_plot, **step_kwargs)
+                           time_rejection_threshold=time_rejection_threshold, do_plot=do_plot,
+                           show_plot=show_plot, **step_kwargs)
 
     # ===== Ramp Fit Step =====
     # Default DMS step.
@@ -2854,8 +2639,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         else:
             step_kwargs = {}
         step = RampFitStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           **step_kwargs)
+        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Gain Scale Correcton Step =====
     # Default DMS step.
@@ -2865,7 +2649,6 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         else:
             step_kwargs = {}
         step = GainScaleStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           **step_kwargs)
+        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     return results
