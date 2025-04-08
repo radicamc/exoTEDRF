@@ -573,15 +573,19 @@ class OneOverFStep:
         # Unpack pixel masks.
         if pixel_masks is not None:
             pixel_masks = np.atleast_1d(pixel_masks)
-            self.pixel_masks = []
-            for mask in pixel_masks:
-                if isinstance(mask, str):
-                    fancyprint('Reading pixel mask file: {}...'.format(mask))
-                    self.pixel_masks.append(fits.getdata(mask))
-                elif isinstance(mask, np.ndarray):
-                    self.pixel_masks.append(mask)
-                else:
-                    raise ValueError('Invalid type for pixel_masks: {}'.format(type(mask)))
+            if len(pixel_masks) <= 3:
+                self.pixel_masks = []
+                for mask in pixel_masks:
+                    if isinstance(mask, str):
+                        fancyprint('Reading pixel mask file: {}...'.format(mask))
+                        self.pixel_masks.append(fits.getdata(mask))
+                    elif isinstance(mask, np.ndarray):
+                        self.pixel_masks.append(mask)
+                    else:
+                        raise ValueError('Invalid type for pixel_masks: {}'.format(type(mask)))
+            else:
+                # For large datasets, read these in later to conserve memory.
+                self.pixel_masks = pixel_masks
             assert len(self.pixel_masks) == len(self.datafiles)
         else:
             self.pixel_masks = pixel_masks
@@ -1553,6 +1557,9 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
         # the detector size will be limited to that illuminated by the slit.
         # Trim pixel masks to match.
         with utils.open_filetype(datafile) as thisfile:
+            if isinstance(pixel_mask, str):  # Unpack individually if dataset is large.
+                fancyprint('Reading pixel mask file: {}...'.format(pixel_mask))
+                pixel_mask = fits.getdata(pixel_mask)
             if isinstance(thisfile, datamodels.SlitModel):
                 xstart = thisfile.xstart - 1  # 1-indexed.
                 xend = xstart + thisfile.xsize
@@ -1755,6 +1762,9 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
         outliers1 = np.zeros((nint, dimy, dimx)).astype(bool)
     else:
         fancyprint('Constructing outlier map.')
+        if isinstance(pixel_mask, str):  # Unpack individually if dataset is large.
+            fancyprint('Reading pixel mask file: {}...'.format(pixel_mask))
+            pixel_mask = fits.getdata(pixel_mask)
         outliers1 = pixel_mask.astype(bool)
     outliers2 = np.copy(outliers1)
 
@@ -2044,6 +2054,9 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
         outliers1 = np.zeros((nint, dimy, dimx)).astype(bool)
     else:
         fancyprint('Constructing outlier map.')
+        if isinstance(pixel_mask, str):  # Unpack individually if dataset is large.
+            fancyprint('Reading pixel mask file: {}...'.format(pixel_mask))
+            pixel_mask = fits.getdata(pixel_mask)
         outliers1 = pixel_mask.astype(bool)
     outliers2 = np.copy(outliers1)
 
