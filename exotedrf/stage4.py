@@ -22,20 +22,20 @@ from tqdm import tqdm
 from exotedrf.utils import fancyprint
 
 
-def bin_at_bins(flux, err, inwave_low, inwave_up, outwave_low, outwave_up):
+def bin_at_bins(inwave_low, inwave_up, flux, err, outwave_low, outwave_up):
     """Similar to both other binning functions, except this one will bin the
     flux data to preset bin edges.
 
     Parameters
     ----------
-    flux : array-like(float)
-        2D Flux to bin.
-    err : array-like(float)
-        2D Flux error to bin.
     inwave_low : array-like(float)
         Lower edge of flux wavelength bins.
     inwave_up : array-like(float)
         Upper edge of flux wavelength bins.
+    flux : array-like(float)
+        2D Flux to bin.
+    err : array-like(float)
+        2D Flux error to bin.
     outwave_low : array-like(float)
         Lower edge of bins to which to bin flux.
     outwave_up : array-like(float)
@@ -128,14 +128,14 @@ def bin_at_pixel(wave, flux, error, npix):
     return wave_bin, wave_err, flux_bin, err_bin
 
 
-def bin_at_resolution(inwaves, flux, flux_err, res, method='sum'):
+def bin_at_resolution(wave, flux, flux_err, res, method='sum'):
     """Function that bins input wavelengths and transit depths (or any other
     observable, like flux) to a given resolution "res". Can handle 1D or 2D
     flux arrays.
 
     Parameters
     ----------
-    inwaves : array-like[float]
+    wave : array-like[float]
         Input wavelength axis. Must be 1D.
     flux : array-like[float]
         Flux values at each wavelength. Can be 1D or 2D. If 2D, the first axis
@@ -161,10 +161,10 @@ def bin_at_resolution(inwaves, flux, flux_err, res, method='sum'):
     """
 
     # Sort quantities in order of increasing wavelength.
-    if np.ndim(inwaves) > 1:
+    if np.ndim(wave) > 1:
         raise ValueError('Input wavelength array must be 1D.')
-    ii = np.argsort(inwaves)
-    waves, flux, flux_err = inwaves[ii], flux[ii], flux_err[ii]
+    ii = np.argsort(wave)
+    waves, flux, flux_err = wave[ii], flux[ii], flux_err[ii]
     werr = make_bins(waves)[1] / 2
     inwave_low, inwave_up = waves - werr, waves + werr
     # Calculate the input resolution and check that we are not trying to bin

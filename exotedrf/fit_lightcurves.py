@@ -223,9 +223,9 @@ for order in config['orders']:
                     u3 = np.array(ld[2])
                     u4 = np.array(ld[3])
             except ValueError:
-                msg = 'LD coefficient file could not be correctly parsed. ' \
-                      'Falling back onto LD calculation.'
-                fancyprint(msg, msg_type='WARNING')
+                fancyprint('LD coefficient file could not be correctly parsed.'
+                           ' Falling back onto LD calculation.',
+                           msg_type='WARNING')
                 calculate = True
         if calculate is True:
             # Calculate LD coefficients on specified wavelength grid.
@@ -346,9 +346,9 @@ for order in config['orders']:
                 custom_lc_function = getattr(model, config['custom_lc_model'])
             except AttributeError:
                 all_models = utils.get_exouprf_built_in_models(model)
-                msg = 'exoUPRF has no built-in light curve model {0}. ' \
-                      'Available models are: {1}'.format(config['custom_lc_model'], all_models)
-                raise AttributeError(msg)
+                raise AttributeError('exoUPRF has no built-in light curve '
+                                     'model {0}. Available models are: '
+                                     '{1}'.format(config['custom_lc_model'], all_models))
         else:
             thistype = type(config['custom_lc_model'])
             raise ValueError('Object passed to custom_lc_model of type {} is '
