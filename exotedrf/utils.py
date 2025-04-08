@@ -1308,6 +1308,37 @@ def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir, ld_model_ty
     f.close()
 
 
+def scatter_normalize_cube(cube, window=5):
+    """Determine at what level each pixel in a datacube deviates from the surrounding temporal
+    median.
+
+    Parameters
+    ----------
+    cube : np.ndarray(float)
+        3D datacube.
+    window : int
+        Window size to median filter, must be odd.
+
+    Returns
+    -------
+    scale : np.ndarray(float)
+        Cube highlighting the extent to which each piexl deviates from the surrounding median.
+    cube_filt : np.ndarray(float)
+        median filtered input datacube.
+    """
+
+    # Filter the data using the specified window
+    cube_filt = medfilt(cube, (window, 1, 1))
+    cube_filt[-2:], cube_filt[2:] = cube_filt[-3], cube_filt[3]
+    # Calculate the point-to-point scatter along the temporal axis.
+    scatter = np.median(np.abs(0.5 * (cube[0:-2] + cube[2:]) - cube[1:-1]), axis=0)
+    scatter = np.where(scatter == 0, np.inf, scatter)
+    # Find pixels which deviate more than the specified threshold.
+    scale = np.abs(cube - cube_filt) / scatter
+
+    return scale, cube_filt
+
+
 def sigma_clip_lightcurves(flux, thresh=5, window=5):
     """Sigma clip outliers in time from final lightcurves.
 

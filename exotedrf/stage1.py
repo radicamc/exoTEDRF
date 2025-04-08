@@ -1410,13 +1410,8 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
     # than X-sigma as comsic rays hits.
     count, interp = 0, 0
     for g in tqdm(range(ngroups)):
-        # Filter the data using the specified window
-        cube_filt = medfilt(cube[:, g], (window, 1, 1))
-        # Calculate the point-to-point scatter along the temporal axis.
-        scatter = np.median(np.abs(0.5 * (cube[0:-2, g] + cube[2:, g]) - cube[1:-1, g]), axis=0)
-        scatter = np.where(scatter == 0, np.inf, scatter)
         # Find pixels which deviate more than the specified threshold.
-        scale = np.abs(cube[:, g] - cube_filt) / scatter
+        scale, cube_filt = utils.scatter_normalize_cube(cube[:, g], window=window)
         ii = ((scale >= thresh) & (cube[:, g] > np.nanpercentile(cube, 10)) & (artifact == 0))
 
         # If ngroup<=2, replace the pixel with the stack median so that a ramp can still be fit.
@@ -1583,12 +1578,8 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
         thiscube = cube[:, -1]
     else:
         thiscube = cube
-    cube_filt = medfilt(thiscube, (5, 1, 1))
-    # Calculate the point-to-point scatter along the temporal axis.
-    scatter = np.median(np.abs(0.5 * (thiscube[0:-2] + thiscube[2:]) - thiscube[1:-1]), axis=0)
-    scatter = np.where(scatter == 0, np.inf, scatter)
     # Find pixels which deviate more than 10 sigma.
-    scale = np.abs(thiscube - cube_filt) / scatter
+    scale = utils.scatter_normalize_cube(thiscube)[0]
     ii = np.where(scale > 10)
     outliers[ii] = 1
 
@@ -1807,13 +1798,8 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
         thiscube = cube[:, -1]
     else:
         thiscube = cube
-    cube_filt = medfilt(thiscube, (5, 1, 1))
-    cube_filt[-2:], cube_filt[2:] = cube_filt[-3], cube_filt[3]
-    # Calculate the point-to-point scatter along the temporal axis.
-    scatter = np.median(np.abs(0.5 * (thiscube[0:-2] + thiscube[2:]) - thiscube[1:-1]), axis=0)
-    scatter = np.where(scatter == 0, np.inf, scatter)
     # Find pixels which deviate more than 10 sigma.
-    scale = np.abs(thiscube - cube_filt) / scatter
+    scale = utils.scatter_normalize_cube(thiscube)[0]
     ii = np.where(scale > 10)
     outliers1[ii] = 1
     outliers2[ii] = 1
@@ -2108,21 +2094,16 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
         thiscube = cube[:, -1]
     else:
         thiscube = cube
-    cube_filt = medfilt(thiscube, (5, 1, 1))
-    cube_filt[-2:], cube_filt[2:] = cube_filt[-3], cube_filt[3]
-    # Calculate the point-to-point scatter along the temporal axis.
-    scatter = np.median(np.abs(0.5 * (thiscube[0:-2] + thiscube[2:]) - thiscube[1:-1]), axis=0)
-    scatter = np.where(scatter == 0, np.inf, scatter)
     # Find pixels which deviate more than 10 sigma.
-    scale = np.abs(thiscube - cube_filt) / scatter
+    scale = utils.scatter_normalize_cube(thiscube)[0]
     ii = np.where(scale > 10)
     if ngroup == 0:
         err1[ii] = np.inf
-        err2[ii2] = np.inf
+        err2[ii] = np.inf
     else:
         for g in range(ngroup):
             err1[:, g][ii] = np.inf
-            err2[:, g][ii2] = np.inf
+            err2[:, g][ii] = np.inf
 
     # If no outlier masks were provided and correction is at group level, mask detector reset
     # artifact. Only necessary for first 256 integrations.
