@@ -409,23 +409,8 @@ class BackgroundStep:
                 # Generate some necessary quantities -- only do this for the first segment.
                 if first_time:
                     fancyprint('Creating reference deep stack.')
-                    # Format the baseline integrations -- for fits inputs.
-                    if isinstance(segment, str):
-                        nints = fits.getheader(segment)['NINTS']
-                        baseline_ints = utils.format_out_frames_2(out_frames=self.baseline_ints,
-                                                                  max_nint=nints)
-                        # Generate the baseline stack.
-                        deepstack = utils.make_baseline_stack_fits(datafiles=self.datafiles,
-                                                                   baseline_ints=baseline_ints)
-                    # Format the baseline integrations -- using datamodels.
-                    else:
-                        with utils.open_filetype(segment) as file:
-                            nints = file.meta.exposure.nints
-                            baseline_ints = utils.format_out_frames_2(out_frames=self.baseline_ints,
-                                                                      max_nint=nints)
-                            # Generate the baseline stack.
-                            deepstack = utils.make_baseline_stack_dm(datafiles=self.datafiles,
-                                                                     baseline_ints=baseline_ints)
+                    deepstack = utils.make_baseline_stack_general(datafiles=self.datafiles,
+                                                                  baseline_ints=self.baseline_ints)
                     first_time = False
 
                 with warnings.catch_warnings():
@@ -608,23 +593,8 @@ class BadPixStep:
                 # Generate some necessary quantities -- only do this for the first segment.
                 if first_time:
                     fancyprint('Creating reference deep stack.')
-                    # Format the baseline integrations -- for fits inputs.
-                    if isinstance(segment, str):
-                        nints = fits.getheader(segment)['NINTS']
-                        baseline_ints = utils.format_out_frames_2(out_frames=self.baseline_ints,
-                                                                  max_nint=nints)
-                        # Generate the baseline stack.
-                        deepstack = utils.make_baseline_stack_fits(datafiles=self.datafiles,
-                                                                   baseline_ints=baseline_ints)
-                    # Format the baseline integrations -- using datamodels.
-                    else:
-                        with utils.open_filetype(segment) as file:
-                            nints = file.meta.exposure.nints
-                            baseline_ints = utils.format_out_frames_2(out_frames=self.baseline_ints,
-                                                                      max_nint=nints)
-                            # Generate the baseline stack.
-                            deepstack = utils.make_baseline_stack_dm(datafiles=self.datafiles,
-                                                                     baseline_ints=baseline_ints)
+                    deepstack = utils.make_baseline_stack_general(datafiles=self.datafiles,
+                                                                  baseline_ints=self.baseline_ints)
 
                     to_flag = None  # No pixels yet identified to flag.
                     first_time = False
@@ -753,7 +723,7 @@ class PCAReconstructStep:
 
         # Generate the final deep stack.
         fancyprint('Generating a deep stack for the TSO.')
-        deepstack = make_baseline_stack(self.datafiles, self.baseline_ints)
+        deepstack = utils.make_baseline_stack_general(self.datafiles, self.baseline_ints)
 
         if save_results is True:
             # Save deep frame.
@@ -1301,7 +1271,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
             # Get proper detector names for NIRSpec.
             instrument = utils.get_instrument_name(result)
             if instrument == 'NIRSPEC':
-                det = utils.get_detector_name(result)
+                det = utils.get_nrs_detector_name(result)
                 outfile = outfile.replace('.png', '_{}.png'.format(det))
         else:
             outfile = None
@@ -1371,7 +1341,7 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
         # Get proper detector names for NIRSpec.
         instrument = utils.get_instrument_name(datafiles[0])
         if instrument == 'NIRSPEC':
-            det = utils.get_detector_name(datafiles[0])
+            det = utils.get_nrs_detector_name(datafiles[0])
             outfile = outfile.replace('.png', '_{}.png'.format(det))
     else:
         outfile = None
@@ -1408,7 +1378,7 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
         # Get proper detector names for NIRSpec.
         instrument = utils.get_instrument_name(datafiles[0])
         if instrument == 'NIRSPEC':
-            det = utils.get_detector_name(datafiles[0])
+            det = utils.get_nrs_detector_name(datafiles[0])
             outfile = outfile.replace('.png', '_{}.png'.format(det))
         pcs, var, _ = soss_stability_pca(newcube, n_components=pca_components, outfile=outfile,
                                          do_plot=do_plot, show_plot=show_plot)
@@ -1548,9 +1518,9 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
     else:
         # Get centroids via the edgetrigger method.
         save_filename = output_dir + fileroot_noseg
-        det = utils.get_detector_name(datafiles[0])
+        det = utils.get_nrs_detector_name(datafiles[0])
         if det == 'nrs1':
-            grating = utils.get_nirspec_grating(datafiles[0])
+            grating = utils.get_nrs_grating(datafiles[0])
             if grating == 'G395H':
                 xstart = 500  # Trace starts at pixel ~500 for G395M
             else:
@@ -1628,41 +1598,6 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
             np.save(outfile, smoothed_lc)
 
     return centroids, order0mask, smoothed_lc
-
-
-def make_baseline_stack(datafiles, baseline_ints):
-    """Make a deep stack of baseline integrations.
-
-    Parameters
-    ----------
-    datafiles : array-like(str), array-like(datamodel)
-        List of paths to input data or the input data itself.
-    baseline_ints : array-like(int)
-        Integration number(s) to use as ingress and/or egress.
-
-    Returns
-    -------
-    deepstack : ndarray(float)
-        A deep stack of the TSO baseline integrations.
-    """
-
-    datafiles = np.atleast_1d(datafiles)
-
-    # Format the baseline integrations -- for fits inputs.
-    if isinstance(datafiles[0], str):
-        nints = fits.getheader(datafiles[0])['NINTS']
-        baseline_ints = utils.format_out_frames_2(baseline_ints, nints)
-        # Generate the baseline stack.
-        deepstack = utils.make_baseline_stack_fits(datafiles, baseline_ints)
-    # Format the baseline integrations -- using datamodels.
-    else:
-        with utils.open_filetype(datafiles[0]) as file:
-            nints = file.meta.exposure.nints
-            baseline_ints = utils.format_out_frames_2(baseline_ints, nints)
-            # Generate the baseline stack.
-            deepstack = utils.make_baseline_stack_dm(datafiles, baseline_ints)
-
-    return deepstack
 
 
 def make_order0_mask_from_f277w(f277w, thresh_std=1, thresh_size=10):

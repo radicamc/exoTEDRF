@@ -340,7 +340,7 @@ class SuperBiasStep:
                 plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
                 if self.instrument == 'NIRSPEC':
-                    det = utils.get_detector_name(self.datafiles[0])
+                    det = utils.get_nrs_detector_name(self.datafiles[0])
                     plot_file1 = plot_file1.replace('.png', '_{}.png'.format(det))
                     plot_file2 = plot_file2.replace('.png', '_{}.png'.format(det))
             else:
@@ -672,39 +672,50 @@ class OneOverFStep:
                 if self.pixel_masks is not None:
                     thismask = self.pixel_masks[i]
 
-                if self.instrument == 'NIRISS' or do_plot is True:
-                    # Generate some necessary quantities -- only do this for
-                    # the first segment being run.
-                    if first_time:
-                        fancyprint('Creating reference deep stack.')
-                        # Format the baseline integrations -- for fits inputs.
-                        if isinstance(segment, str):
-                            nints = fits.getheader(segment)['NINTS']
-                            baseline_ints = utils.format_out_frames_2(out_frames=self.baseline_ints,
-                                                                      max_nint=nints)
-                            # Generate the baseline stack.
-                            deepstack = utils.make_baseline_stack_fits(datafiles=self.datafiles,
-                                                                       baseline_ints=baseline_ints)
-                        # Format the baseline integrations -- using datamodels.
+                # Generate some necessary quantities -- only do this for the first segment.
+                if first_time:
+                    # Quantity #1: deep stack.
+                    fancyprint('Creating reference deep stack.')
+                    deepstack = utils.make_baseline_stack_general(datafiles=self.datafiles,
+                                                                  baseline_ints=self.baseline_ints)
+
+                    # Quantity #2: centroids (if not provided).
+                    if self.centroids is None:
+                        fancyprint('No centroids provided, locating trace positions.')
+                        self.centroids = {}
+                        if self.instrument == 'NIRISS':
+                            # Define the readout setup.
+                            subarray = utils.get_soss_subarray(self.datafiles[0])
+                            step = calwebb_spec2.extract_1d_step.Extract1dStep()
+                            tracetable = step.get_reference_file(self.datafiles[0], 'spectrace')
+                            if np.ndim(deepstack) == 3:
+                                thisdeep = deepstack[-1]
+                            else:
+                                thisdeep = deepstack
+                            cens = utils.get_centroids_soss(thisdeep, tracetable, subarray,
+                                                            save_results=False)
+                            self.centroids['xpos'] = cens[0][0]
+                            self.centroids['ypos o1'] = cens[0][1]
+                            self.centroids['ypos o2'] = cens[1][1]
+                            self.centroids['ypos o3'] = cens[2][1]
                         else:
-                            with utils.open_filetype(segment) as file:
-                                nints = file.meta.exposure.nints
-                                baseline_ints = utils.format_out_frames_2(
-                                    out_frames=self.baseline_ints,
-                                    max_nint=nints
-                                )
-                                # Generate the baseline stack.
-                                deepstack = utils.make_baseline_stack_dm(
-                                    datafiles=self.datafiles,
-                                    baseline_ints=baseline_ints
-                                )
+                            # Get detector to determine x limits.
+                            det = utils.get_nrs_detector_name(self.datafiles[0])
+                            if det == 'nrs1':
+                                xstart = 500
+                            else:
+                                xstart = 0
+                            cens = utils.get_centroids_nirspec(deepstack, xstart=xstart,
+                                                               save_results=False)
+                            self.centroids['xpos'], self.centroids['ypos'] = cens[0], cens[1]
 
-                        # Initialize some storage arrays for the NIRISS
-                        # solving method.
-                        if self.method == 'solve':
-                            mle_results = []
-                        first_time = False
+                    # Quantity #3: storage arrays for NIRISS solving method.
+                    if self.method == 'solve':
+                        mle_results = []
 
+                    first_time = False
+
+                # Start the corrections.
                 if self.instrument == 'NIRISS':
                     # Trim timeseries to match integrations of current segment.
                     thistso, thistso_o2 = None, None
@@ -794,7 +805,7 @@ class OneOverFStep:
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
                 plot_file3 = self.output_dir + self.tag.replace('.fits', '_o1_3.png')
                 if self.instrument == 'NIRSPEC':
-                    det = utils.get_detector_name(self.datafiles[0])
+                    det = utils.get_nrs_detector_name(self.datafiles[0])
                     plot_file1 = plot_file1.replace('_1.png', '_1_{}.png'.format(det))
                     plot_file2 = plot_file2.replace('_2.png', '_2_{}.png'.format(det))
             else:
@@ -813,10 +824,7 @@ class OneOverFStep:
                 this_ts = self.timeseries
 
             # Make a deep stack of corrected obervations.
-            if isinstance(results[0], str):
-                deepstack_new = utils.make_baseline_stack_fits(results, baseline_ints)
-            else:
-                deepstack_new = utils.make_baseline_stack_dm(results, baseline_ints)
+            deepstack_new = utils.make_baseline_stack_general(results, self.baseline_ints)
             plotting.make_oneoverf_plot(results, timeseries=this_ts, deepstack=deepstack_new,
                                         outfile=plot_file1, show_plot=show_plot)
             plotting.make_oneoverf_psd(results, self.datafiles, timeseries=this_ts,
@@ -952,7 +960,7 @@ class LinearityStep:
                 plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
                 if self.instrument == 'NIRSPEC':
-                    det = utils.get_detector_name(self.datafiles[0])
+                    det = utils.get_nrs_detector_name(self.datafiles[0])
                     plot_file1 = plot_file1.replace('.png', '_{}.png'.format(det))
                     plot_file2 = plot_file2.replace('.png', '_{}.png'.format(det))
             else:
@@ -1081,7 +1089,7 @@ class JumpStep:
             if save_results is True:
                 plot_file = self.output_dir + self.tag.replace('.fits', '.png')
                 if self.instrument == 'NIRSPEC':
-                    det = utils.get_detector_name(self.datafiles[0])
+                    det = utils.get_nrs_detector_name(self.datafiles[0])
                     plot_file = plot_file.replace('.png', '_{}.png'.format(det))
             else:
                 plot_file = None
@@ -1474,7 +1482,7 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
         Root name for output files. Only necessary if saving results.
     mask_width : int
         Full width in pixels to mask around the trace.
-    centroids : dict, None
+    centroids : dict
         Dictionary containing trace positions for each order.
     method : str
         1/f correction method. Options are "median" or "slope".
@@ -1514,23 +1522,16 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
     else:
         nint, dimy, dimx = np.shape(cube)
 
-    # Get the trace centroids.
-    if centroids is not None:
-        # Unpack centroids if provided.
-        fancyprint('Unpacking centroids.')
-        xpos, ypos = centroids['xpos'], centroids['ypos']
-        # If centroids on trimmed slit data frame are passed to be used on full frame data,
-        # recalculate centroids on data, unless overridden.
-        # This is mostly just cosmetic as we only care about the "in slit" data, however, I like my
-        # plots to look nice and not have part of the detector corrected and part not.
-        if len(xpos) != dimx and override_centroids is False:
-            fancyprint('Dimension of passed centroids do not match data frame dimensions. New '
-                       'centroids will be calculated.', msg_type='WARNING')
-            centroids = None
-
-    if centroids is None:
-        # If no centroids file is provided, get the trace positions from the data now.
-        fancyprint('No centroids provided, locating trace positions.')
+    # Unpack trace centroids.
+    fancyprint('Unpacking centroids.')
+    xpos, ypos = centroids['xpos'], centroids['ypos']
+    # If centroids on trimmed slit data frame are passed to be used on full frame data,
+    # recalculate centroids on data, unless overridden.
+    # This is mostly just cosmetic as we only care about the "in slit" data, however, I like my
+    # plots to look nice and not have part of the detector corrected and part not.
+    if len(xpos) != dimx and override_centroids is False:
+        fancyprint('Dimension of passed centroids do not match data frame dimensions. New '
+                   'centroids will be calculated.', msg_type='WARNING')
         # Create deepstack.
         if np.ndim(cube) == 4:
             # Only need last group.
@@ -1539,7 +1540,7 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
             thiscube = cube
         deepstack = bn.nanmedian(thiscube, axis=0)
         # Get detector to determine x limits.
-        det = utils.get_detector_name(datafile)
+        det = utils.get_nrs_detector_name(datafile)
         if det == 'nrs1':
             xstart = 500
         else:
@@ -1705,7 +1706,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
         Root name for output file. Only necessary if saving results.
     method : str
         Options are "chromatic", "achromatic", or "achromatic-window".
-    centroids : dict, None
+    centroids : dict
         Dictionary containing trace positions for each order.
     smoothing_scale : int, None
         If no timseries is provided, the scale (in number of integrations) on which to smooth the
@@ -1751,26 +1752,11 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
     else:
         subarray = 'SUBSTRIP96'
 
-    # Get the trace centroids.
-    if centroids is None:
-        # If no centroids file is provided, get the trace positions from the data now.
-        fancyprint('No centroids provided, locating trace positions.')
-        step = calwebb_spec2.extract_1d_step.Extract1dStep()
-        tracetable = step.get_reference_file(datafile, 'spectrace')
-        if np.ndim(cube) == 4:
-            thisdeep = deepstack[-1]
-        else:
-            thisdeep = deepstack
-        centroids = utils.get_centroids_soss(thisdeep, tracetable, subarray, save_results=False)
-        x1, y1 = centroids[0][0], centroids[0][1]
-        x2, y2 = centroids[1][0], centroids[1][1]
-        x3, y3 = centroids[2][0], centroids[2][1]
-    else:
-        # Unpack centroids if provided.
-        fancyprint('Unpacking centroids.')
-        x1, y1 = centroids['xpos'], centroids['ypos o1']
-        x2, y2 = centroids['xpos'], centroids['ypos o2']
-        x3, y3 = centroids['xpos'], centroids['ypos o3']
+    # Unpack trace centroids.
+    fancyprint('Unpacking centroids.')
+    x1, y1 = centroids['xpos'], centroids['ypos o1']
+    y2, y3 = centroids['ypos o2'], centroids['ypos o3']
+    x2, x3 = x1[:len(y2)], x1[:len(y3)]  # Trim o1 x positions to match o2 & 03.
 
     # Read in the outlier maps - (nints, dimy, dimx) 3D cubes.
     if pixel_mask is None:
@@ -2009,7 +1995,7 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
         Maps of pixels to mask. Can be 3D (nints, dimy, dimx), or 2D (dimy, dimx).
     fileroot : str, None
         Root name for output files. Only necessary if saving results.
-    centroids : dict, None
+    centroids : dict
         Dictionary containing trace positions for each order.
 
     Returns
@@ -2063,10 +2049,7 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
     else:
         nint, dimy, dimx = np.shape(cube)
         ngroup = 0
-    if dimy == 256:
-        subarray = 'SUBSTRIP256'
-    else:
-        subarray = 'SUBSTRIP96'
+    subarray = utils.get_soss_subarray(datafile)
 
     # Get outlier masks.
     # Ideally, for this algorithm, we only want to consider pixels quite near to the trace.
@@ -2078,25 +2061,11 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
         outliers1 = pixel_mask.astype(bool)
     outliers2 = np.copy(outliers1)
 
-    # Get the trace centroids.
-    if centroids is None:
-        # If no centroids are provided, get the trace positions from the data.
-        fancyprint('No centroids provided, locating trace positions.')
-        step = calwebb_spec2.extract_1d_step.Extract1dStep()
-        tracetable = step.get_reference_file(datafile, 'spectrace')
-        if np.ndim(cube) == 4:
-            thisdeep = deepstack[-1]
-        else:
-            thisdeep = deepstack
-        centroids = utils.get_centroids_soss(thisdeep, tracetable, subarray,
-                                             save_results=False)
-        x1, y1 = centroids[0][0], centroids[0][1]
-        x2, y2 = centroids[1][0], centroids[1][1]
-    else:
-        # Unpack centroids if provided.
-        fancyprint('Unpacking centroids.')
-        x1, y1 = centroids['xpos'], centroids['ypos o1']
-        x2, y2 = centroids['xpos'], centroids['ypos o2']
+    # Unpack trace centroids.
+    fancyprint('Unpacking centroids.')
+    x1, y1 = centroids['xpos'], centroids['ypos o1']
+    y2 = centroids['ypos o2']
+    x2 = x1[:len(y2)]  # Trim o1 x positions to match o2.
 
     # Construct trace masks.
     # Order 1 necessary for all subarrays.
@@ -2341,7 +2310,7 @@ def subtract_custom_superbias(datafile, superbias, method='constant', centroids=
                 thiscube = cube
             deepstack = bn.nanmedian(thiscube, axis=0)
             # Get detector to determine x limits.
-            det = utils.get_detector_name(datafile)
+            det = utils.get_nrs_detector_name(datafile)
             if det == 'nrs1':
                 xstart = 500
             else:

@@ -259,7 +259,7 @@ def get_default_header():
     return header_dict, header_comments
 
 
-def get_detector_name(datafile):
+def get_nrs_detector_name(datafile):
     """Get name of detector.
 
     Parameters
@@ -494,7 +494,7 @@ def get_interp_box(data, xbox_size, ybox_size, i, j):
     return box_properties
 
 
-def get_nirspec_grating(datafile):
+def get_nrs_grating(datafile):
     """Get name of grating.
 
     Parameters
@@ -515,6 +515,29 @@ def get_nirspec_grating(datafile):
             grating = d.meta.instrument.grating.upper()
 
     return grating
+
+
+def get_soss_subarray(datafile):
+    """Get name of subarray.
+
+    Parameters
+    ----------
+    datafile : str, datamodel
+        Path to datafile or datafile itself.
+
+    Returns
+    -------
+    subarray : str
+        Name of subarray.
+    """
+
+    if isinstance(datafile, str):
+        subarray = fits.getheader(datafile)['SUBARRAY'].upper()
+    else:
+        with datamodels.open(datafile) as d:
+            subarray = d.meta.instrument.subarray.upper()
+
+    return subarray
 
 
 def get_stellar_param_grid(st_teff, st_logg, st_met):
@@ -914,6 +937,40 @@ def make_baseline_stack_fits(datafiles, baseline_ints):
     return stack
 
 
+def make_baseline_stack_general(datafiles, baseline_ints):
+    """Wrapper around the above two functions to take either fits or datamodel inputs and create a
+    baseline stack. .
+
+    Parameters
+    ----------
+    datafiles : array-like(str), jwst.datamodel
+        Input datafiles.
+    baseline_ints: array-like(int)
+        Integration numbers of the baseline.
+
+    Returns
+    -------
+    stack : np.ndarray(float)
+        Deep stack of the baseline integrations.
+    """
+
+    # Format the baseline integrations -- for fits inputs.
+    if isinstance(datafiles[0], str):
+        nints = fits.getheader(datafiles[0])['NINTS']
+        baseline_ints = format_out_frames_2(out_frames=baseline_ints, max_nint=nints)
+        # Generate the baseline stack.
+        deepstack = make_baseline_stack_fits(datafiles=datafiles, baseline_ints=baseline_ints)
+    # Format the baseline integrations -- using datamodels.
+    else:
+        with open_filetype(datafiles[0]) as file:
+            nints = file.meta.exposure.nints
+        baseline_ints = format_out_frames_2(out_frames=baseline_ints, max_nint=nints)
+        # Generate the baseline stack.
+        deepstack = make_baseline_stack_dm(datafiles=datafiles, baseline_ints=baseline_ints)
+
+    return deepstack
+
+
 def make_custom_superbias(datafiles):
     """Cunstruct a custom superbias frame by stacking all of the 0th group frames in a TSO.
 
@@ -1050,7 +1107,7 @@ def mask_reset_artifact(datafile):
     if instrument == 'NIRISS':
         max_reset_int = 256
     else:
-        det = get_detector_name(datafile)
+        det = get_nrs_detector_name(datafile)
         # Max integration is different for NRS1 vs NRS2.
         if det == 'NRS1':
             max_reset_int = 62

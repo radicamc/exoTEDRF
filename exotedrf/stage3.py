@@ -254,7 +254,7 @@ class Extract1DStep:
                                               output_dir=self.output_dir, save_results=save_results,
                                               use_pastasoss=use_pastasoss)
             else:
-                detector = utils.get_detector_name(self.datafiles[0])
+                detector = utils.get_nrs_detector_name(self.datafiles[0])
                 spectra = format_nirspec_spectra(results, times, extract_params, self.pl_name,
                                                  detector, st_teff, st_logg, st_met,
                                                  output_dir=self.output_dir,
@@ -450,7 +450,7 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
     """
 
     datafiles = np.atleast_1d(datafiles)
-    det = utils.get_detector_name(datafiles[0])
+    det = utils.get_nrs_detector_name(datafiles[0])
     # Get flux and errors to extract.
     for i, file in enumerate(datafiles):
         if isinstance(file, str):
@@ -477,7 +477,7 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
         # scatter.
         scatter = []
         if det == 'nrs1':
-            grating = utils.get_nirspec_grating(datafiles[0])
+            grating = utils.get_nrs_grating(datafiles[0])
             if grating == 'G395H':
                 xstart = 500  # Trace starts at pixel ~500 for G395M
             else:
@@ -508,7 +508,7 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
     # Do the extraction.
     fancyprint('Performing simple aperture extraction.')
     if det == 'nrs1':
-        grating = utils.get_nirspec_grating(datafiles[0])
+        grating = utils.get_nrs_grating(datafiles[0])
         if grating == 'G395H':
             xstart = 500  # Trace starts at pixel ~500 for G395M
         else:
