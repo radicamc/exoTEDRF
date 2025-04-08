@@ -54,7 +54,7 @@ def download_observations(proposal_id, instrument_name=None, objectname=None,
     all_products = Observations.get_product_list(obs_table)
 
     products = Observations.filter_products(all_products,
-                                            dataproduct_type='image',
+                                            dataproduct_type='timeseries',
                                             extension='_uncal.fits',
                                             productType='SCIENCE')
 

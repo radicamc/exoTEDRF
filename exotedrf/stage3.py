@@ -251,6 +251,8 @@ class Extract1DStep:
             # Get timestamps and pupil wheel position.
             for i, datafile in enumerate(self.datafiles):
                 with utils.open_filetype(datafile) as file:
+                    # Pipeline data says timestamps are BJD, but they are
+                    # actually MJD (I think).
                     this_time = file.int_times['int_mid_BJD_TDB']
                 if i == 0:
                     times = this_time
@@ -867,7 +869,9 @@ def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path,
         spec[ei].data *= flux_scaling
         # Convert to erg/s/cm2/µm.
         spec[fi].data *= (1e-23 * (3e8 * 1e6) / wave**2)
+        spec[fi].header['UNITS'] = 'erg/s/cm2/µm'
         spec[ei].data *= (1e-23 * (3e8 * 1e6) / wave**2)
+        spec[ei].header['UNITS'] = 'erg/s/cm2/µm'
 
     newfile = spectrum_file[:-5] + '_FluxCalibrated.fits'
     fancyprint('Flux calibrated spectra saved to {}'.format(newfile))
@@ -970,7 +974,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name,
     # Pack the stellar spectra and save to file if requested.
     data = [wave1d, half_width, flux_clip, ferr, times]
     names = ['Wave', 'Wave Err', 'Flux', 'Flux Err', 'Time']
-    units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD']
+    units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD_TDB']
     spectra = utils.save_extracted_spectra(filename, data, names, units,
                                            header_dict, header_comments,
                                            save_results=save_results)
@@ -1131,7 +1135,7 @@ def format_soss_spectra(datafiles, times, extract_params, target_name,
     names = ['Wave O1', 'Wave Err O1', 'Flux O1', 'Flux Err O1',
              'Wave O2', 'Wave Err O2', 'Flux O2', 'Flux Err O2', 'Time']
     units = ['Micron', 'Micron', 'DN/s', 'DN/s',
-             'Micron', 'Micron', 'DN/s', 'DN/s', 'MJD']
+             'Micron', 'Micron', 'DN/s', 'DN/s', 'MJD_TDB']
     spectra = utils.save_extracted_spectra(filename, data, names, units,
                                            header_dict, header_comments,
                                            save_results=save_results)
