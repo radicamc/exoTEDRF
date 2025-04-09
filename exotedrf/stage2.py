@@ -58,6 +58,9 @@ class AssignWCSStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
+        # If NIRSpec, get grating
+        self.grating = utils.get_grating_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
@@ -88,11 +91,27 @@ class AssignWCSStep:
             # If no output files are detected, run the step.
             else:
                 if self.instrument == 'NIRSPEC':
+                    fancyprint('NIRSPEC -- pass special arguments to assignwcsstep')
                     # Edit slit parameters so wavelength solution can be correctly calculated.
                     jwst.assign_wcs.nirspec.nrs_wcs_set_input = \
                         partial(jwst.assign_wcs.nirspec.nrs_wcs_set_input,
-                                wavelength_range=[2.3e-06, 5.3e-06],
+                                wavelength_range=[6e-08, 6e-06],
                                 slit_y_low=-1, slit_y_high=50)
+                    # if self.grating=='PRISM':
+                    #     fancyprint('PRISM - do not pass any argument to assignwcsstep')
+                    #     # Edit slit parameters so wavelength solution can be
+                    #     # correctly calculated.
+                    #     jwst.assign_wcs.nirspec.nrs_wcs_set_input = \
+                    #         partial(jwst.assign_wcs.nirspec.nrs_wcs_set_input,
+                    #                 wavelength_range=[6e-08, 6e-06],
+                    #                 slit_y_low=-1, slit_y_high=50)
+                    # else:
+                    #     # Edit slit parameters so wavelength solution can be
+                    #     # correctly calculated.
+                    #     jwst.assign_wcs.nirspec.nrs_wcs_set_input = \
+                    #         partial(jwst.assign_wcs.nirspec.nrs_wcs_set_input,
+                    #                 wavelength_range=[2.3e-06, 5.3e-06],
+                    #                 slit_y_low=-1, slit_y_high=50)
                 step = calwebb_spec2.assign_wcs_step.AssignWcsStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 **kwargs)
@@ -164,8 +183,8 @@ class Extract2DStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_spec2.extract_2d_step.Extract2dStep()
-                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
-                                **kwargs)
+                res = step.call(segment, output_dir=self.output_dir,
+                                save_results=save_results, tsgrism_extract_height=32, **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -1516,8 +1535,12 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
             grating = utils.get_nrs_grating(datafiles[0])
             if grating == 'G395H':
                 xstart = 500  # Trace starts at pixel ~500 for G395M
-            else:
+            elif grating == 'G395M':
                 xstart = 200  # Trace starts at pixel ~200 for G395M
+            elif grating == 'PRISM':
+                xstart = 14
+            else:
+                raise ValueError('Unknown NIRSpec grating used...')
         else:
             xstart = 0
         centroids = utils.get_centroids_nirspec(deepframe, xstart=xstart,

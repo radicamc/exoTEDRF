@@ -480,8 +480,12 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
             grating = utils.get_nrs_grating(datafiles[0])
             if grating == 'G395H':
                 xstart = 500  # Trace starts at pixel ~500 for G395M
-            else:
+            elif grating == 'G395M':
                 xstart = 200  # Trace starts at pixel ~200 for G395M
+            elif grating == 'PRISM':
+                xstart = 14 # Trace starts at pixel ~14 for PRISM
+            else:
+                raise ValueError('Unknown NIRSpec grating used...')
         else:
             xstart = 0
         for w in tqdm(range(1, 12)):
@@ -511,8 +515,12 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
         grating = utils.get_nrs_grating(datafiles[0])
         if grating == 'G395H':
             xstart = 500  # Trace starts at pixel ~500 for G395M
-        else:
+        elif grating == 'G395M':
             xstart = 200  # Trace starts at pixel ~200 for G395M
+        elif grating == 'PRISM':
+            xstart = 14 # Trace starts at pixel ~14 for PRISM
+        else:
+            raise ValueError('Unknown NIRSpec grating used...')
     else:
         xstart = 0
     flux, ferr = do_box_extraction(cube, ecube, y1, width=extract_width, extract_start=xstart)
