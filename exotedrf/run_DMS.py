@@ -13,11 +13,7 @@ import os
 import shutil
 import sys
 
-from exotedrf.stage1 import run_stage1
-from exotedrf.stage2 import run_stage2
-from exotedrf.stage3 import run_stage3
-from exotedrf.utils import fancyprint, parse_config, unpack_input_dir, \
-    verify_path
+from exotedrf.utils import fancyprint, parse_config, unpack_input_dir, verify_path
 
 # ===== Setup =====
 # Read config file.
@@ -30,6 +26,11 @@ config = parse_config(config_file)
 # Set CRDS cache path.
 os.environ['CRDS_PATH'] = config['crds_cache_path']
 os.environ['CRDS_SERVER_URL'] = 'https://jwst-crds.stsci.edu'
+
+# Import rest of pipeline stuff after initializing crds path.
+from exotedrf.stage1 import run_stage1
+from exotedrf.stage2 import run_stage2
+from exotedrf.stage3 import run_stage3
 
 # Save a copy of the config file.
 if config['output_tag'] != '':
@@ -55,22 +56,19 @@ f.write('\nRun at {}.'.format(time))
 f.close()
 
 # Unpack all files in the input directory.
-input_files = unpack_input_dir(config['input_dir'],
-                               mode=config['observing_mode'],
+input_files = unpack_input_dir(config['input_dir'], mode=config['observing_mode'],
                                filetag=config['input_filetag'],
                                filter_detector=config['filter_detector'])
-fancyprint('Identified {0} {1} {2} observation '
-           'segment(s)'.format(len(input_files), config['filter_detector'],
-                               config['observing_mode']))
+fancyprint('Identified {0} {1} {2} observation segment(s)'
+           ''.format(len(input_files), config['filter_detector'], config['observing_mode']))
 for file in input_files:
     fancyprint(' ' + file)
 
 # ===== Run Stage 1 =====
 if 1 in config['run_stages']:
     # Determine which steps to run and which to skip.
-    steps = ['DQInitStep', 'SaturationStep', 'SuperBiasStep', 'RefPixStep',
-             'DarkCurrentStep', 'OneOverFStep_grp', 'LinearityStep',
-             'JumpStep', 'RampFitStep', 'GainScaleStep']
+    steps = ['DQInitStep', 'SaturationStep', 'SuperBiasStep', 'RefPixStep', 'DarkCurrentStep',
+             'OneOverFStep_grp', 'LinearityStep', 'JumpStep', 'RampFitStep', 'GainScaleStep']
     stage1_skip = []
     for step in steps:
         if config[step] == 'skip':
@@ -79,7 +77,8 @@ if 1 in config['run_stages']:
             else:
                 stage1_skip.append(step)
     # Run stage 1.
-    stage1_results = run_stage1(input_files, mode=config['observing_mode'],
+    stage1_results = run_stage1(input_files,
+                                mode=config['observing_mode'],
                                 soss_background_model=config['soss_background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 oof_method=config['oof_method'],
@@ -100,6 +99,7 @@ if 1 in config['run_stages']:
                                 soss_outer_mask_width=config['soss_outer_mask_width'],
                                 nirspec_mask_width=config['nirspec_mask_width'],
                                 centroids=config['centroids'],
+                                hot_pixel_map=config['hot_pixel_map'],
                                 **config['stage1_kwargs'])
 else:
     stage1_results = input_files
@@ -107,9 +107,9 @@ else:
 # ===== Run Stage 2 =====
 if 2 in config['run_stages']:
     # Determine which steps to run and which to skip.
-    steps = ['AssignWCSStep', 'Extract2DStep', 'SourceTypeStep',
-             'WaveCorrStep', 'FlatFieldStep', 'OneOverFStep_int',
-             'BackgroundStep', 'TracingStep', 'BadPixStep']
+    steps = ['AssignWCSStep', 'Extract2DStep', 'SourceTypeStep', 'WaveCorrStep', 'FlatFieldStep',
+             'OneOverFStep_int', 'BackgroundStep', 'TracingStep', 'BadPixStep',
+             'PCAReconstructStep']
     stage2_skip = []
     for step in steps:
         if config[step] == 'skip':
@@ -118,14 +118,15 @@ if 2 in config['run_stages']:
             else:
                 stage2_skip.append(step)
     # Run stage 2.
-    stage2_results = run_stage2(stage1_results, mode=config['observing_mode'],
+    stage2_results = run_stage2(stage1_results,
+                                mode=config['observing_mode'],
                                 soss_background_model=config['soss_background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 save_results=config['save_results'],
                                 force_redo=config['force_redo'],
                                 space_thresh=config['space_outlier_threshold'],
                                 time_thresh=config['time_outlier_threshold'],
-                                calculate_stability=config['calculate_stability'],
+                                remove_components=config['remove_components'],
                                 pca_components=config['pca_components'],
                                 soss_timeseries=config['soss_timeseries'],
                                 soss_timeseries_o2=config['soss_timeseries_o2'],

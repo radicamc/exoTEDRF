@@ -92,8 +92,7 @@ class AssignWCSStep:
             else:
                 if self.instrument == 'NIRSPEC':
                     fancyprint('NIRSPEC -- pass special arguments to assignwcsstep')
-                    # Edit slit parameters so wavelength solution can be
-                    # correctly calculated.
+                    # Edit slit parameters so wavelength solution can be correctly calculated.
                     jwst.assign_wcs.nirspec.nrs_wcs_set_input = \
                         partial(jwst.assign_wcs.nirspec.nrs_wcs_set_input,
                                 wavelength_range=[6e-08, 6e-06],
@@ -114,8 +113,8 @@ class AssignWCSStep:
                     #                 wavelength_range=[2.3e-06, 5.3e-06],
                     #                 slit_y_low=-1, slit_y_high=50)
                 step = calwebb_spec2.assign_wcs_step.AssignWcsStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results, **kwargs)
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -254,8 +253,8 @@ class SourceTypeStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_spec2.srctype_step.SourceTypeStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results, **kwargs)
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -324,8 +323,8 @@ class WaveCorrStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_spec2.wavecorr_step.WavecorrStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results, **kwargs)
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -345,8 +344,7 @@ class BackgroundStep:
     """Wrapper around custom Background Subtraction step.
     """
 
-    def __init__(self, input_data, baseline_ints, background_model,
-                 output_dir='./'):
+    def __init__(self, input_data, baseline_ints, background_model, output_dir='./'):
         """Step initializer.
 
         Parameters
@@ -373,18 +371,15 @@ class BackgroundStep:
 
         # Unpack background model.
         if isinstance(background_model, str):
-            fancyprint('Reading background model file: {}...'
-                       ''.format(background_model))
+            fancyprint('Reading background model file: {}...'.format(background_model))
             self.background_model = np.load(background_model)
-        elif isinstance(background_model, np.ndarray) or background_model is None:
+        elif (isinstance(background_model, np.ndarray) or
+              background_model is None):
             self.background_model = background_model
         else:
-            msg = 'Invalid type for background model: {}' \
-                  ''.format(type(background_model))
-            raise ValueError(msg)
+            raise ValueError('Invalid type for background model: {}'.format(type(background_model)))
 
-    def run(self, save_results=True, force_redo=False, do_plot=False,
-            show_plot=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -410,8 +405,7 @@ class BackgroundStep:
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory '
-                       'intensive.', msg_type='WARNING')
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         fancyprint('BackgroundStep instance created.')
 
@@ -431,39 +425,21 @@ class BackgroundStep:
                 do_plot, show_plot = False, False
             # If no output files are detected, run the step.
             else:
-                # Generate some necessary quantities -- only do this for
-                # the first segment being run.
+                # Generate some necessary quantities -- only do this for the first segment.
                 if first_time:
                     fancyprint('Creating reference deep stack.')
-                    # Format the baseline integrations -- for fits inputs.
-                    if isinstance(segment, str):
-                        nints = fits.getheader(segment)['NINTS']
-                        baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                  nints)
-                        # Generate the baseline stack.
-                        deepstack = utils.make_baseline_stack_fits(self.datafiles,
-                                                                   baseline_ints)
-                    # Format the baseline integrations -- using datamodels.
-                    else:
-                        with utils.open_filetype(segment) as file:
-                            nints = file.meta.exposure.nints
-                            baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                      nints)
-                            # Generate the baseline stack.
-                            deepstack = utils.make_baseline_stack_dm(self.datafiles,
-                                                                     baseline_ints)
+                    deepstack = utils.make_baseline_stack_general(datafiles=self.datafiles,
+                                                                  baseline_ints=self.baseline_ints)
                     first_time = False
 
                 with warnings.catch_warnings():
                     warnings.filterwarnings('ignore')
-                    step_results = backgroundstep(segment,
-                                                  self.background_model,
-                                                  deepstack=deepstack,
-                                                  output_dir=self.output_dir,
+                    step_results = backgroundstep(datafile=segment,
+                                                  background_model=self.background_model,
+                                                  deepstack=deepstack, output_dir=self.output_dir,
                                                   save_results=save_results,
                                                   fileroot=self.fileroots[i],
-                                                  fileroot_noseg=self.fileroot_noseg,
-                                                  **kwargs)
+                                                  fileroot_noseg=self.fileroot_noseg, **kwargs)
                     res, bkg_model = step_results
             results.append(res)
 
@@ -475,13 +451,9 @@ class BackgroundStep:
             else:
                 plot_file1 = None
                 plot_file2 = None
-            plotting.make_background_plot(results, outfile=plot_file1,
-                                          show_plot=show_plot)
-            plotting.make_background_row_plot(self.datafiles[0],
-                                              results[0],
-                                              bkg_model,
-                                              outfile=plot_file2,
-                                              show_plot=show_plot)
+            plotting.make_background_plot(results, outfile=plot_file1, show_plot=show_plot)
+            plotting.make_background_row_plot(self.datafiles[0], results[0], bkg_model,
+                                              outfile=plot_file2, show_plot=show_plot)
 
         fancyprint('Step BackgroundStep done.')
 
@@ -541,8 +513,8 @@ class FlatFieldStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_spec2.flat_field_step.FlatFieldStep()
-                res = step.call(segment, output_dir=self.output_dir,
-                                save_results=save_results, **kwargs)
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -588,9 +560,8 @@ class BadPixStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, space_thresh=15, time_thresh=10, box_size=5,
-            save_results=True, force_redo=False, do_plot=False,
-            show_plot=False):
+    def run(self, space_thresh=15, time_thresh=10, box_size=5, window_size=5, save_results=True,
+            force_redo=False, do_plot=False, show_plot=False):
         """Method to run the step.
 
         Parameters
@@ -601,6 +572,8 @@ class BadPixStep:
             Sigma threshold for a pixel to be flagged as an outlier temporally.
         box_size : int
             Size of box around each pixel to test for spatial outliers.
+        window_size : int
+            Size of temporal window around each pixel to text for deviations. Must be odd.
         save_results : bool
             If True, save results.
         force_redo : bool
@@ -614,14 +587,11 @@ class BadPixStep:
         -------
         results : list(datamodel)
             Input data files processed through the step.
-        deepstack : np.ndarray(float)
-            Deep stack of the observation.
         """
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory '
-                       'intensive.', msg_type='WARNING')
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         fancyprint('BadPixStep instance created.')
 
@@ -631,83 +601,159 @@ class BadPixStep:
         for i, segment in enumerate(self.datafiles):
             # If an output file for this segment already exists, skip the step.
             expected_file = self.output_dir + self.fileroots[i] + self.tag
-            expected_deep = self.output_dir + self.fileroot_noseg + 'deepframe.fits'
             if expected_file in all_files and force_redo is False:
                 fancyprint('File {} already exists.'.format(expected_file))
                 fancyprint('Skipping Bad Pixel Correction Step.')
                 res = expected_file
-                deepstack = expected_deep
                 # Do not do plots if skipping step.
                 do_plot, show_plot = False, False
             # If no output files are detected, run the step.
             else:
-                # Note for later that the deepframe needs to be remade.
-                remake_deep = True
-                # Generate some necessary quantities -- only do this for
-                # the first segment being run.
+                # Generate some necessary quantities -- only do this for the first segment.
                 if first_time:
                     fancyprint('Creating reference deep stack.')
-                    # Format the baseline integrations -- for fits inputs.
-                    if isinstance(segment, str):
-                        nints = fits.getheader(segment)['NINTS']
-                        baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                  nints)
-                        # Generate the baseline stack.
-                        deepstack_1 = utils.make_baseline_stack_fits(self.datafiles,
-                                                                     baseline_ints)
-                    # Format the baseline integrations -- using datamodels.
-                    else:
-                        with utils.open_filetype(segment) as file:
-                            nints = file.meta.exposure.nints
-                            baseline_ints = utils.format_out_frames_2(self.baseline_ints,
-                                                                      nints)
-                            # Generate the baseline stack.
-                            deepstack_1 = utils.make_baseline_stack_dm(self.datafiles,
-                                                                       baseline_ints)
+                    deepstack = utils.make_baseline_stack_general(datafiles=self.datafiles,
+                                                                  baseline_ints=self.baseline_ints)
 
                     to_flag = None  # No pixels yet identified to flag.
                     first_time = False
 
-                step_results = badpixstep(segment,
-                                          deepframe=deepstack_1,
-                                          output_dir=self.output_dir,
-                                          save_results=save_results,
-                                          fileroot=self.fileroots[i],
-                                          space_thresh=space_thresh,
-                                          time_thresh=time_thresh,
-                                          box_size=box_size, do_plot=do_plot,
-                                          show_plot=show_plot, to_flag=to_flag)
+                step_results = badpixstep(segment, deepframe=deepstack, output_dir=self.output_dir,
+                                          save_results=save_results, fileroot=self.fileroots[i],
+                                          space_thresh=space_thresh, time_thresh=time_thresh,
+                                          box_size=box_size, window_size=window_size,
+                                          do_plot=do_plot, show_plot=show_plot, to_flag=to_flag)
                 res, to_flag = step_results
             results.append(res)
 
-        # Make final interpolated deep frame if necessary.
-        if remake_deep is True:
-            fancyprint('Remaking final deepframe.')
-            if isinstance(results[0], str):
-                # Generate the baseline stack.
-                deepstack = utils.make_baseline_stack_fits(results,
-                                                           baseline_ints)
-            else:
-                # Generate the baseline stack.
-                deepstack = utils.make_baseline_stack_dm(results,
-                                                         baseline_ints)
-            if save_results is True:
-                # Save deep frame before and after interpolation.
-                hdu1 = fits.PrimaryHDU()
-                hdr = fits.Header()
-                hdr['EXTNAME'] = 'Interpolated'
-                hdu2 = fits.ImageHDU(deepstack, header=hdr)
-                hdr = fits.Header()
-                hdr['EXTNAME'] = 'Uninterpolated'
-                hdu3 = fits.ImageHDU(deepstack_1, header=hdr)
-
-                hdul = fits.HDUList([hdu1, hdu2, hdu3])
-                outfile = self.output_dir + self.fileroot_noseg + 'deepframe.fits'
-                hdul.writeto(outfile, overwrite=True)
-                fancyprint('Deepframe saved to file: {}.'.format(outfile))
-                deepstack = outfile
+        if save_results is True:
+            # Save hot pixel mask.
+            outfile = self.output_dir + self.fileroot_noseg + 'hot_pixels.npy'
+            np.save(outfile, to_flag)
+            fancyprint('Hot pixel map saved to file: {}.'.format(outfile))
 
         fancyprint('Step BadPixStep done.')
+
+        return results
+
+
+class PCAReconstructStep:
+    """Wrapper around custom PCA Reconstruction Step.
+    """
+
+    def __init__(self, input_data, baseline_ints, output_dir='./'):
+        """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        baseline_ints : array-like(int)
+            Integration number(s) to use as ingress and/or egress.
+        output_dir : str
+            Path to directory to which to save outputs.
+        """
+
+        # Set up easy attributes.
+        self.tag = 'pcareconstructstep.fits'
+        self.output_dir = output_dir
+        self.baseline_ints = baseline_ints
+
+        # Unpack input data files.
+        self.datafiles = utils.sort_datamodels(input_data)
+        self.fileroots = utils.get_filename_root(self.datafiles)
+        self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
+
+    def run(self, pca_components=10, remove_components=None, skip_pca=False, save_results=True,
+            do_plot=True, show_plot=False, force_redo=False):
+        """Method to run the step.
+
+        Parameters
+        ----------
+        pca_components : int
+            Number of PCA components to fit.
+        remove_components : list(int), None
+            Indices of PCA components to remove from the reconstruction.
+        skip_pca : bool
+            If True, only generate the deep stack and don't do the PCA. Might be necessary for very
+            large datasets.
+        save_results : bool
+            If True, save results to file.
+        do_plot : bool
+            If True, do the step diagnostic plot.
+        show_plot : bool
+            If True, show the step diagnostic plot instead of/in addition to saving it to file.
+        force_redo : bool
+            If True, run step even if output files are detected.
+
+        Returns
+        -------
+        result : list(CubeModel), list(str)
+            Input datamodels, after PCA reconstruction.
+        deepstack : np.ndarray(float)
+            Deep stack of the observation.
+        """
+
+        # Warn user that datamodels will be returned if not saving results.
+        if save_results is False:
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
+
+        fancyprint('PCAReconstructStep instance created.')
+
+        all_files = glob.glob(self.output_dir + '*')
+        do_step, results = 1, []
+        # The PCA needs to be run on the whole TSO simultaneously. So we need to check whether all
+        # expected outputs are present, and if any are missing, then rerun.
+        for i in range(len(self.datafiles)):
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            expected_deep = self.output_dir + self.fileroot_noseg + 'deepframe.fits'
+            # If an output is missing, then we need to re run.
+            if expected_file not in all_files:
+                do_step = 0
+                break
+            # If ouput is present add to return.
+            else:
+                if save_results is True:
+                    results.append(expected_file)
+                    deepstack = expected_deep
+                else:
+                    results.append(datamodels.open(expected_file))
+                    deepstack = fits.getdata(expected_deep)
+        if do_step == 1 and force_redo is False:
+            fancyprint('Output files already exist.')
+            fancyprint('Skipping PCA Reconstruction Step.')
+            return results, deepstack
+
+        # Run the step.
+        if skip_pca is False:
+            fancyprint('The PCA can be memory intensive, especially for large datasets.',
+                       msg_type='WARNING')
+            fancyprint('If you run into memory issues, the PCA component of this step can be '
+                       'skipped by specifying skip_pca=True.', msg_type='WARNING')
+            results = pcareconstructionstep(datafiles=self.datafiles,
+                                            pca_components=pca_components,
+                                            remove_components=remove_components,
+                                            output_dir=self.output_dir, save_results=save_results,
+                                            fileroot_noseg=self.fileroot_noseg,
+                                            fileroots=self.fileroots, do_plot=do_plot,
+                                            show_plot=show_plot)
+        else:
+            results = self.datafiles
+
+        # Generate the final deep stack.
+        fancyprint('Generating a deep stack for the TSO.')
+        deepstack = utils.make_baseline_stack_general(self.datafiles, self.baseline_ints)
+
+        if save_results is True:
+            # Save deep frame.
+            hdu = fits.PrimaryHDU(deepstack)
+            hdul = fits.HDUList([hdu])
+            outfile = self.output_dir + self.fileroot_noseg + 'deepframe.fits'
+            hdul.writeto(outfile, overwrite=True)
+            fancyprint('Deepframe saved to file: {}.'.format(outfile))
+            deepstack = outfile
+
+        fancyprint('Step PCAReconstructStep done.')
 
         return results, deepstack
 
@@ -716,10 +762,8 @@ class TracingStep:
     """Wrapper around custom Tracing Step.
     """
 
-    def __init__(self, input_data, deepframe, output_dir='./',
-                 generate_order0_mask=False, f277w=None,
-                 calculate_stability=True, generate_lc=False,
-                 baseline_ints=None):
+    def __init__(self, input_data, deepframe, output_dir='./', generate_order0_mask=False,
+                 f277w=None, generate_lc=False, baseline_ints=None):
         """Step initializer.
 
         Parameters
@@ -735,23 +779,20 @@ class TracingStep:
             F277W exposure. For SOSS observations only.
         f277w : str, np.ndarray(float)
             F277W exposure deepstack or path to a file containing one.
-        calculate_stability : bool
-            If True, calculate the observation stability using PCA.
         generate_lc : bool
-            If True, generate an estimate of the order 1 white light curve.
-            For SOSS observations only.
+            If True, generate an estimate of the order 1 white light curve. For SOSS observations
+            only.
         baseline_ints : array-like(int), None
-            Integration number(s) to use as ingress and/or egress. Only
-            necessary if generate_lc is True.
+            Integration number(s) to use as ingress and/or egress. Only necessary if generate_lc
+            is True.
         """
 
-        # Set up easy attribute.
+        # Set up easy attributes.
         self.output_dir = output_dir
         self.baseline_ints = baseline_ints
 
         # Set toggles for functionalities.
         self.generate_order0_mask = generate_order0_mask
-        self.calculate_stability = calculate_stability
         self.generate_lc = generate_lc
 
         # Unpack input data files.
@@ -783,36 +824,30 @@ class TracingStep:
         self.instrument = utils.get_instrument_name(self.datafiles[0])
         if self.instrument == 'NIRSPEC':
             if generate_order0_mask is True:
-                fancyprint('generate_order0_mask is set to True, but mode is '
-                           'not NIRISS/SOSS. Ignoring generate_order0_mask.',
-                           msg_type='WARNING')
+                fancyprint('generate_order0_mask is set to True, but mode is not NIRISS/SOSS. '
+                           'Ignoring generate_order0_mask.', msg_type='WARNING')
                 self.generate_order0_mask = False
             if generate_lc is True:
-                fancyprint('generate_lc is set to True, but mode is not '
-                           'NIRISS/SOSS. Ignoring generate_lc.',
-                           msg_type='WARNING')
+                fancyprint('generate_lc is set to True, but mode is not NIRISS/SOSS. Ignoring '
+                           'generate_lc.', msg_type='WARNING')
                 self.generate_lc = False
 
-    def run(self, pixel_flags=None, pca_components=10, save_results=True,
-            force_redo=False, smoothing_scale=None, do_plot=False,
-            show_plot=False):
+    def run(self, pixel_flags=None, save_results=True, force_redo=False, smoothing_scale=None,
+            do_plot=False, show_plot=False):
         """Method to run the step.
 
         Parameters
         ----------
         pixel_flags : array-like(str), None
-            Paths to files containing existing pixel flags to which the order
-            0 mask should be added. Only necesssary if generate_order0_mask
-            is True.
-        pca_components : int
-            Number of PCs to extract.
+            Paths to files containing existing pixel flags to which the order 0 mask should be
+            added. Only necesssary if generate_order0_mask is True.
         save_results : bool
             If True, save results.
         force_redo : bool
             If True, run step even if output files are detected.
         smoothing_scale : int, None
-            Timescale on which to smooth light curve estimate. Only necessary
-            if generate_lc is True.
+            Timescale on which to smooth light curve estimate. Only necessary if generate_lc is
+            True.
         do_plot : bool
             If True, do step diagnostic plot.
         show_plot : bool
@@ -836,20 +871,16 @@ class TracingStep:
         expected_file = self.output_dir + self.fileroot_noseg + suffix
         if expected_file in all_files and force_redo is False:
             fancyprint('Main output file already exists.')
-            fancyprint('If you wish to still produce secondary outputs, run '
-                       'with force_redo=True.')
+            fancyprint('If you wish to still produce secondary outputs, run with force_redo=True.')
             fancyprint('Skipping Tracing Step.')
             centroids = pd.read_csv(expected_file, comment='#')
             tracemask, order0mask, smoothed_lc = None, None, None
         # If no output files are detected, run the step.
         else:
-            step_results = tracingstep(self.datafiles, self.deepframe,
-                                       calculate_stability=self.calculate_stability,
-                                       pca_components=pca_components,
+            step_results = tracingstep(datafiles=self.datafiles, deepframe=self.deepframe,
                                        pixel_flags=pixel_flags,
                                        generate_order0_mask=self.generate_order0_mask,
-                                       f277w=self.f277w,
-                                       generate_lc=self.generate_lc,
+                                       f277w=self.f277w, generate_lc=self.generate_lc,
                                        baseline_ints=self.baseline_ints,
                                        smoothing_scale=smoothing_scale,
                                        output_dir=self.output_dir,
@@ -863,18 +894,15 @@ class TracingStep:
         return centroids, order0mask, smoothed_lc
 
 
-def backgroundstep(datafile, background_model, deepstack, output_dir='./',
-                   save_results=True, fileroot=None, fileroot_noseg='',
-                   scale1=None, background_coords1=None, scale2=None,
-                   background_coords2=None, differential=False):
-    """Background subtraction must be carefully treated with SOSS observations.
-    Due to the extent of the PSF wings, there are very few, if any,
-    non-illuminated pixels to serve as a sky region. Furthermore, the zodi
-    background has a unique stepped shape, which would render a constant
-    background subtraction ill-advised. Therefore, a background subtracton is
-    performed by scaling a model background to the counts level of a median
-    stack of the exposure. This scaled model background is then subtracted
-    from each integration.
+def backgroundstep(datafile, background_model, deepstack, output_dir='./', save_results=True,
+                   fileroot=None, fileroot_noseg='', scale1=None, background_coords1=None,
+                   scale2=None, background_coords2=None, differential=False):
+    """Background subtraction must be carefully treated with SOSS observations. Due to the extent
+    of the PSF wings, there are very few, if any, non-illuminated pixels to serve as a sky region.
+    Furthermore, the zodi background has a unique stepped shape, which would render a constant
+    background subtraction ill-advised. Therefore, a background subtracton is performed by scaling
+    a model background to the counts level of a median stack of the exposure. This scaled model
+    background is then subtracted from each integration.
 
     Parameters
     ----------
@@ -893,22 +921,20 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
     fileroot_noseg : str
         Root name with no segment information.
     scale1 : float, array-like(float), None
-        Scaling value to apply to background model to match data. Will take
-        precedence over calculated scaling value. If applied at group level,
-        length of scaling array must equal ngroup.
+        Scaling value to apply to background model to match data. Will take precedence over
+        calculated scaling value. If applied at group level, length of scaling array must equal
+        ngroup.
     background_coords1 : array-like(int), None
-        Region of frame to use to estimate the background. Must be 1D:
-        [x_low, x_up, y_low, y_up].
+        Region of frame to use to estimate the background. Must be 1D: [x_low, x_up, y_low, y_up].
     scale2 : float, array-like(float), None
-        Scaling value to apply to background model to match post-step data.
-        Will take precedence over calculated scaling value. If applied at
-        group level, length of scaling array must equal ngroup.
+        Scaling value to apply to background model to match post-step data. Will take precedence
+        over calculated scaling value. If applied at group level, length of scaling array must
+        equal ngroup.
     background_coords2 : array-like(int), None
-        Region of frame to use to estimate the post-step background. Must be
-        1D: [x_low, x_up, y_low, y_up].
+        Region of frame to use to estimate the post-step background. Must be 1D:
+        [x_low, x_up, y_low, y_up].
     differential : bool
-        if True, calculate the background scaling seperately for the pre- and
-        post-step frame.
+        if True, calculate the background scaling seperately for the pre- and post-step frame.
 
     Returns
     -------
@@ -968,24 +994,23 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
                 xl, xu, yl, yu = background_coords1
             scale_factor1 = -1000
             while scale_factor1 < 0:
-                bkg_ratio = (deepstack[i, xl:xu, yl:yu] + shifts[i]) / background_model[xl:xu, yl:yu]
-                # Instead of a straight median, use the median of the 2nd
-                # quartile to limit the effect of any remaining illuminated
-                # pixels.
+                bkg_ratio = ((deepstack[i, xl:xu, yl:yu] + shifts[i]) /
+                             background_model[xl:xu, yl:yu])
+                # Instead of a straight median, use the median of the 2nd quartile to limit the
+                # effect of any remaining illuminated pixels.
                 q1 = np.nanpercentile(bkg_ratio, 25)
                 q2 = np.nanpercentile(bkg_ratio, 50)
                 ii = np.where((bkg_ratio > q1) & (bkg_ratio < q2))
                 scale_factor1 = np.nanmedian(bkg_ratio[ii])
                 if scale_factor1 < 0:
-                    shifts[i] -= scale_factor1 * np.median(background_model[xl:xu, yl:yu])
+                    shifts[i] -= (scale_factor1 * np.median(background_model[xl:xu, yl:yu]))
         else:
             scale_factor1 = scale1[i]
 
         # Repeat for post-jump scaling if necessary
         if scale2 is None and differential is True:
             if background_coords2 is None:
-                # If region to estimate background is not provided, use a
-                # default region.
+                # If region to estimate background is not provided, use a default region.
                 if dimy == 96:
                     raise NotImplementedError
                 else:
@@ -997,9 +1022,9 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
                 # Convert to int if not already.
                 background_coords2 = np.array(background_coords2).astype(int)
                 xl, xu, yl, yu = background_coords2
-            bkg_ratio = (deepstack[i, xl:xu, yl:yu] + shifts[i]) / background_model[xl:xu, yl:yu]
-            # Instead of a straight median, use the median of the 2nd quartile
-            # to limit the effect of any remaining illuminated pixels.
+            bkg_ratio = ((deepstack[i, xl:xu, yl:yu] + shifts[i]) / background_model[xl:xu, yl:yu])
+            # Instead of a straight median, use the median of the 2nd quartile to limit the effect
+            # of any remaining illuminated pixels.
             q1 = np.nanpercentile(bkg_ratio, 25)
             q2 = np.nanpercentile(bkg_ratio, 50)
             ii = np.where((bkg_ratio > q1) & (bkg_ratio < q2))
@@ -1013,15 +1038,17 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
 
         # Apply scaling to background model.
         if differential is True:
-            fancyprint('Using differential background scale factors: {0:.5f}, '
-                       '{1:.5f}, and shift: {2:.5f}'.format(scale_factor1, scale_factor2, shifts[i]))
+            fancyprint('Using differential background scale factors: {0:.5f}, {1:.5f}, and shift: '
+                       '{2:.5f}'.format(scale_factor1, scale_factor2, shifts[i]))
             # Locate background step.
             grad_bkg = np.gradient(background_model, axis=1)
             step_pos = np.argmax(grad_bkg[:, 10:-10], axis=1) + 10 - 4
             # Apply differential scaling to either side of step.
             for j in range(256):
-                model_scaled[i, j, :step_pos[j]] = background_model[j, :step_pos[j]] * scale_factor1 - shifts[i]
-                model_scaled[i, j, step_pos[j]:] = background_model[j, step_pos[j]:] * scale_factor2 - shifts[i]
+                model_scaled[i, j, :step_pos[j]] = (background_model[j, :step_pos[j]] *
+                                                    scale_factor1 - shifts[i])
+                model_scaled[i, j, step_pos[j]:] = (background_model[j, step_pos[j]:] *
+                                                    scale_factor2 - shifts[i])
         else:
             fancyprint('Using background scale factor: {0:.5f}, and shift: '
                        '{1:.5f}'.format(scale_factor1, shifts[i]))
@@ -1041,8 +1068,8 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
         bkg_file = output_dir + fileroot_noseg + 'background.npy'
         np.save(bkg_file, model_scaled)
         fancyprint('Background model saved to {}.'.format(bkg_file))
-    # If not saving results, need to work in datamodels to not break
-    # interoperability with jwst pipeline.
+    # If not saving results, need to work in datamodels to not break interoperability with stsci
+    # pipeline.
     else:
         currentfile = utils.open_filetype(datafile)
         result = copy.deepcopy(currentfile)
@@ -1053,14 +1080,13 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./',
     return result, model_scaled
 
 
-def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
-               box_size=5, output_dir='./', save_results=True,
-               fileroot=None, do_plot=False, show_plot=False, to_flag=None):
-    """Identify and correct outlier pixels remaining in the dataset, using
-    both a spatial and temporal approach. First, find spatial outlier pixels
-    in the median stack and correct them in each integration via the median of
-    a box of surrounding pixels. Then flag outlier pixels in the temporal
-    direction and again replace with the surrounding median in time.
+def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5, window_size=5,
+               output_dir='./', save_results=True, fileroot=None, do_plot=False, show_plot=False,
+               to_flag=None):
+    """Identify and correct outlier pixels remaining in the dataset, using both a spatial and
+    temporal approach. First, find spatial outlier pixels in the median stack and correct them in
+    each integration via the median of a box of surrounding pixels. Then flag outlier pixels in the
+    temporal direction and again replace with the surrounding median in time.
 
     Parameters
     ----------
@@ -1074,6 +1100,9 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
         Sigma threshold for a deviant pixel to be flagged temporally.
     box_size : int
         Size of box around each pixel to test for deviations.
+    window_size : int
+        Size of temporal window around each pixel to text for deviations.
+        Must be odd.
     output_dir : str
         Directory to which to output results.
     save_results : bool
@@ -1083,8 +1112,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
     do_plot : bool
         If True, do the step diagnostic plot.
     show_plot : bool
-        If True, show the step diagnostic plot instead of/in addition to
-        saving it to file.
+        If True, show the step diagnostic plot instead of/in addition to saving it to file.
     to_flag : array-like(int)
         Map of pixels to interpolate.
 
@@ -1126,59 +1154,57 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
     fancyprint('Starting spatial outlier flagging...')
     instrument = utils.get_instrument_name(datafile)
 
+    # Set detector Y-axis limits.
+    if instrument == 'NIRISS':
+        ymax = dimy - 5
+        ybox_size = 0
+    else:
+        ymax = dimy
+        ybox_size = 0
+
     # Find locations of bad pixels in the deep frame.
     if to_flag is None:
         # Initialize storage arrays.
         hotpix = np.zeros_like(deepframe)
         nanpix = np.zeros_like(deepframe)
         otherpix = np.zeros_like(deepframe)
-        nan, hot, other = 0, 0, 0
 
         # Set all negatives to zero.
         newdata[newdata < 0] = 0
         # Get locations of all hot pixels.
-        hot_pix = utils.get_dq_flag_metrics(dq_cube[10], ['HOT', 'WARM',
-                                                          'DO_NOT_USE'])
+        hot_pix = utils.get_dq_flag_metrics(dq_cube[10], ['HOT', 'WARM', 'DO_NOT_USE'])
 
         # Loop over whole deepstack and flag deviant pixels.
-        if instrument == 'NIRISS':
-            ymax = dimy - 5
-        else:
-            ymax = dimy
         for i in tqdm(range(5, dimx - 5)):
             for j in range(ymax):
-                # If the pixel is known to be hot, add it to list to
-                # interpolate.
+                # If the pixel is known to be hot, add it to list to interpolate.
                 if hot_pix[j, i]:
                     hotpix[j, i] = 1
-                    hot += 1
-                # If not already flagged, double check that the pixel isn't
-                # deviant in some other manner.
+                # If not already flagged, double check that the pixel isn't deviant in some other
+                # manner.
                 else:
-                    box_size_i = box_size
-                    box_prop = utils.get_interp_box(deepframe, box_size_i,
-                                                    i, j, dimx)
+                    xbox_size_i = box_size
+                    box_prop = utils.get_interp_box(deepframe, xbox_size_i, ybox_size, i, j)
                     # Ensure that the median and std dev extracted are good.
                     # If not, increase the box size until they are.
                     while np.any(np.isnan(box_prop)):
-                        box_size_i += 1
-                        box_prop = utils.get_interp_box(deepframe, box_size_i,
-                                                        i, j, dimx)
+                        xbox_size_i += 1
+                        box_prop = utils.get_interp_box(deepframe, xbox_size_i, ybox_size, i, j)
                     med, std = box_prop[0], box_prop[1]
 
                     # If central pixel is too deviant (or nan) flag it.
                     if np.isnan(deepframe[j, i]):
                         nanpix[j, i] = 1
-                        nan += 1
                     elif np.abs(deepframe[j, i] - med) >= (space_thresh * std):
                         otherpix[j, i] = 1
-                        other += 1
 
         # Combine all flagged pixel maps.
-        badpix = hotpix.astype(bool) | nanpix.astype(bool) | otherpix.astype(bool)
+        badpix = (hotpix.astype(bool) | nanpix.astype(bool) |
+                  otherpix.astype(bool))
         badpix = badpix.astype(int)
-        fancyprint('{0} hot, {1} nan, and {2} deviant pixels '
-                   'identified.'.format(hot, nan, other))
+        fancyprint('{0} hot, {1} nan, and {2} deviant pixels identified.'
+                   .format(int(np.sum(hotpix)), int(np.sum(nanpix)), int(np.sum(otherpix))))
+
     # If a bad pixel map is passed, just use that.
     else:
         fancyprint('Using passed bad pixel map.')
@@ -1187,9 +1213,8 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
     # Replace the flagged pixels in each integration.
     fancyprint('Doing pixel replacement...')
     for i in tqdm(range(nint)):
-        newdata[i], thisdq = utils.do_replacement(newdata[i], badpix,
-                                                  dq=np.ones_like(newdata[i]),
-                                                  box_size=box_size)
+        newdata[i], thisdq = utils.do_replacement(newdata[i], badpix, dq=np.ones_like(newdata[i]),
+                                                  xbox_size=box_size, ybox_size=ybox_size)
         # Set DQ flags for these pixels to zero (use the pixel).
         thisdq = ~thisdq.astype(bool)
         newdq[:, thisdq] = 0
@@ -1197,12 +1222,11 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
     # ===== Temporal Outlier Flagging =====
     fancyprint('Starting temporal outlier flagging...')
     # Median filter the data.
+    cube_filt = medfilt(newdata, (window_size, 1, 1))
     if instrument == 'NIRISS':
-        cube_filt = medfilt(newdata, (5, 1, 1))
         cube_filt[:2] = np.median(cube_filt[2:7], axis=0)
         cube_filt[-2:] = np.median(cube_filt[-8:-3], axis=0)
     else:
-        cube_filt = medfilt(newdata, (11, 1, 1))
         cube_filt[:5] = np.median(cube_filt[5:15], axis=0)
         cube_filt[-5:] = np.median(cube_filt[-16:-6], axis=0)
     # Check along the time axis for outlier pixels.
@@ -1225,10 +1249,18 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
     newdata[newdata < 0] = 0
     newdata[np.isnan(newdata)] = 0
 
-    # Replace reference pixels with 0s.
-    newdata[:, :, :5] = 0
-    newdata[:, :, -5:] = 0
+    # Egregious hack...don't ask.
     if instrument == 'NIRISS':
+        # Get of pixels where an artifact intersects the order 1 trace edge are just never
+        # corrected properly and I don't know why. So manual interpolation...
+        mm = np.nanmedian(np.concatenate([newdata[:, 82:84, 2018:], newdata[:, 88:90, 2018:]],
+                                         axis=1), axis=1)
+        newdata[:, 84:88, 2018:] = mm[:, None, :]
+
+    # Replace NIRISS reference pixels with 0s.
+    if instrument == 'NIRISS':
+        newdata[:, :, :5] = 0
+        newdata[:, :, -5:] = 0
         newdata[:, -5:] = 0
 
     # Save interpolated data.
@@ -1243,8 +1275,8 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
         thisfile[0].header['FILENAME'] = fileroot + 'badpixstep.fits'
         thisfile.writeto(result, overwrite=True)
         fancyprint('File saved to: {}.'.format(result))
-    # If not saving results, need to work in datamodels to not break
-    # interoperability with jwst pipeline.
+    # If not saving results, need to work in datamodels to not break interoperability with stsci
+    # pipeline.
     else:
         currentfile = utils.open_filetype(datafile)
         result = copy.deepcopy(currentfile)
@@ -1258,7 +1290,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
             # Get proper detector names for NIRSpec.
             instrument = utils.get_instrument_name(result)
             if instrument == 'NIRSPEC':
-                det = utils.get_detector_name(result)
+                det = utils.get_nrs_detector_name(result)
                 outfile = outfile.replace('.png', '_{}.png'.format(det))
         else:
             outfile = None
@@ -1266,57 +1298,184 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10,
         nanpix = np.where(nanpix != 0)
         otherpix = np.where(otherpix != 0)
         deepframe[np.isnan(deepframe)] = 0
-        plotting.make_badpix_plot(deepframe, hotpix, nanpix, otherpix,
-                                  outfile=outfile, show_plot=show_plot)
+        plotting.make_badpix_plot(deepframe, hotpix, nanpix, otherpix, outfile=outfile,
+                                  show_plot=show_plot)
 
     return result, badpix
 
 
-def tracingstep(datafiles, deepframe=None, calculate_stability=True,
-                pca_components=10, pixel_flags=None,
-                generate_order0_mask=False, f277w=None, generate_lc=True,
-                baseline_ints=None, smoothing_scale=None, output_dir='./',
-                save_results=True, fileroot_noseg='', do_plot=False,
+def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, output_dir='./',
+                          save_results=True, fileroot_noseg='', fileroots=None, do_plot=False,
+                          show_plot=False):
+    """Perform a reconstruction of the TSO datacube using principle component analysis (PCA).
+    This allows for the identification and removal of components related to detector-based noise
+    (e.g., drifts in the position of the spectral trace).
+    Some of these functionalities were previously part of the TracingStep.
+
+    Parameters
+    ----------
+    datafiles : array-like(RampModel, str)
+        List of datamodels for a TSO, or paths to them.
+    pca_components : int
+        Number of PCA components to fit.
+    remove_components : list(int), None
+        Indices of PCA components to remove from the reconstruction.
+    output_dir : str
+        Directory to which to output results.
+    save_results : bool
+        If True, save results to file.
+    fileroots : array-like(str), None
+        Root names for output files.
+    fileroot_noseg : str
+        File root names without segment information.
+    do_plot : bool
+        If True, do the step diagnostic plot.
+    show_plot : bool
+        If True, show the step diagnostic plot instead of/in addition to saving it to file.
+
+    Returns
+    -------
+    result : list(CubeModel, str)
+        Input datamodels, after PCA reconstruction.
+    """
+
+    fancyprint('Starting PCA Reconstruction Step.')
+
+    datafiles = np.atleast_1d(datafiles)
+    # Construct datacube from the data files.
+    for i, file in enumerate(datafiles):
+        if isinstance(file, str):
+            this_data = fits.getdata(file, 1)
+        else:
+            this_data = file.data
+        if i == 0:
+            cube = this_data
+        else:
+            cube = np.concatenate([cube, this_data], axis=0)
+
+    # Calculate the trace stability using PCA -- original pass without any components removed.
+    fancyprint('Calculating TSO stability.')
+    if save_results is True:
+        outfile = output_dir + 'stability_pca.png'
+        # Get proper detector names for NIRSpec.
+        instrument = utils.get_instrument_name(datafiles[0])
+        if instrument == 'NIRSPEC':
+            det = utils.get_nrs_detector_name(datafiles[0])
+            outfile = outfile.replace('.png', '_{}.png'.format(det))
+    else:
+        outfile = None
+
+    pcs, var, _ = soss_stability_pca(cube, n_components=pca_components, outfile=outfile,
+                                     do_plot=do_plot, show_plot=show_plot)
+
+    # If requested, reconstruct the data cube removing PCs associated with detector trends.
+    if remove_components is not None:
+        remove_components = np.atleast_1d(remove_components)
+        fancyprint('Starting data cube reconstruction removing components {}.'
+                   .format(remove_components))
+
+        # Warn if the user wants to potentially remove the light curve.
+        if 1 in remove_components:
+            fancyprint('Removing component #1 -- this is generally the light curve!',
+                       msg_type='WARNING')
+
+        newcube = np.copy(cube)
+        for pc in remove_components:
+            # Get the reconstruction of the data using the soecified component.
+            if pc != 1:
+                out_ncmo = soss_stability_pca(cube, n_components=pc-1)[2]
+                out_nc = soss_stability_pca(cube, n_components=pc)[2]
+                thiscomp = out_nc - out_ncmo
+            else:
+                thiscomp = soss_stability_pca(cube, n_components=pc)[2]
+            # Remove the reconstruction.
+            newcube -= thiscomp
+
+        # Calculate the trace stability using PCA -- final result, with components removed.
+        fancyprint('Calculating reconstructed TSO stability.')
+        outfile = output_dir + 'stability_pca_reconstructed.png'
+        # Get proper detector names for NIRSpec.
+        instrument = utils.get_instrument_name(datafiles[0])
+        if instrument == 'NIRSPEC':
+            det = utils.get_nrs_detector_name(datafiles[0])
+            outfile = outfile.replace('.png', '_{}.png'.format(det))
+        pcs, var, _ = soss_stability_pca(newcube, n_components=pca_components, outfile=outfile,
+                                         do_plot=do_plot, show_plot=show_plot)
+
+        # Save the reconstructed datafiles.
+        results, current_int = [], 0
+        fancyprint('Saving reconstructed data.')
+        for n, file in enumerate(datafiles):
+            if save_results is True:
+                thisfile = fits.open(file)
+                nints = np.shape(thisfile[1].data)[0]
+                thisfile[1].data = newcube[current_int:(current_int + nints)]
+                # Save reconstructed data.
+                result = output_dir + fileroots[n] + 'pcareconstructstep.fits'
+                thisfile[0].header['FILENAME'] = (fileroots[n] + 'pcareconstructstep.fits')
+                thisfile.writeto(result, overwrite=True)
+                fancyprint('File saved to: {}.'.format(result))
+            # If not saving results, need to work in datamodels to not break interoperability with
+            # stsci pipeline.
+            else:
+                with utils.open_filetype(file) as result:
+                    nints = np.shape(result.data)[0]
+                    result.data = newcube[current_int:(current_int + nints)]
+            current_int += nints
+
+            results.append(result)
+
+    # If not reconstructing, just return the input datafiles.
+    else:
+        results = datafiles
+
+    # Save the stability results.
+    stability_results = {}
+    for i, pc in enumerate(pcs):
+        stability_results['Component {}'.format(i + 1)] = pc
+    # Save stability results.
+    suffix = 'stability.csv'
+    if instrument == 'NIRSPEC':
+        suffix = suffix.replace('.csv', '_{}.csv'.format(det))
+    if os.path.exists(output_dir + fileroot_noseg + suffix):
+        os.remove(output_dir + fileroot_noseg + suffix)
+    df = pd.DataFrame(data=stability_results)
+    df.to_csv(output_dir + fileroot_noseg + suffix, index=False)
+
+    return results
+
+
+def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mask=False,
+                f277w=None, generate_lc=True, baseline_ints=None, smoothing_scale=None,
+                output_dir='./', save_results=True, fileroot_noseg='', do_plot=False,
                 show_plot=False):
-    """A multipurpose step to perform some initial analysis of the 2D
-    dataframes and produce products which can be useful in further reduction
-    iterations. The four functionalities are detailed below:
-    1. Locate the centroids of all three SOSS orders via the edgetrigger
-    algorithm.
-    2. (optional) Generate a mask of order 0 contaminants from background
-    stars.
-    3. (optional) Calculate the stability of the SOSS traces over the course
-    of the TSO.
-    4. (optional) Create a smoothed estimate of the order 1 white light curve.
+    """A multipurpose step to perform some initial analysis of the 2D dataframes and produce
+    products which can be useful in further reduction iterations. The three functionalities are
+    detailed below:
+    1. Locate the centroids of all three SOSS orders via the edgetrigger algorithm.
+    2. (optional) Generate a mask of order 0 contaminants from background stars.
+    3. (optional) Create a smoothed estimate of the order 1 white light curve.
 
     Parameters
     ----------
     datafiles : array-like(RampModel), array-like(str)
         Datamodels for each segment of the TSO.
     deepframe : ndarray(float), None
-        Deep stack for the TSO. Should be 2D (dimy, dimx). If None is passed,
-        one will be generated.
-    calculate_stability : bool
-        If True, calculate the stabilty of the SOSS trace over the TSO using a
-        PCA method.
-    pca_components : int
-        Number of PCA stability components to calcaulte.
+        Deep stack for the TSO. Should be 2D (dimy, dimx). If None is passed, one will be generated.
     pixel_flags: array-like(str), None
-        Paths to files containing existing pixel flags to which the order 0
-        mask should be added. Only necesssary if generate_order0_mask is True.
+        Paths to files containing existing pixel flags to which the order 0 mask should be added.
+        Only necesssary if generate_order0_mask is True.
     generate_order0_mask : bool
-        If True, generate a mask of order 0 cotaminants using an F277W filter
-        exposure.
+        If True, generate a mask of order 0 cotaminants using an F277W filter exposure.
     f277w : ndarray(float), None
-        F277W filter exposure which has been superbias and background
-        corrected. Only necessary if generate_order0_mask is True.
+        F277W filter exposure which has been superbias and background corrected. Only necessary if
+        generate_order0_mask is True.
     generate_lc : bool
         If True, also produce a smoothed order 1 white light curve.
     baseline_ints : array-like(int)
         Integrations of ingress and egress. Only necessary if generate_lc=True.
     smoothing_scale : int, None
-        Timescale on which to smooth the lightcurve. Only necessary if
-        generate_lc=True.
+        Timescale on which to smooth the lightcurve. Only necessary if generate_lc=True.
     output_dir : str
         Directory to which to save outputs.
     save_results : bool
@@ -1326,8 +1485,7 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
     do_plot : bool
         If True, do the step diagnostic plot.
     show_plot : bool
-        If True, show the step diagnostic plot instead of/in addition to
-        saving it to file.
+        If True, show the step diagnostic plot instead of/in addition to saving it to file.
 
     Returns
     -------
@@ -1342,9 +1500,9 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
     fancyprint('Starting Tracing Step.')
 
     datafiles = np.atleast_1d(datafiles)
-    # If no deepframe is passed, construct one. Also generate a datacube for
-    # later white light curve or stability calculations.
-    if deepframe is None or np.any([generate_lc, calculate_stability]) == True:
+    # If no deepframe is passed, construct one. Also generate a datacube for later white light
+    # curve or stability calculations.
+    if deepframe is None or generate_lc is True:
         # Construct datacube from the data files.
         for i, file in enumerate(datafiles):
             if isinstance(file, str):
@@ -1361,28 +1519,20 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
     fancyprint('Finding trace centroids.')
     instrument = utils.get_instrument_name(datafiles[0])
     if instrument == 'NIRISS':
-        # Get the subarray dimensions.
-        dimy, dimx = np.shape(deepframe)
-        if dimy == 256:
-            subarray = 'SUBSTRIP256'
-        elif dimy == 96:
-            subarray = 'SUBSTRIP96'
-        else:
-            raise NotImplementedError
+        subarray = utils.get_soss_subarray(datafiles[0])
         # Get the most up to date trace table file.
         step = calwebb_spec2.extract_1d_step.Extract1dStep()
         tracetable = step.get_reference_file(datafiles[0], 'spectrace')
         # Get centroids via the edgetrigger method.
         save_filename = output_dir + fileroot_noseg
         centroids = utils.get_centroids_soss(deepframe, tracetable, subarray,
-                                             save_results=save_results,
-                                             save_filename=save_filename)
+                                             save_results=save_results, save_filename=save_filename)
     else:
         # Get centroids via the edgetrigger method.
         save_filename = output_dir + fileroot_noseg
-        det = utils.get_detector_name(datafiles[0])
+        det = utils.get_nrs_detector_name(datafiles[0])
         if det == 'nrs1':
-            grating = utils.get_nirspec_grating(datafiles[0])
+            grating = utils.get_nrs_grating(datafiles[0])
             if grating == 'G395H':
                 xstart = 500  # Trace starts at pixel ~500 for G395M
             elif grating == 'G395M':
@@ -1396,6 +1546,18 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
         centroids = utils.get_centroids_nirspec(deepframe, xstart=xstart,
                                                 save_results=save_results,
                                                 save_filename=save_filename)
+
+    # Do diagnostic plot if requested.
+    if do_plot is True:
+        if save_results is True:
+            if instrument == 'NIRSPEC':
+                outfile = output_dir + 'centroiding_{}.png'.format(det)
+            else:
+                outfile = output_dir + 'centroiding.png'
+        else:
+            outfile = None
+        plotting.make_centroiding_plot(deepframe, centroids, instrument, show_plot=show_plot,
+                                       outfile=outfile)
 
     # ===== PART 2: Create order 0 background contamination mask =====
     # If requested, create a mask for all background order 0 contaminants.
@@ -1414,7 +1576,8 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
                 # Combine with existing flags and overwrite old file.
                 for flag_file in pixel_flags:
                     with fits.open(flag_file) as old_flags:
-                        old_flags[1].data = (old_flags[1].data.astype(bool) | order0mask.astype(bool)).astype(int)
+                        currentflag = old_flags[1].data.astype(bool) | order0mask.astype(bool)
+                        old_flags[1].data = currentflag.astype(int)
                         old_flags.writeto(flag_file, overwrite=True)
                 # Overwrite old flags file.
                 parts = pixel_flags[0].split('seg')
@@ -1427,37 +1590,8 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
                 hdu.writeto(outfile, overwrite=True)
                 fancyprint('Order 0 mask saved to {}'.format(outfile))
 
-    # ===== PART 3: Calculate the trace stability =====
-    # If requested, calculate the stability of the SOSS trace over the course
-    # of the TSO using PCA.
-    if calculate_stability is True:
-        fancyprint('Calculating trace stability using the PCA method...')
-
-        # Calculate the trace stability using PCA.
-        outfile = output_dir + 'stability_pca.png'
-        # Get proper detector names for NIRSpec.
-        instrument = utils.get_instrument_name(datafiles[0])
-        if instrument == 'NIRSPEC':
-            det = utils.get_detector_name(datafiles[0])
-            outfile = outfile.replace('.png', '_{}.png'.format(det))
-        pcs, var = soss_stability_pca(cube, n_components=pca_components,
-                                      outfile=outfile, do_plot=do_plot,
-                                      show_plot=show_plot)
-        stability_results = {}
-        for i, pc in enumerate(pcs):
-            stability_results['Component {}'.format(i+1)] = pc
-        # Save stability results.
-        suffix = 'stability.csv'
-        if instrument == 'NIRSPEC':
-            suffix = suffix.replace('.csv', '_{}.csv'.format(det))
-        if os.path.exists(output_dir + fileroot_noseg + suffix):
-            os.remove(output_dir + fileroot_noseg + suffix)
-        df = pd.DataFrame(data=stability_results)
-        df.to_csv(output_dir + fileroot_noseg + suffix, index=False)
-
-    # ===== PART 4: Calculate a smoothed light curve =====
-    # If requested, generate a smoothed estimate of the order 1 white light
-    # curve.
+    # ===== PART 3: Calculate a smoothed light curve =====
+    # If requested, generate a smoothed estimate of the order 1 white light curve.
     smoothed_lc = None
     if generate_lc is True:
         fancyprint('Generating a smoothed light curve')
@@ -1465,14 +1599,14 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
         assert baseline_ints is not None
         baseline_ints = utils.format_out_frames(baseline_ints)
 
-        # Use an area centered on the peak of the order 1 blaze to estimate the
-        # photometric light curve.
+        # Use an area centered on the peak of the order 1 blaze to estimate the photometric light
+        # curve.
         postage = cube[:, 20:60, 1500:1550]
         timeseries = np.nansum(postage, axis=(1, 2))
         # Normalize by the baseline flux level.
         timeseries = timeseries / np.nanmedian(timeseries[baseline_ints])
-        # If not smoothing scale is provided, smooth the time series on a
-        # timescale of roughly 2% of the total length.
+        # If not smoothing scale is provided, smooth the time series on a timescale of roughly 2%
+        # of the total length.
         if smoothing_scale is None:
             smoothing_scale = int(0.02 * np.shape(cube)[0])
         smoothed_lc = median_filter(timeseries, smoothing_scale)
@@ -1486,8 +1620,7 @@ def tracingstep(datafiles, deepframe=None, calculate_stability=True,
 
 
 def make_order0_mask_from_f277w(f277w, thresh_std=1, thresh_size=10):
-    """Locate order 0 contaminants from background stars using an F277W filter
-     exposure data frame.
+    """Locate order 0 contaminants from background stars using an F277W filter exposure data frame.
 
     Parameters
     ----------
@@ -1507,8 +1640,8 @@ def make_order0_mask_from_f277w(f277w, thresh_std=1, thresh_size=10):
     dimy, dimx = np.shape(f277w)
     mask = np.zeros_like(f277w)
 
-    # Loop over all columns and find groups of pixels which are significantly
-    # above the column median.
+    # Loop over all columns and find groups of pixels which are significantly above the column
+    # median.
     # Start at column 700 as that is ~where pickoff mirror effects start.
     for col in range(700, dimx):
         # Subtract median from column and get the standard deviation
@@ -1528,10 +1661,8 @@ def make_order0_mask_from_f277w(f277w, thresh_std=1, thresh_size=10):
     return mask
 
 
-def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False,
-                       show_plot=False):
-    """Calculate the stability of the SOSS trace over the course of a TSO
-    using a PCA method.
+def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_plot=False):
+    """Calculate the stability of the SOSS trace over the course of a TSO using a PCA method.
 
     Parameters
     ----------
@@ -1544,8 +1675,7 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False,
     do_plot : bool
         If True, do the step diagnostic plot.
     show_plot : bool
-        If True, show the step diagnostic plot instead of/in addition to
-        saving it to file.
+        If True, show the step diagnostic plot instead of/in addition to saving it to file.
 
     Returns
     -------
@@ -1553,6 +1683,8 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False,
         Extracted principle components.
     var : np.ndarray(float)
         Explained variance of each principle component.
+    reconstruction : np.adarray(float)
+        Input cube reconstructed using n_components PCs.
     """
 
     # Flatten cube along frame direction.
@@ -1573,30 +1705,33 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False,
     pcs = pca.components_
     var = pca.explained_variance_ratio_
 
+    # Reproject PCs onto data.
+    projection = pca.transform(cube2.transpose())
+    projection = np.reshape(projection, (dimy, dimx, n_components))
+
     if do_plot is True:
-        # Reproject PCs onto data.
-        projection = pca.transform(cube2.transpose())
-        projection = np.reshape(projection, (dimy, dimx, n_components))
         # Do plot.
-        plotting.make_pca_plot(pcs, var, projection.transpose(2, 0, 1),
-                               outfile=outfile, show_plot=show_plot)
+        plotting.make_pca_plot(pcs, var, projection.transpose(2, 0, 1), outfile=outfile,
+                               show_plot=show_plot)
 
-    return pcs, var
+    # Reconstruct input data using extracted PCs.
+    reconstruction = pca.inverse_transform(projection)
+    reconstruction = reconstruction.reshape(dimy, dimx, nints)
+    reconstruction = reconstruction.transpose(2, 0, 1)
+
+    return pcs, var, reconstruction
 
 
-def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
-               save_results=True, force_redo=False, space_thresh=15,
-               time_thresh=15,  calculate_stability=True, pca_components=10,
-               soss_timeseries=None, soss_timeseries_o2=None,
-               oof_method='scale-achromatic', root_dir='./', output_tag='',
-               smoothing_scale=None, skip_steps=None, generate_lc=True,
-               soss_inner_mask_width=40, soss_outer_mask_width=70,
-               nirspec_mask_width=16, pixel_masks=None,
-               generate_order0_mask=True, f277w=None, do_plot=False,
-               show_plot=False, centroids=None, **kwargs):
-    """Run the exoTEDRF Stage 2 pipeline: spectroscopic processing,
-    using a combination of official STScI DMS and custom steps. Documentation
-    for the official DMS steps can be found here:
+def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, save_results=True,
+               force_redo=False, space_thresh=15, time_thresh=15,  remove_components=None,
+               pca_components=10, soss_timeseries=None, soss_timeseries_o2=None,
+               oof_method='scale-achromatic', root_dir='./', output_tag='', smoothing_scale=None,
+               skip_steps=None, generate_lc=True, soss_inner_mask_width=40,
+               soss_outer_mask_width=70, nirspec_mask_width=16, pixel_masks=None,
+               generate_order0_mask=True, f277w=None, do_plot=False, show_plot=False,
+               centroids=None, **kwargs):
+    """Run the exoTEDRF Stage 2 pipeline: spectroscopic processing, using a combination of official
+    STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_spec2.html
 
     Parameters
@@ -1617,20 +1752,18 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
         Sigma threshold for pixel to be flagged as an outlier spatially.
     time_thresh : int
         Sigma threshold for pixel to be flagged as an outlier temporally.
-    calculate_stability : bool
-        If True, calculate the stability of the SOSS trace over the course of
-        the TSO using a PCA method.
+    remove_components : list(int), None
+        Numbers of PCA components to remove during the data reconstruction.
     pca_components : int
         Number of PCA components to calculate.
     soss_timeseries : array-like(float), None
-        Normalized 1D or 2D light curve(s) for order 1, or path to a file
-        containing it.
+        Normalized 1D or 2D light curve(s) for order 1, or path to a file containing it.
     soss_timeseries_o2 : array-like(float), None
-        Normalized 2D light curves for order 2, or path to a file contanining
-        them. Only necessary if oof_method is "scale-chromatic".
+        Normalized 2D light curves for order 2, or path to a file contanining them. Only necessary
+        if oof_method is "scale-chromatic".
     oof_method : str
-        1/f correction method. Options are "scale-chromatic",
-        "scale-achromatic", "scale-achromatic-window", or "solve".
+        1/f correction method. Options are "scale-chromatic", "scale-achromatic",
+        "scale-achromatic-window", or "solve".
     root_dir : str
         Directory from which all relative paths are defined.
     output_tag : str
@@ -1648,19 +1781,18 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
     nirspec_mask_width : int
         Full-width (in pixels) around the target trace to mask for NIRSpec.
     pixel_masks: None, str, array-like(str)
-        Paths to files containing existing pixel flags to which the order 0
-        mask should be added. Only necesssary if generate_order0_mask is True.
+        Paths to files containing existing pixel flags to which the order 0 mask should be added.
+        Only necesssary if generate_order0_mask is True.
     generate_order0_mask : bool
-        If True, generate a mask of order 0 cotaminants using an F277W filter
-        exposure.
+        If True, generate a mask of order 0 cotaminants using an F277W filter exposure.
     f277w : None, str, array-like(float)
-        F277W filter exposure which has been superbias and background
-        corrected. Only necessary if generate_order0_mask is True.
+        F277W filter exposure which has been superbias and background corrected.
+        Only necessary if generate_order0_mask is True.
     do_plot : bool
         If True, make step diagnostic plots.
     show_plot : bool
-        Only necessary if do_plot is True. Show the diagnostic plots in
-        addition to/instead of saving to file.
+        Only necessary if do_plot is True. Show the diagnostic plots in addition to/instead of
+        saving to file.
     centroids : str, None
         Path to file containing trace positions for all orders.
 
@@ -1693,8 +1825,7 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
         else:
             step_kwargs = {}
         step = AssignWCSStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           **step_kwargs)
+        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Extract 2D Step =====
     if mode == 'NIRSpec/G395H':
@@ -1705,8 +1836,7 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
             else:
                 step_kwargs = {}
             step = Extract2DStep(results, output_dir=outdir)
-            results = step.run(save_results=save_results,
-                               force_redo=force_redo, **step_kwargs)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Source Type Determination Step =====
     # Default DMS step.
@@ -1716,8 +1846,7 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
         else:
             step_kwargs = {}
         step = SourceTypeStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo,
-                           **step_kwargs)
+        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Wavelength Correction Step =====
     if mode == 'NIRSpec/G395H':
@@ -1728,8 +1857,7 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
             else:
                 step_kwargs = {}
             step = WaveCorrStep(results, output_dir=outdir)
-            results = step.run(save_results=save_results,
-                               force_redo=force_redo, **step_kwargs)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Flat Field Correction Step =====
     if mode == 'NIRISS/SOSS':
@@ -1740,8 +1868,7 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
             else:
                 step_kwargs = {}
             step = FlatFieldStep(results, output_dir=outdir)
-            results = step.run(save_results=save_results,
-                               force_redo=force_redo, **step_kwargs)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Background Subtraction Step =====
     if mode == 'NIRISS/SOSS':
@@ -1752,10 +1879,8 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
             else:
                 step_kwargs = {}
             step = BackgroundStep(results, baseline_ints=baseline_ints,
-                                  background_model=soss_background_model,
-                                  output_dir=outdir)
-            results = step.run(save_results=save_results,
-                               force_redo=force_redo, do_plot=do_plot,
+                                  background_model=soss_background_model, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
                                show_plot=show_plot, **step_kwargs)[0]
 
     # ===== 1/f Noise Correction Step =====
@@ -1765,17 +1890,15 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = kwargs['OneOverFStep']
         else:
             step_kwargs = {}
-        step = stage1.OneOverFStep(results, output_dir=outdir,
-                                   baseline_ints=baseline_ints,
-                                   pixel_masks=pixel_masks,
-                                   centroids=centroids, method=oof_method,
+        step = stage1.OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
+                                   pixel_masks=pixel_masks, centroids=centroids, method=oof_method,
                                    soss_timeseries=soss_timeseries,
                                    soss_timeseries_o2=soss_timeseries_o2)
         results = step.run(soss_inner_mask_width=soss_inner_mask_width,
                            soss_outer_mask_width=soss_outer_mask_width,
-                           nirspec_mask_width=nirspec_mask_width,
-                           save_results=save_results, force_redo=force_redo,
-                           do_plot=do_plot, show_plot=show_plot, **step_kwargs)
+                           nirspec_mask_width=nirspec_mask_width, save_results=save_results,
+                           force_redo=force_redo, do_plot=do_plot, show_plot=show_plot,
+                           **step_kwargs)
 
     # ===== Bad Pixel Correction Step =====
     # Custom DMS step.
@@ -1784,13 +1907,22 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = kwargs['BadPixStep']
         else:
             step_kwargs = {}
-        step = BadPixStep(results, baseline_ints=baseline_ints,
-                          output_dir=outdir)
-        step_results = step.run(save_results=save_results,
-                                space_thresh=space_thresh,
-                                time_thresh=time_thresh, force_redo=force_redo,
-                                do_plot=do_plot, show_plot=show_plot,
-                                **step_kwargs)
+        step = BadPixStep(results, baseline_ints=baseline_ints, output_dir=outdir)
+        results = step.run(save_results=save_results, space_thresh=space_thresh,
+                           time_thresh=time_thresh, force_redo=force_redo, do_plot=do_plot,
+                           show_plot=show_plot, **step_kwargs)
+
+    # ===== PCA Reconstruction Step =====
+    # Custom DMS step.
+    if 'PCAReconstructStep' not in skip_steps:
+        if 'PCAReconstructStep' in kwargs.keys():
+            step_kwargs = kwargs['PCAReconstructStep']
+        else:
+            step_kwargs = {}
+        step = PCAReconstructStep(results, baseline_ints=baseline_ints, output_dir=outdir)
+        step_results = step.run(save_results=save_results, pca_components=pca_components,
+                                remove_components=remove_components, force_redo=force_redo,
+                                do_plot=do_plot, show_plot=show_plot, **step_kwargs)
         results, deepframe = step_results
     else:
         deepframe = None
@@ -1799,12 +1931,10 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None,
     # Custom DMS step.
     if 'TracingStep' not in skip_steps:
         step = TracingStep(results, deepframe=deepframe, output_dir=outdir,
-                           calculate_stability=calculate_stability,
-                           generate_order0_mask=generate_order0_mask,
-                           f277w=f277w, generate_lc=generate_lc,
-                           baseline_ints=baseline_ints)
-        step.run(pca_components=pca_components, pixel_flags=pixel_masks,
-                 smoothing_scale=smoothing_scale, save_results=save_results,
-                 do_plot=do_plot, show_plot=show_plot, force_redo=force_redo)
+                           generate_order0_mask=generate_order0_mask, f277w=f277w,
+                           generate_lc=generate_lc, baseline_ints=baseline_ints)
+        step.run(pixel_flags=pixel_masks, smoothing_scale=smoothing_scale,
+                 save_results=save_results, do_plot=do_plot, show_plot=show_plot,
+                 force_redo=force_redo)
 
     return results

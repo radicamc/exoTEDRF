@@ -1,6 +1,24 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [2.1.1] -- 2025-04-07
+#### Added
+- Improve compatability with ExoTiC-LD for non-quadratic limb darkening.
+- Misc. bug fixes. 
+
+### [2.1.0] -- 2025-02-03
+#### Added
+- Massive improvements to speed and memory usage.
+- Expicit support for NIRSpec/G395M.
+- Custom superbias subtractions for NIRSpec.
+- Functionalities for SOSS flux calibration.
+- PCAReconstructStep for PCA reconstruction of datacubes. 
+- Misc. bug fixes.
+
+#### Removed
+- Deepframe functionalities in BadPixStep.
+- PCA functionalities in TracingStep.
+
 ### [2.0.0] -- 2024-07-05
 #### Added
 - Support for NIRSpec/BOTS observations. 
