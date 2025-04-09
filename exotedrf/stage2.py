@@ -1500,14 +1500,7 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
     fancyprint('Finding trace centroids.')
     instrument = utils.get_instrument_name(datafiles[0])
     if instrument == 'NIRISS':
-        # Get the subarray dimensions.
-        dimy, dimx = np.shape(deepframe)
-        if dimy == 256:
-            subarray = 'SUBSTRIP256'
-        elif dimy == 96:
-            subarray = 'SUBSTRIP96'
-        else:
-            raise NotImplementedError
+        subarray = utils.get_soss_subarray(datafiles[0])
         # Get the most up to date trace table file.
         step = calwebb_spec2.extract_1d_step.Extract1dStep()
         tracetable = step.get_reference_file(datafiles[0], 'spectrace')
@@ -1534,7 +1527,10 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
     # Do diagnostic plot if requested.
     if do_plot is True:
         if save_results is True:
-            outfile = output_dir + 'centroiding.png'
+            if instrument == 'NIRSPEC':
+                outfile = output_dir + 'centroiding_{}.png'.format(det)
+            else:
+                outfile = output_dir + 'centroiding.png'
         else:
             outfile = None
         plotting.make_centroiding_plot(deepframe, centroids, instrument, show_plot=show_plot,

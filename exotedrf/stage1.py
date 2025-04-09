@@ -687,15 +687,16 @@ class OneOverFStep:
                     if self.centroids is None:
                         fancyprint('No centroids provided, locating trace positions.')
                         self.centroids = {}
+                        # Collapse deepstack to only get final group if necessary.
+                        if np.ndim(deepstack) == 3:
+                            thisdeep = deepstack[-1]
+                        else:
+                            thisdeep = deepstack
                         if self.instrument == 'NIRISS':
                             # Define the readout setup.
                             subarray = utils.get_soss_subarray(self.datafiles[0])
                             step = calwebb_spec2.extract_1d_step.Extract1dStep()
                             tracetable = step.get_reference_file(self.datafiles[0], 'spectrace')
-                            if np.ndim(deepstack) == 3:
-                                thisdeep = deepstack[-1]
-                            else:
-                                thisdeep = deepstack
                             cens = utils.get_centroids_soss(thisdeep, tracetable, subarray,
                                                             save_results=False)
                             self.centroids['xpos'] = cens[0][0]
@@ -709,7 +710,7 @@ class OneOverFStep:
                                 xstart = 500
                             else:
                                 xstart = 0
-                            cens = utils.get_centroids_nirspec(deepstack, xstart=xstart,
+                            cens = utils.get_centroids_nirspec(thisdeep, xstart=xstart,
                                                                save_results=False)
                             self.centroids['xpos'], self.centroids['ypos'] = cens[0], cens[1]
 
@@ -1415,7 +1416,7 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
     for g in tqdm(range(ngroups)):
         # Find pixels which deviate more than the specified threshold.
         scale, cube_filt = utils.scatter_normalize_cube(cube[:, g], window=window)
-        ii = ((scale >= thresh) & (cube[:, g] > np.nanpercentile(cube, 10)) & (artifact == 0))
+        ii = ((scale >= thresh) & (cube[:, g] > np.nanpercentile(cube[:, g], 10)) & (artifact == 0))
 
         # If ngroup<=2, replace the pixel with the stack median so that a ramp can still be fit.
         if ngroups <= 2:

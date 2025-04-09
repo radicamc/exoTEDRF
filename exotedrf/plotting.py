@@ -361,11 +361,13 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
                 cube = fits.getdata(results[thisfile], 1)
                 pixeldq = fits.getdata(results[thisfile], 2)
                 dqcube = fits.getdata(results[thisfile], 3)
+                thisstart = fits.getheader(results[thisfile])['INTSTART']
             else:
                 with utils.open_filetype(results[thisfile]) as datamodel:
                     cube = datamodel.data
                     pixeldq = datamodel.pixeldq
                     dqcube = datamodel.groupdq
+                    thisstart = datamodel.meta.exposure.integration_start
             nint, ngroup, _, _ = np.shape(cube)
 
             # Get random group and integration.
@@ -405,7 +407,8 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
                     marker = Ellipse((xpos, ypos), 21, 3, color='red', fill=False)
                     ax.add_patch(marker)
 
-            ax.text(30, 0.9 * np.shape(cube)[-2], '({0}, {1})'.format(i, g), c='white', fontsize=12)
+            ax.text(30, 0.9 * np.shape(cube)[-2], '({0}, {1})'.format(thisstart + i, g), c='white',
+                    fontsize=12)
             if j != 0:
                 ax.yaxis.set_major_formatter(plt.NullFormatter())
             else:

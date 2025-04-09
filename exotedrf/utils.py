@@ -443,11 +443,12 @@ def get_instrument_name(datafile):
     """
 
     if isinstance(datafile, str):
-        with fits.open(datafile) as file:
-            instrument = file[0].header['INSTRUME']
+        instrument = fits.getheader(datafile)['INSTRUME'].upper()
+    elif isinstance(datafile, fits.hdu.hdulist.HDUList):
+        instrument = datafile[0].header['INSTRUME'].upper()
     else:
         with datamodels.open(datafile) as d:
-            instrument = d.meta.instrument.name
+            instrument = d.meta.instrument.name.upper()
 
     return instrument
 
@@ -510,6 +511,8 @@ def get_nrs_grating(datafile):
 
     if isinstance(datafile, str):
         grating = fits.getheader(datafile)['GRATING'].upper()
+    elif isinstance(datafile, fits.hdu.hdulist.HDUList):
+        grating = datafile[0].header['GRATING'].upper()
     else:
         with datamodels.open(datafile) as d:
             grating = d.meta.instrument.grating.upper()
@@ -533,6 +536,8 @@ def get_soss_subarray(datafile):
 
     if isinstance(datafile, str):
         subarray = fits.getheader(datafile)['SUBARRAY'].upper()
+    elif isinstance(datafile, fits.hdu.hdulist.HDUList):
+        subarray = datafile[0].header['SUBARRAY'].upper()
     else:
         with datamodels.open(datafile) as d:
             subarray = d.meta.instrument.subarray.upper()
@@ -1109,12 +1114,17 @@ def mask_reset_artifact(datafile):
     else:
         det = get_nrs_detector_name(datafile)
         # Max integration is different for NRS1 vs NRS2.
-        if det == 'NRS1':
+        if det == 'nrs1':
             max_reset_int = 62
         else:
             max_reset_int = 58
     if isinstance(datafile, str):
         datafile = fits.open(datafile)
+        cube = datafile[1].data
+        # Get start and end integrations for reset artifact masking.
+        int_start = datafile[0].header['INTSTART']
+        int_end = np.min([datafile[0].header['INTEND'], max_reset_int])
+    elif isinstance(datafile, fits.hdu.hdulist.HDUList):
         cube = datafile[1].data
         # Get start and end integrations for reset artifact masking.
         int_start = datafile[0].header['INTSTART']
@@ -1329,7 +1339,7 @@ def scatter_normalize_cube(cube, window=5):
 
     # Filter the data using the specified window
     cube_filt = medfilt(cube, (window, 1, 1))
-    cube_filt[-2:], cube_filt[2:] = cube_filt[-3], cube_filt[3]
+    cube_filt[-2:], cube_filt[:2] = cube_filt[-3], cube_filt[3]
     # Calculate the point-to-point scatter along the temporal axis.
     scatter = np.median(np.abs(0.5 * (cube[0:-2] + cube[2:]) - cube[1:-1]), axis=0)
     scatter = np.where(scatter == 0, np.inf, scatter)
