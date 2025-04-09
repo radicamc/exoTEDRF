@@ -840,8 +840,7 @@ class OneOverFStep:
             if self.method == 'solve':
                 for o in range(len(mle_results[0].keys())):
                     order = o + 1
-                    # Unpack the additive and multiplicative factors from the
-                    # MLE.
+                    # Unpack the additive and multiplicative factors from the MLE.
                     for s in range(len(mle_results)):
                         if s == 0:
                             slopes_e = mle_results[s]['o{}'.format(order)]['scale_e']

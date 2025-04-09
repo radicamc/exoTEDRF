@@ -723,7 +723,11 @@ def make_oneoverf_psd(results, old_results, deepstack, old_deepstack, timeseries
 
         # Bad pixel maps
         if pixel_masks is not None:
-            mask_cube = pixel_masks[f]
+            if isinstance(pixel_masks[f], str):
+                thismask = fits.getdata(pixel_masks[f])
+            else:
+                thismask = pixel_masks[f]
+            mask_cube = thismask
         else:
             if np.ndim(cube) == 4:
                 mask_cube = np.zeros_like(cube[:, 0])
