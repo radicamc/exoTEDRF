@@ -1085,7 +1085,7 @@ def mask_reset_artifact(datafile):
     else:
         grating = get_nrs_grating(datafile)
         if grating == 'G395H':
-            if subarray != 'SUB2048':
+            if subarray not in ['SUB2048', 'SUB1024B']:
                 fancyprint('Reset artifact masking not tested for subarray {}. Proceed with '
                            'caution. '.format(subarray), msg_type='WARNING')
             det = get_nrs_detector_name(datafile)
@@ -1095,7 +1095,7 @@ def mask_reset_artifact(datafile):
             else:
                 max_reset_int = 58
         elif grating == 'G395M':
-            if subarray != 'SUB2048':
+            if subarray not in ['SUB2048', 'SUB1024B']:
                 fancyprint('Reset artifact masking not tested for subarray {}. Proceed with '
                            'caution. '.format(subarray), msg_type='WARNING')
             max_reset_int = 81
