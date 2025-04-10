@@ -483,7 +483,7 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
             elif grating == 'G395M':
                 xstart = 200  # Trace starts at pixel ~200 for G395M
             elif grating == 'PRISM':
-                xstart = 14 # Trace starts at pixel ~14 for PRISM
+                xstart = 14  # Trace starts at pixel ~14 for PRISM
             else:
                 raise ValueError('Unknown NIRSpec grating used...')
         else:
@@ -518,7 +518,7 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
         elif grating == 'G395M':
             xstart = 200  # Trace starts at pixel ~200 for G395M
         elif grating == 'PRISM':
-            xstart = 14 # Trace starts at pixel ~14 for PRISM
+            xstart = 14  # Trace starts at pixel ~14 for PRISM
         else:
             raise ValueError('Unknown NIRSpec grating used...')
     else:
@@ -881,8 +881,8 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
     # If one or more of the stellar parameters are not provided, use the wavelength solution from
     # pastasoss.
     if None in [st_teff, st_logg, st_met]:
-        fancyprint('Stellar parameters not provided. Using default wavelength solution.'
-                   , msg_type='WARNING')
+        fancyprint('Stellar parameters not provided. Using default wavelength solution.',
+                   msg_type='WARNING')
     else:
         fancyprint('Refining the wavelength calibration.')
         # Create a grid of stellar parameters, and download PHOENIX spectra for each grid point.

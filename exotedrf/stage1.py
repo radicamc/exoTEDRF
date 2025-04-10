@@ -17,7 +17,6 @@ import os
 import pandas as pd
 from scipy.interpolate import griddata
 from scipy.ndimage import median_filter
-from scipy.signal import medfilt
 from tqdm import tqdm
 import warnings
 
@@ -604,8 +603,8 @@ class OneOverFStep:
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
         # If NIRSpec, get Grating -- needed for frame time in this function
-        if self.instrument=='NIRSPEC':
-            self.grating = utils.get_grating_name(self.datafiles[0])
+        if self.instrument == 'NIRSPEC':
+            self.grating = utils.get_nrs_grating(self.datafiles[0])
 
         if self.instrument == 'NIRISS':
             assert baseline_ints is not None
@@ -915,7 +914,6 @@ class LinearityStep:
 
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
-
 
     def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs):
         """Method to run the step.

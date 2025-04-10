@@ -388,7 +388,8 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
             first_time = True
             for ypos, xpos in zip(hot[0], hot[1]):
                 if first_time is True:
-                    marker = Ellipse((xpos, ypos), 21, 3, color='blue', fill=False, label='Hot Pixel')
+                    marker = Ellipse((xpos, ypos), 21, 3, color='blue', fill=False,
+                                     label='Hot Pixel')
                     ax.add_patch(marker)
                     first_time = False
                 else:

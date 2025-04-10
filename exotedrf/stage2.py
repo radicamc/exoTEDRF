@@ -59,7 +59,7 @@ class AssignWCSStep:
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
         # If NIRSpec, get grating
-        self.grating = utils.get_grating_name(self.datafiles[0])
+        self.grating = utils.get_nrs_grating(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
