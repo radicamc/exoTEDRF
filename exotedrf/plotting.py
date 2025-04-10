@@ -1038,11 +1038,15 @@ def plot_quicklook_lightcurve(datafiles):
     # Quick sum of flux near throughput peak.
     instrument = utils.get_instrument_name(datafiles[0])
     if instrument == 'NIRSPEC':
-        det = utils.get_nrs_detector_name(datafiles[0])
-        if det == 'NRS1':
-            postage = cube[:, 12:17, 900:1500]
+        grating = utils.get_nrs_grating(datafiles[0])
+        if grating == 'PRISM':
+            postage = cube[:, 12:18, 80:120]
         else:
-            postage = cube[:, 6:10, :500]
+            det = utils.get_nrs_detector_name(datafiles[0])
+            if det == 'NRS1':
+                postage = cube[:, 12:17, 900:1500]
+            else:
+                postage = cube[:, 6:10, :500]
     else:
         postage = cube[:, 20:60, 1500:1550]
     timeseries = np.nansum(postage, axis=(1, 2))
