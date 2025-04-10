@@ -16,6 +16,8 @@ Tutorial Notebooks
 
 Below are several tutorials that will walk you through the basics of JWST data analysis using exoTEDRF.
 
+Note that for NIRSpec, the notebook example features the G395H grating, but you can follow basically the same procedure for PRISM any of the other gratings (and keep in mind that PRISM or any of the "M" gratings only use NRS1!).
+
 .. note::
     Be aware that TSO data is large, and reducing it is both memory and storage intensive, particularly for NIRISS.
     For smaller datasets such as those featured in the tutorial notebooks, a full reduction is possible on a laptop, but it is generally preferrable to reduce your observations on a cluster.
