@@ -226,6 +226,141 @@ def format_out_frames_2(out_frames, max_nint):
     return baseline_ints
 
 
+def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
+                          save_filename=''):
+    """Get the NIRSpec trace centroids via the edgetrigger method.
+
+    Parameters
+    ----------
+    deepframe : array-like[float]
+        Median stack.
+    xstart : int
+        Starting x-pixel position on the frame.
+    xend : int, None
+        Ending x-pixel position on the frame.
+    save_results : bool
+        If True, save results to file.
+    save_filename : str
+        Filename of save file.
+
+    Returns
+    -------
+    cens : array-like[float]
+        X and Y centroids.
+    """
+
+    dimy, dimx = np.shape(deepframe)
+    if xend is None:
+        xend = dimx
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore')
+        cens = apl.get_centroids_edgetrigger(deepframe[:, xstart:xend], mode='mean', poly_order=2,
+                                             halfwidth=3)
+
+    x1, y1 = cens[0]+xstart, cens[1]
+    ii = np.where((x1 >= xstart) & (x1 <= xend - 1))
+    # Interpolate onto native pixel grid
+    xx1 = np.linspace(xstart, xend-1, (xend-1)-xstart+1)
+    yy1 = np.interp(xx1, x1[ii], y1[ii])
+
+    if save_results is True:
+        centroids_dict = {'xpos': xx1, 'ypos': yy1}
+        df = pd.DataFrame(data=centroids_dict)
+        if save_filename[-1] != '_':
+            save_filename += '_'
+        outfile_name = save_filename + 'centroids.csv'
+        outfile = open(outfile_name, 'w')
+        outfile.write('# File Contents: Edgetrigger trace centroids\n')
+        outfile.write('# File Creation Date: {}\n'.format(
+            datetime.utcnow().replace(microsecond=0).isoformat()))
+        outfile.write('# File Author: MCR\n')
+        df.to_csv(outfile, index=False)
+        outfile.close()
+        fancyprint('Centroids saved to {}'.format(outfile_name))
+
+    cens = np.array([xx1, yy1])
+
+    return cens
+
+
+def get_centroids_soss(deepframe, tracetable, subarray, save_results=True, save_filename=''):
+    """Get the SOSS trace centroids for all three orders via the edgetrigger method.
+
+    Parameters
+    ----------
+    deepframe : array-like[float]
+        Median stack.
+    tracetable : str
+        Path to SpecTrace reference file.
+    subarray : str
+        Subarray identifier.
+    save_results : bool
+        If True, save results to file.
+    save_filename : str
+        Filename of save file.
+
+    Returns
+    -------
+    cen_o1 : array-like[float]
+        Order 1 X and Y centroids.
+    cen_o2 : array-like[float]
+        Order 2 X and Y centroids.
+    cen_o3 : array-like[float]
+        Order 3 X and Y centroids.
+    """
+
+    dimy, dimx = np.shape(deepframe)
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore')
+        cens = apl.get_soss_centroids(deepframe, tracetable, subarray=subarray)
+
+    x1, y1 = cens['order 1']['X centroid'], cens['order 1']['Y centroid']
+    ii = np.where((x1 >= 0) & (y1 <= dimx - 1))
+    # Interpolate onto native pixel grid
+    xx1 = np.arange(dimx)
+    yy1 = np.interp(xx1, x1[ii], y1[ii])
+
+    if subarray != 'SUBSTRIP96':
+        x2, y2 = cens['order 2']['X centroid'], cens['order 2']['Y centroid']
+        x3, y3 = cens['order 3']['X centroid'], cens['order 3']['Y centroid']
+        ii2 = np.where((x2 >= 0) & (x2 <= dimx - 1) & (y2 <= dimy - 1))
+        ii3 = np.where((x3 >= 0) & (x3 <= dimx - 1) & (y3 <= dimy - 1))
+        # Interpolate onto native pixel grid
+        xx2 = np.arange(np.max(np.floor(x2[ii2]).astype(int)))
+        yy2 = np.interp(xx2, x2[ii2], y2[ii2])
+        xx3 = np.arange(np.max(np.floor(x3[ii3]).astype(int)))
+        yy3 = np.interp(xx3, x3[ii3], y3[ii3])
+    else:
+        xx2, yy2 = xx1, np.ones_like(xx1) * np.nan
+        xx3, yy3 = xx1, np.ones_like(xx1) * np.nan
+
+    if save_results is True:
+        yyy2 = np.ones_like(xx1) * np.nan
+        yyy2[:len(yy2)] = yy2
+        yyy3 = np.ones_like(xx1) * np.nan
+        yyy3[:len(yy3)] = yy3
+
+        centroids_dict = {'xpos': xx1, 'ypos o1': yy1, 'ypos o2': yyy2, 'ypos o3': yyy3}
+        df = pd.DataFrame(data=centroids_dict)
+        if save_filename[-1] != '_':
+            save_filename += '_'
+        outfile_name = save_filename + 'centroids.csv'
+        outfile = open(outfile_name, 'w')
+        outfile.write('# File Contents: Edgetrigger trace centroids\n')
+        outfile.write('# File Creation Date: {}\n'.format(
+            datetime.utcnow().replace(microsecond=0).isoformat()))
+        outfile.write('# File Author: MCR\n')
+        df.to_csv(outfile, index=False)
+        outfile.close()
+        fancyprint('Centroids saved to {}'.format(outfile_name))
+
+    cen_o1 = np.array([xx1, yy1])
+    cen_o2 = np.array([xx2, yy2])
+    cen_o3 = np.array([xx3, yy3])
+
+    return cen_o1, cen_o2, cen_o3
+
+
 def get_default_header():
     """Format the default header for the lightcurve file.
 
@@ -257,30 +392,6 @@ def get_default_header():
                        'Width': 'Box width'}
 
     return header_dict, header_comments
-
-
-def get_nrs_detector_name(datafile):
-    """Get name of detector.
-
-    Parameters
-    ----------
-    datafile : str, datamodel
-        Path to datafile or datafile itself.
-
-    Returns
-    -------
-    detector : str
-        Name of detector.
-    """
-
-    if isinstance(datafile, str):
-        with fits.open(datafile) as file:
-            detector = file[0].header['DETECTOR'].lower()
-    else:
-        with datamodels.open(datafile) as d:
-            detector = d.meta.instrument.detector.lower()
-
-    return detector
 
 
 def get_dq_flag_metrics(dq_map, flags):
@@ -495,6 +606,30 @@ def get_interp_box(data, xbox_size, ybox_size, i, j):
     return box_properties
 
 
+def get_nrs_detector_name(datafile):
+    """Get name of detector.
+
+    Parameters
+    ----------
+    datafile : str, datamodel
+        Path to datafile or datafile itself.
+
+    Returns
+    -------
+    detector : str
+        Name of detector.
+    """
+
+    if isinstance(datafile, str):
+        with fits.open(datafile) as file:
+            detector = file[0].header['DETECTOR'].lower()
+    else:
+        with datamodels.open(datafile) as d:
+            detector = d.meta.instrument.detector.lower()
+
+    return detector
+
+
 def get_nrs_grating(datafile):
     """Get name of grating.
 
@@ -518,6 +653,45 @@ def get_nrs_grating(datafile):
             grating = d.meta.instrument.grating.upper()
 
     return grating
+
+
+def get_nrs_trace_start(detector, subarray, grating):
+    """Determine the x pixel position of the trace starting point for a given NIRSpec observation.
+
+    Parameters
+    ----------
+    detector : str
+        Detector identifier.
+    subarray : str
+        Subarray identifier.
+    grating : str
+        Grating identifier.
+
+    Returns
+    -------
+    xstart : int
+        Starting x-pixel position of the trace.
+    """
+
+    if detector == 'nrs1':
+        if grating == 'G395H':
+            if subarray == 'SUB1024B':
+                xstart = 0
+            else:
+                xstart = 500  # Trace starts at pixel ~500 for G395M in SUB2048.
+        elif grating == 'G395M':
+            if subarray == 'SUB1024B':
+                xstart = 0
+            else:
+                xstart = 200  # Trace starts at pixel ~200 for G395M in SUB2048.
+        elif grating == 'PRISM':
+            xstart = 14
+        else:
+            raise ValueError('Unknown NIRSpec grating used...')
+    else:
+        xstart = 0
+
+    return xstart
 
 
 def get_soss_subarray(datafile):
@@ -595,141 +769,6 @@ def get_stellar_param_grid(st_teff, st_logg, st_met):
         mets = [met_lw, met_up]
 
     return teffs, loggs, mets
-
-
-def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
-                          save_filename=''):
-    """Get the NIRSpec trace centroids via the edgetrigger method.
-
-    Parameters
-    ----------
-    deepframe : array-like[float]
-        Median stack.
-    xstart : int
-        Starting x-pixel position on the frame.
-    xend : int, None
-        Ending x-pixel position on the frame.
-    save_results : bool
-        If True, save results to file.
-    save_filename : str
-        Filename of save file.
-
-    Returns
-    -------
-    cens : array-like[float]
-        X and Y centroids.
-    """
-
-    dimy, dimx = np.shape(deepframe)
-    if xend is None:
-        xend = dimx
-    with warnings.catch_warnings():
-        warnings.filterwarnings('ignore')
-        cens = apl.get_centroids_edgetrigger(deepframe[:, xstart:xend], mode='mean', poly_order=2,
-                                             halfwidth=3)
-
-    x1, y1 = cens[0]+xstart, cens[1]
-    ii = np.where((x1 >= xstart) & (x1 <= xend - 1))
-    # Interpolate onto native pixel grid
-    xx1 = np.linspace(xstart, xend-1, (xend-1)-xstart+1)
-    yy1 = np.interp(xx1, x1[ii], y1[ii])
-
-    if save_results is True:
-        centroids_dict = {'xpos': xx1, 'ypos': yy1}
-        df = pd.DataFrame(data=centroids_dict)
-        if save_filename[-1] != '_':
-            save_filename += '_'
-        outfile_name = save_filename + 'centroids.csv'
-        outfile = open(outfile_name, 'w')
-        outfile.write('# File Contents: Edgetrigger trace centroids\n')
-        outfile.write('# File Creation Date: {}\n'.format(
-            datetime.utcnow().replace(microsecond=0).isoformat()))
-        outfile.write('# File Author: MCR\n')
-        df.to_csv(outfile, index=False)
-        outfile.close()
-        fancyprint('Centroids saved to {}'.format(outfile_name))
-
-    cens = np.array([xx1, yy1])
-
-    return cens
-
-
-def get_centroids_soss(deepframe, tracetable, subarray, save_results=True, save_filename=''):
-    """Get the SOSS trace centroids for all three orders via the edgetrigger method.
-
-    Parameters
-    ----------
-    deepframe : array-like[float]
-        Median stack.
-    tracetable : str
-        Path to SpecTrace reference file.
-    subarray : str
-        Subarray identifier.
-    save_results : bool
-        If True, save results to file.
-    save_filename : str
-        Filename of save file.
-
-    Returns
-    -------
-    cen_o1 : array-like[float]
-        Order 1 X and Y centroids.
-    cen_o2 : array-like[float]
-        Order 2 X and Y centroids.
-    cen_o3 : array-like[float]
-        Order 3 X and Y centroids.
-    """
-
-    dimy, dimx = np.shape(deepframe)
-    with warnings.catch_warnings():
-        warnings.filterwarnings('ignore')
-        cens = apl.get_soss_centroids(deepframe, tracetable, subarray=subarray)
-
-    x1, y1 = cens['order 1']['X centroid'], cens['order 1']['Y centroid']
-    ii = np.where((x1 >= 0) & (y1 <= dimx - 1))
-    # Interpolate onto native pixel grid
-    xx1 = np.arange(dimx)
-    yy1 = np.interp(xx1, x1[ii], y1[ii])
-
-    if subarray != 'SUBSTRIP96':
-        x2, y2 = cens['order 2']['X centroid'], cens['order 2']['Y centroid']
-        x3, y3 = cens['order 3']['X centroid'], cens['order 3']['Y centroid']
-        ii2 = np.where((x2 >= 0) & (x2 <= dimx - 1) & (y2 <= dimy - 1))
-        ii3 = np.where((x3 >= 0) & (x3 <= dimx - 1) & (y3 <= dimy - 1))
-        # Interpolate onto native pixel grid
-        xx2 = np.arange(np.max(np.floor(x2[ii2]).astype(int)))
-        yy2 = np.interp(xx2, x2[ii2], y2[ii2])
-        xx3 = np.arange(np.max(np.floor(x3[ii3]).astype(int)))
-        yy3 = np.interp(xx3, x3[ii3], y3[ii3])
-    else:
-        xx2, yy2 = xx1, np.ones_like(xx1) * np.nan
-        xx3, yy3 = xx1, np.ones_like(xx1) * np.nan
-
-    if save_results is True:
-        yyy2 = np.ones_like(xx1) * np.nan
-        yyy2[:len(yy2)] = yy2
-        yyy3 = np.ones_like(xx1) * np.nan
-        yyy3[:len(yy3)] = yy3
-
-        centroids_dict = {'xpos': xx1, 'ypos o1': yy1, 'ypos o2': yyy2, 'ypos o3': yyy3}
-        df = pd.DataFrame(data=centroids_dict)
-        if save_filename[-1] != '_':
-            save_filename += '_'
-        outfile_name = save_filename + 'centroids.csv'
-        outfile = open(outfile_name, 'w')
-        outfile.write('# File Contents: Edgetrigger trace centroids\n')
-        outfile.write('# File Creation Date: {}\n'.format(
-            datetime.utcnow().replace(microsecond=0).isoformat()))
-        outfile.write('# File Author: MCR\n')
-        df.to_csv(outfile, index=False)
-        outfile.close()
-        fancyprint('Centroids saved to {}'.format(outfile_name))
-
-    cen_o1 = np.array([xx1, yy1])
-    cen_o2 = np.array([xx2, yy2])
-    cen_o3 = np.array([xx3, yy3])
-
-    return cen_o1, cen_o2, cen_o3
 
 
 def get_wavebin_limits(wave):

@@ -710,10 +710,9 @@ class OneOverFStep:
                         else:
                             # Get detector to determine x limits.
                             det = utils.get_nrs_detector_name(self.datafiles[0])
-                            if det == 'nrs1':
-                                xstart = 500
-                            else:
-                                xstart = 0
+                            subarray = utils.get_soss_subarray(self.datafiles[0])
+                            grating = utils.get_nrs_grating(self.datafiles[0])
+                            xstart = utils.get_nrs_trace_start(det, subarray, grating)
                             cens = utils.get_centroids_nirspec(thisdeep, xstart=xstart,
                                                                save_results=False)
                             self.centroids['xpos'], self.centroids['ypos'] = cens[0], cens[1]
@@ -1549,10 +1548,9 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
         deepstack = bn.nanmedian(thiscube, axis=0)
         # Get detector to determine x limits.
         det = utils.get_nrs_detector_name(datafile)
-        if det == 'nrs1':
-            xstart = 500
-        else:
-            xstart = 0
+        subarray = utils.get_soss_subarray(datafile)
+        grating = utils.get_nrs_grating(datafile)
+        xstart = utils.get_nrs_trace_start(det, subarray, grating)
         centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart, save_results=False)
         xpos, ypos = centroids[0], centroids[1]
 
@@ -2314,10 +2312,9 @@ def subtract_custom_superbias(datafile, superbias, method='constant', centroids=
             deepstack = bn.nanmedian(thiscube, axis=0)
             # Get detector to determine x limits.
             det = utils.get_nrs_detector_name(datafile)
-            if det == 'nrs1':
-                xstart = 500
-            else:
-                xstart = 0
+            subarray = utils.get_soss_subarray(datafile)
+            grating = utils.get_nrs_grating(datafile)
+            xstart = utils.get_nrs_trace_start(det, subarray, grating)
             centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart, save_results=False)
             xpos, ypos = centroids[0], centroids[1]
 
