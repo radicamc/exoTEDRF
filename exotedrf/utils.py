@@ -16,7 +16,7 @@ import numpy as np
 import os
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
-from scipy.signal import medfilt
+from scipy.ndimage import median_filter
 import warnings
 import yaml
 
@@ -714,7 +714,7 @@ def get_soss_subarray(datafile):
         subarray = datafile[0].header['SUBARRAY'].upper()
     else:
         with datamodels.open(datafile) as d:
-            subarray = d.meta.instrument.subarray.upper()
+            subarray = d.meta.subarray.name.upper()
 
     return subarray
 
@@ -1161,7 +1161,10 @@ def mask_reset_artifact(datafile):
         int_start = datafile.meta.exposure.integration_start
         int_end = np.min([datafile.meta.exposure.integration_end, max_reset_int])
 
-    nints, ngroups, dimy, dimx = np.shape(cube)
+    if np.ndim(cube) == 4:
+        nints, ngroups, dimy, dimx = np.shape(cube)
+    else:
+        nints, dimy, dimx = np.shape(cube)
 
     # Mask the detector reset artifact which is picked up by this flagging.
     # Artifact only affects first 256 integrations for SOSS and first 50-80 for NIRSpec (depending
@@ -1394,7 +1397,7 @@ def scatter_normalize_cube(cube, window=5):
     """
 
     # Filter the data using the specified window
-    cube_filt = medfilt(cube, (window, 1, 1))
+    cube_filt = median_filter(cube, (window, 1, 1))
     cube_filt[-2:], cube_filt[:2] = cube_filt[-3], cube_filt[3]
     # Calculate the point-to-point scatter along the temporal axis.
     scatter = np.median(np.abs(0.5 * (cube[0:-2] + cube[2:]) - cube[1:-1]), axis=0)
@@ -1425,7 +1428,7 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
 
     flux_clipped = np.copy(flux)
     nints, nwaves = np.shape(flux)
-    flux_filt = medfilt(flux, (window, 1))
+    flux_filt = median_filter(flux, (window, 1))
     ii = window//2
     flux_filt[:ii] = np.median(flux_filt[ii:(ii+window)], axis=0)
     flux_filt[-ii:] = np.median(flux_filt[-(ii+1+window):-(ii+1)], axis=0)

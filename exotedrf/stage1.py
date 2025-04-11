@@ -1193,7 +1193,7 @@ class RampFitStep:
                     # one row at a time each integration. IDK why exactly, its a "detector reset
                     # artifact" according to Loïc. It needs to be masked.
                     if self.instrument == 'NIRISS':
-                        artifact = utils.mask_reset_artifact(res.data)
+                        artifact = utils.mask_reset_artifact(res)
                         flags = (flags.astype(bool) | artifact.astype(bool)).astype(int)
 
                     # Save flags to file.
