@@ -480,8 +480,12 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
             grating = utils.get_nrs_grating(datafiles[0])
             if grating == 'G395H':
                 xstart = 500  # Trace starts at pixel ~500 for G395M
-            else:
+            elif grating == 'G395M':
                 xstart = 200  # Trace starts at pixel ~200 for G395M
+            elif grating == 'PRISM':
+                xstart = 14  # Trace starts at pixel ~14 for PRISM
+            else:
+                raise ValueError('Unknown NIRSpec grating used...')
         else:
             xstart = 0
         for w in tqdm(range(1, 12)):
@@ -507,14 +511,10 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
     # ===== Extraction ======
     # Do the extraction.
     fancyprint('Performing simple aperture extraction.')
-    if det == 'nrs1':
-        grating = utils.get_nrs_grating(datafiles[0])
-        if grating == 'G395H':
-            xstart = 500  # Trace starts at pixel ~500 for G395M
-        else:
-            xstart = 200  # Trace starts at pixel ~200 for G395M
-    else:
-        xstart = 0
+    det = utils.get_nrs_detector_name(datafiles[0])
+    subarray = utils.get_soss_subarray(datafiles[0])
+    grating = utils.get_nrs_grating(datafiles[0])
+    xstart = utils.get_nrs_trace_start(det, subarray, grating)
     flux, ferr = do_box_extraction(cube, ecube, y1, width=extract_width, extract_start=xstart)
 
     # Get default 2D wavelength solution.
@@ -873,8 +873,8 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
     # If one or more of the stellar parameters are not provided, use the wavelength solution from
     # pastasoss.
     if None in [st_teff, st_logg, st_met]:
-        fancyprint('Stellar parameters not provided. Using default wavelength solution.'
-                   , msg_type='WARNING')
+        fancyprint('Stellar parameters not provided. Using default wavelength solution.',
+                   msg_type='WARNING')
     else:
         fancyprint('Refining the wavelength calibration.')
         # Create a grid of stellar parameters, and download PHOENIX spectra for each grid point.

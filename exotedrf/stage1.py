@@ -17,7 +17,6 @@ import os
 import pandas as pd
 from scipy.interpolate import griddata
 from scipy.ndimage import median_filter
-from scipy.signal import medfilt
 from tqdm import tqdm
 import warnings
 
@@ -602,6 +601,11 @@ class OneOverFStep:
 
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
+
+        # If NIRSpec, get Grating -- needed for frame time in this function
+        if self.instrument == 'NIRSPEC':
+            self.grating = utils.get_nrs_grating(self.datafiles[0])
+
         if self.instrument == 'NIRISS':
             assert baseline_ints is not None
             self.baseline_ints = baseline_ints
@@ -706,10 +710,9 @@ class OneOverFStep:
                         else:
                             # Get detector to determine x limits.
                             det = utils.get_nrs_detector_name(self.datafiles[0])
-                            if det == 'nrs1':
-                                xstart = 500
-                            else:
-                                xstart = 0
+                            subarray = utils.get_soss_subarray(self.datafiles[0])
+                            grating = utils.get_nrs_grating(self.datafiles[0])
+                            xstart = utils.get_nrs_trace_start(det, subarray, grating)
                             cens = utils.get_centroids_nirspec(thisdeep, xstart=xstart,
                                                                save_results=False)
                             self.centroids['xpos'], self.centroids['ypos'] = cens[0], cens[1]
@@ -818,7 +821,12 @@ class OneOverFStep:
 
             # Make sure we have the correct frame time.
             if self.instrument == 'NIRSPEC':
-                tframe = 0.902
+                if self.grating == 'PRISM':
+                    # PRISM uses sub512
+                    tframe = 0.226
+                else:
+                    # G395H/M use sub2048
+                    tframe = 0.902
             else:
                 tframe = 5.494
 
@@ -1540,10 +1548,9 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
         deepstack = bn.nanmedian(thiscube, axis=0)
         # Get detector to determine x limits.
         det = utils.get_nrs_detector_name(datafile)
-        if det == 'nrs1':
-            xstart = 500
-        else:
-            xstart = 0
+        subarray = utils.get_soss_subarray(datafile)
+        grating = utils.get_nrs_grating(datafile)
+        xstart = utils.get_nrs_trace_start(det, subarray, grating)
         centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart, save_results=False)
         xpos, ypos = centroids[0], centroids[1]
 
@@ -2305,10 +2312,9 @@ def subtract_custom_superbias(datafile, superbias, method='constant', centroids=
             deepstack = bn.nanmedian(thiscube, axis=0)
             # Get detector to determine x limits.
             det = utils.get_nrs_detector_name(datafile)
-            if det == 'nrs1':
-                xstart = 500
-            else:
-                xstart = 0
+            subarray = utils.get_soss_subarray(datafile)
+            grating = utils.get_nrs_grating(datafile)
+            xstart = utils.get_nrs_trace_start(det, subarray, grating)
             centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart, save_results=False)
             xpos, ypos = centroids[0], centroids[1]
 

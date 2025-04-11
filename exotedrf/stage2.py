@@ -88,14 +88,17 @@ class AssignWCSStep:
             # If no output files are detected, run the step.
             else:
                 if self.instrument == 'NIRSPEC':
+                    jwst.assign_wcs.nirspec.nrs_wcs_set_input = partial(
+                        jwst.assign_wcs.nirspec.nrs_wcs_set_input,
+                        wavelength_range=[6e-08, 6e-06]
+                    )
                     # Edit slit parameters so wavelength solution can be correctly calculated.
-                    jwst.assign_wcs.nirspec.nrs_wcs_set_input = \
-                        partial(jwst.assign_wcs.nirspec.nrs_wcs_set_input,
-                                wavelength_range=[2.3e-06, 5.3e-06],
-                                slit_y_low=-1, slit_y_high=50)
+                    slit_y_low, slit_y_high = -50, 50
+                else:
+                    slit_y_low, slit_y_high = -0.55, 0.55
                 step = calwebb_spec2.assign_wcs_step.AssignWcsStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
-                                **kwargs)
+                                slit_y_low=slit_y_low, slit_y_high=slit_y_high, **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -164,8 +167,8 @@ class Extract2DStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_spec2.extract_2d_step.Extract2dStep()
-                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
-                                **kwargs)
+                res = step.call(segment, output_dir=self.output_dir,
+                                save_results=save_results, **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -1512,16 +1515,10 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
         # Get centroids via the edgetrigger method.
         save_filename = output_dir + fileroot_noseg
         det = utils.get_nrs_detector_name(datafiles[0])
-        if det == 'nrs1':
-            grating = utils.get_nrs_grating(datafiles[0])
-            if grating == 'G395H':
-                xstart = 500  # Trace starts at pixel ~500 for G395M
-            else:
-                xstart = 200  # Trace starts at pixel ~200 for G395M
-        else:
-            xstart = 0
-        centroids = utils.get_centroids_nirspec(deepframe, xstart=xstart,
-                                                save_results=save_results,
+        subarray = utils.get_soss_subarray(datafiles[0])
+        grating = utils.get_nrs_grating(datafiles[0])
+        xstart = utils.get_nrs_trace_start(det, subarray, grating)
+        centroids = utils.get_centroids_nirspec(deepframe, xstart=xstart, save_results=save_results,
                                                 save_filename=save_filename)
 
     # Do diagnostic plot if requested.
