@@ -27,12 +27,11 @@ def make_background_plot(results, outfile=None, show_plot=True):
     """Nine-panel plot for background subtraction results.
     """
     kwargs = {'max_percentile': 70}
-    basic_nine_panel_plot(results, outfile=outfile, show_plot=show_plot,
-                          **kwargs)
+    basic_nine_panel_plot(results, outfile=outfile, show_plot=show_plot, **kwargs)
 
 
-def make_background_row_plot(before, after, background_model, row_start=230,
-                             row_end=251, f=1, outfile=None, show_plot=True):
+def make_background_row_plot(before, after, background_model, row_start=230, row_end=251, f=1,
+                             outfile=None, show_plot=True):
     """Plot rows after background subtraction.
     """
 
@@ -99,54 +98,46 @@ def make_background_row_plot(before, after, background_model, row_start=230,
         plt.show()
 
 
-def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None,
-                     show_plot=True):
+def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=True):
     """Show locations of interpolated pixels.
     """
 
     fancyprint('Doing diagnostic plot.')
     # Plot the location of all jumps and hot pixels.
     fig, ax = plt.subplots(figsize=(8, 5), facecolor='white')
-    plt.imshow(deep, aspect='auto', origin='lower', vmin=0,
-               vmax=np.nanpercentile(deep, 85))
+    plt.imshow(deep, aspect='auto', origin='lower', vmin=0, vmax=np.nanpercentile(deep, 85))
 
     # Show hot pixel locations.
     first_time = True
     for ypos, xpos in zip(hotpix[0], hotpix[1]):
         if first_time is True:
-            marker = Ellipse((xpos, ypos), 21, 3, color='red',
-                             fill=False, label='Hot Pixel')
+            marker = Ellipse((xpos, ypos), 21, 3, color='red', fill=False, label='Hot Pixel')
             ax.add_patch(marker)
             first_time = False
         else:
-            marker = Ellipse((xpos, ypos), 21, 3, color='red',
-                             fill=False)
+            marker = Ellipse((xpos, ypos), 21, 3, color='red', fill=False)
             ax.add_patch(marker)
 
     # Show negative locations.
     first_time = True
     for ypos, xpos in zip(nanpix[0], nanpix[1]):
         if first_time is True:
-            marker = Ellipse((xpos, ypos), 21, 3, color='blue',
-                             fill=False, label='Negative')
+            marker = Ellipse((xpos, ypos), 21, 3, color='blue', fill=False, label='Negative')
             ax.add_patch(marker)
             first_time = False
         else:
-            marker = Ellipse((xpos, ypos), 21, 3, color='blue',
-                             fill=False)
+            marker = Ellipse((xpos, ypos), 21, 3, color='blue', fill=False)
             ax.add_patch(marker)
 
     # Show 'other' locations.
     first_time = True
     for ypos, xpos in zip(otherpix[0], otherpix[1]):
         if first_time is True:
-            marker = Ellipse((xpos, ypos), 21, 3, color='green',
-                             fill=False, label='Other')
+            marker = Ellipse((xpos, ypos), 21, 3, color='green', fill=False, label='Other')
             ax.add_patch(marker)
             first_time = False
         else:
-            marker = Ellipse((xpos, ypos), 21, 3, color='green',
-                             fill=False)
+            marker = Ellipse((xpos, ypos), 21, 3, color='green', fill=False)
             ax.add_patch(marker)
 
     plt.yticks(fontsize=10)
@@ -162,8 +153,7 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None,
         plt.show()
 
 
-def make_centroiding_plot(deepframe, centroids, instrument, outfile=None,
-                          show_plot=True):
+def make_centroiding_plot(deepframe, centroids, instrument, outfile=None, show_plot=True):
     """Make plot showing results of centroiding.
     """
 
@@ -175,8 +165,7 @@ def make_centroiding_plot(deepframe, centroids, instrument, outfile=None,
 
     if instrument == 'NIRISS':
         for order in range(len(centroids)):
-            plt.plot(centroids[order][0], centroids[order][1], ls='--',
-                     c='red')
+            plt.plot(centroids[order][0], centroids[order][1], ls='--', c='red')
     else:
         plt.plot(centroids[0], centroids[1], ls='--', c='red')
 
@@ -198,8 +187,7 @@ def make_compare_spectra_plot(spec1, spec2, title=None):
     """
 
     # Get maximum error of the two spectra.
-    emax = np.sqrt(np.sum([spec1['dppm_err'].values**2,
-                           spec2['dppm_err'].values**2], axis=0))
+    emax = np.sqrt(np.sum([spec1['dppm_err'].values**2, spec2['dppm_err'].values**2], axis=0))
     # Find where spectra deviate by multiples of emax.
     i1 = np.where(np.abs(spec1['dppm'].values - spec2['dppm'].values) / emax > 1)[0]
     i2 = np.where(np.abs(spec1['dppm'].values - spec2['dppm'].values) / emax > 2)[0]
@@ -347,8 +335,7 @@ def make_decontamination_plot(results, models, outfile=None, show_plot=True):
         to_plot.append((cube[i] - order1[i] - order2[i]) / ecube[i])
         to_write.append('({0})'.format(i))
     kwargs = {'vmin': -5, 'vmax': 5}
-    nine_panel_plot(to_plot, to_write, outfile=outfile, show_plot=show_plot,
-                    **kwargs)
+    nine_panel_plot(to_plot, to_write, outfile=outfile, show_plot=show_plot, **kwargs)
     if outfile is not None:
         fancyprint('Plot saved to {}'.format(outfile))
 
@@ -374,11 +361,13 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
                 cube = fits.getdata(results[thisfile], 1)
                 pixeldq = fits.getdata(results[thisfile], 2)
                 dqcube = fits.getdata(results[thisfile], 3)
+                thisstart = fits.getheader(results[thisfile])['INTSTART']
             else:
                 with utils.open_filetype(results[thisfile]) as datamodel:
                     cube = datamodel.data
                     pixeldq = datamodel.pixeldq
                     dqcube = datamodel.groupdq
+                    thisstart = datamodel.meta.exposure.integration_start
             nint, ngroup, _, _ = np.shape(cube)
 
             # Get random group and integration.
@@ -393,37 +382,34 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
 
             ax = plt.subplot(gs[k, j])
             diff = cube[i, g] - cube[i, g-1]
-            plt.imshow(diff, aspect='auto', origin='lower', vmin=0,
-                       vmax=np.nanpercentile(diff, 85))
+            plt.imshow(diff, aspect='auto', origin='lower', vmin=0, vmax=np.nanpercentile(diff, 85))
 
             # Show hot pixel locations.
             first_time = True
             for ypos, xpos in zip(hot[0], hot[1]):
                 if first_time is True:
-                    marker = Ellipse((xpos, ypos), 21, 3, color='blue',
-                                     fill=False, label='Hot Pixel')
+                    marker = Ellipse((xpos, ypos), 21, 3, color='blue', fill=False,
+                                     label='Hot Pixel')
                     ax.add_patch(marker)
                     first_time = False
                 else:
-                    marker = Ellipse((xpos, ypos), 21, 3, color='blue',
-                                     fill=False)
+                    marker = Ellipse((xpos, ypos), 21, 3, color='blue', fill=False)
                     ax.add_patch(marker)
 
             # Show jump locations.
             first_time = True
             for ypos, xpos in zip(jump[0], jump[1]):
                 if first_time is True:
-                    marker = Ellipse((xpos, ypos), 21, 3, color='red',
-                                     fill=False, label='Cosmic Ray')
+                    marker = Ellipse((xpos, ypos), 21, 3, color='red', fill=False,
+                                     label='Cosmic Ray')
                     ax.add_patch(marker)
                     first_time = False
                 else:
-                    marker = Ellipse((xpos, ypos), 21, 3, color='red',
-                                     fill=False)
+                    marker = Ellipse((xpos, ypos), 21, 3, color='red', fill=False)
                     ax.add_patch(marker)
 
-            ax.text(30, 0.9 * np.shape(cube)[-2], '({0}, {1})'.format(i, g),
-                    c='white', fontsize=12)
+            ax.text(30, 0.9 * np.shape(cube)[-2], '({0}, {1})'.format(thisstart + i, g), c='white',
+                    fontsize=12)
             if j != 0:
                 ax.yaxis.set_major_formatter(plt.NullFormatter())
             else:
@@ -487,10 +473,10 @@ def make_linearity_plot(results, old_results, outfile=None, show_plot=True):
 
     # Plot up mean group differences before and after linearity correction.
     plt.figure(figsize=(5, 3))
-    plt.plot(np.arange(len(new_med)), new_med - np.mean(new_med),
-             label='After Correction', c='blue', lw=2)
-    plt.plot(np.arange(len(new_med)), old_med - np.mean(old_med),
-             label='Before Correction', c='red', lw=2)
+    plt.plot(np.arange(len(new_med)), new_med - np.mean(new_med), label='After Correction',
+             c='blue', lw=2)
+    plt.plot(np.arange(len(new_med)), old_med - np.mean(old_med), label='Before Correction',
+             c='red', lw=2)
     plt.axhline(0, ls='--', c='black', zorder=0)
     plt.xlabel(r'Groups', fontsize=12)
     locs = np.arange(ngroup-1).astype(int)
@@ -551,10 +537,8 @@ def make_linearity_plot2(results, old_results, outfile=None, show_plot=True):
 
     # Plot up mean group differences before and after linearity correction.
     plt.figure(figsize=(5, 3))
-    plt.plot(np.arange(ngroup)+1, np.nanmedian(oold, axis=0),
-             label='Before Correction', c='blue')
-    plt.plot(np.arange(ngroup)+1, np.nanmedian(nnew, axis=0),
-             label='After Correction', c='red')
+    plt.plot(np.arange(ngroup)+1, np.nanmedian(oold, axis=0), label='Before Correction', c='blue')
+    plt.plot(np.arange(ngroup)+1, np.nanmedian(nnew, axis=0), label='After Correction', c='red')
     plt.axhline(0, ls='--', c='black')
     plt.xticks(np.arange(ngroup)+1, (np.arange(ngroup)+1).astype(str))
     plt.xlabel('Group Number', fontsize=12)
@@ -570,8 +554,7 @@ def make_linearity_plot2(results, old_results, outfile=None, show_plot=True):
         plt.show()
 
 
-def make_oneoverf_chromatic_plot(m_e, m_o, b_e, b_o, ngroup, outfile=None,
-                                 show_plot=True):
+def make_oneoverf_chromatic_plot(m_e, m_o, b_e, b_o, ngroup, outfile=None, show_plot=True):
     """Make plot of chromatic 1/f slope and intercept values.
     """
 
@@ -619,8 +602,7 @@ def make_oneoverf_chromatic_plot(m_e, m_o, b_e, b_o, ngroup, outfile=None,
         plt.show()
 
 
-def make_oneoverf_plot(results, deepstack, timeseries=None, outfile=None,
-                       show_plot=True):
+def make_oneoverf_plot(results, deepstack, timeseries=None, outfile=None, show_plot=True):
     """make nine-panel plot of dataframes after 1/f correction.
     """
 
@@ -669,17 +651,15 @@ def make_oneoverf_plot(results, deepstack, timeseries=None, outfile=None,
             to_plot.append(diff)
             to_write.append('({0})'.format(i+istart))
 
-    kwargs = {'vmin': np.nanpercentile(diff, 5),
-              'vmax': np.nanpercentile(diff, 95)}
-    nine_panel_plot(to_plot, to_write, outfile=outfile, show_plot=show_plot,
-                    **kwargs)
+    kwargs = {'vmin': np.nanpercentile(diff, 5), 'vmax': np.nanpercentile(diff, 95)}
+    nine_panel_plot(to_plot, to_write, outfile=outfile, show_plot=show_plot, **kwargs)
     if outfile is not None:
         fancyprint('Plot saved to {}'.format(outfile))
 
 
-def make_oneoverf_psd(results, old_results, deepstack, old_deepstack,
-                      timeseries, nsample=10,  pixel_masks=None, tframe=5.494,
-                      tpix=1e-5, tgap=1.2e-4, outfile=None, show_plot=True):
+def make_oneoverf_psd(results, old_results, deepstack, old_deepstack, timeseries, nsample=10,
+                      pixel_masks=None, tframe=5.494, tpix=1e-5, tgap=1.2e-4, outfile=None,
+                      show_plot=True):
     """Make a PSD plot to see PSD of background before and after 1/f removal.
     """
 
@@ -747,7 +727,11 @@ def make_oneoverf_psd(results, old_results, deepstack, old_deepstack,
 
         # Bad pixel maps
         if pixel_masks is not None:
-            mask_cube = pixel_masks[f]
+            if isinstance(pixel_masks[f], str):
+                thismask = fits.getdata(pixel_masks[f])
+            else:
+                thismask = pixel_masks[f]
+            mask_cube = thismask
         else:
             if np.ndim(cube) == 4:
                 mask_cube = np.zeros_like(cube[:, 0])
@@ -850,8 +834,8 @@ def make_pca_plot(pcs, var, projections, show_plot=False, outfile=None):
         plt.show()
 
 
-def make_photon_noise_plot(spectrum_files, ngroup, baseline_ints, order=1,
-                           labels=None, tframe=5.494, gain=1.6):
+def make_photon_noise_plot(spectrum_files, ngroup, baseline_ints, order=1, labels=None,
+                           tframe=5.494, gain=1.6):
     """Make plot comparing lightcurve precision to photon noise.
     """
 
@@ -863,17 +847,13 @@ def make_photon_noise_plot(spectrum_files, ngroup, baseline_ints, order=1,
         with fits.open(spectrum_file) as spectrum:
             if order == 1:
                 spec = spectrum[3].data
-            else:
-                spec = spectrum[7].data
-            spec *= tframe * gain * ngroup
-            if order == 1:
-                wave = np.mean([spectrum[1].data[0], spectrum[2].data[0]],
-                               axis=0)
+                wave = spectrum[1].data
                 ii = np.arange(len(wave)).astype(int)
             else:
-                wave = np.mean([spectrum[5].data[0], spectrum[6].data[0]],
-                               axis=0)
+                spec = spectrum[7].data
+                wave = spectrum[5].data
                 ii = np.where((wave >= 0.6) & (wave < 0.85))[0]
+            spec *= tframe * gain * ngroup
 
         scatter = []
         for i in ii:
@@ -884,12 +864,9 @@ def make_photon_noise_plot(spectrum_files, ngroup, baseline_ints, order=1,
         scatter = np.array(scatter)
         plt.plot(wave[ii][10:-10], median_filter(scatter, 10)[10:-10] * 1e6)
 
-    phot = np.sqrt(np.median(spec[base], axis=0)) / np.median(spec[base],
-                                                              axis=0)
-    plt.plot(wave[ii][10:-10], median_filter(phot, 10)[ii][10:-10] * 1e6,
-             c='black')
-    plt.plot(wave[ii][10:-10], 2 * median_filter(phot, 10)[ii][10:-10] * 1e6,
-             c='black')
+    phot = np.sqrt(np.median(spec[base], axis=0)) / np.median(spec[base], axis=0)
+    plt.plot(wave[ii][10:-10], median_filter(phot, 10)[ii][10:-10] * 1e6, c='black')
+    plt.plot(wave[ii][10:-10], 2 * median_filter(phot, 10)[ii][10:-10] * 1e6, c='black')
 
     plt.ylabel('Precision [ppm]', fontsize=14)
 
@@ -904,8 +881,8 @@ def make_soss_width_plot(scatter, min_width, outfile=None, show_plot=True):
 
     plt.figure(figsize=(8, 5))
     plt.plot(np.linspace(10, 60, 51), scatter, c='royalblue')
-    plt.scatter(np.linspace(10, 60, 51)[min_width], scatter[min_width],
-                marker='*', c='red', s=100, zorder=2)
+    plt.scatter(np.linspace(10, 60, 51)[min_width], scatter[min_width], marker='*', c='red',
+                s=100, zorder=2)
 
     plt.xlabel('Aperture Width', fontsize=14)
     plt.ylabel('Scatter', fontsize=14)
@@ -944,8 +921,8 @@ def make_superbias_scale_plot(scale_factors, outfile=None, show_plot=True):
         plt.show()
 
 
-def make_2d_lightcurve_plot(wave1, flux1, wave2=None, flux2=None, outpdf=None,
-                            title='', instrument='NIRISS', **kwargs):
+def make_2d_lightcurve_plot(wave1, flux1, wave2=None, flux2=None, outpdf=None, title='',
+                            instrument='NIRISS', **kwargs):
     """Plot 2D spectroscopic light curves.
     """
 
@@ -965,14 +942,11 @@ def make_2d_lightcurve_plot(wave1, flux1, wave2=None, flux2=None, outpdf=None,
 
         ax1 = fig.add_subplot(gs[0, 0])
         pp = ax1.imshow(flux1.T, aspect='auto', origin='lower',
-                        extent=(0, flux1.shape[0]-1, wave1[0], wave1[-1]),
-                        **kwargs)
+                        extent=(0, flux1.shape[0]-1, wave1[0], wave1[-1]), **kwargs)
         if wave2 is None:
-            cax = ax1.inset_axes((1.05, 0.005, 0.03, 0.99),
-                                 transform=ax1.transAxes)
+            cax = ax1.inset_axes((1.05, 0.005, 0.03, 0.99), transform=ax1.transAxes)
             cb = fig.colorbar(pp, ax=ax1, cax=cax)
-            cb.set_label('Normalized Flux', labelpad=15, rotation=270,
-                         fontsize=16)
+            cb.set_label('Normalized Flux', labelpad=15, rotation=270, fontsize=16)
         ax1.set_ylabel('Wavelength [µm]', fontsize=16)
         ax1.set_xlabel('Integration Number', fontsize=16)
         if instrument.upper() == 'NIRISS':
@@ -985,13 +959,10 @@ def make_2d_lightcurve_plot(wave1, flux1, wave2=None, flux2=None, outpdf=None,
         if wave2 is not None:
             ax2 = fig.add_subplot(gs[0, 1])
             pp = ax2.imshow(flux2.T, aspect='auto', origin='lower',
-                            extent=(0, flux2.shape[0]-1, wave2[0], wave2[-1]),
-                            **kwargs)
-            cax = ax2.inset_axes((1.05, 0.005, 0.03, 0.99),
-                                 transform=ax2.transAxes)
+                            extent=(0, flux2.shape[0]-1, wave2[0], wave2[-1]), **kwargs)
+            cax = ax2.inset_axes((1.05, 0.005, 0.03, 0.99), transform=ax2.transAxes)
             cb = fig.colorbar(pp, ax=ax2, cax=cax)
-            cb.set_label('Normalized Flux', labelpad=15, rotation=270,
-                         fontsize=16)
+            cb.set_label('Normalized Flux', labelpad=15, rotation=270, fontsize=16)
             ax2.set_xlabel('Integration Number', fontsize=16)
             if instrument.upper() == 'NIRISS':
                 plt.title('Order 2' + title, fontsize=18)
@@ -1044,8 +1015,7 @@ def basic_nine_panel_plot(results, outfile=None, show_plot=True, **kwargs):
             to_plot.append(cube[i])
             to_write.append('({0})'.format(i+istart))
 
-    nine_panel_plot(to_plot, to_write, outfile=outfile, show_plot=show_plot,
-                    **kwargs)
+    nine_panel_plot(to_plot, to_write, outfile=outfile, show_plot=show_plot, **kwargs)
     if outfile is not None:
         fancyprint('Plot saved to {}'.format(outfile))
 
@@ -1068,19 +1038,22 @@ def plot_quicklook_lightcurve(datafiles):
     # Quick sum of flux near throughput peak.
     instrument = utils.get_instrument_name(datafiles[0])
     if instrument == 'NIRSPEC':
-        det = utils.get_detector_name(datafiles[0])
-        if det == 'NRS1':
-            postage = cube[:, 12:17, 900:1500]
+        grating = utils.get_nrs_grating(datafiles[0])
+        if grating == 'PRISM':
+            postage = cube[:, 12:18, 80:120]
         else:
-            postage = cube[:, 6:10, :500]
+            det = utils.get_nrs_detector_name(datafiles[0])
+            if det == 'NRS1':
+                postage = cube[:, 12:17, 900:1500]
+            else:
+                postage = cube[:, 6:10, :500]
     else:
         postage = cube[:, 20:60, 1500:1550]
     timeseries = np.nansum(postage, axis=(1, 2))
 
     # Make plot.
     plt.figure(figsize=(6, 4))
-    plt.errorbar(np.arange(len(timeseries)),
-                 timeseries / np.nanmedian(timeseries[:20]),
+    plt.errorbar(np.arange(len(timeseries)), timeseries / np.nanmedian(timeseries[:20]),
                  fmt='o', mfc='white', mec='royalblue', ms=3)
     plt.xlabel('Integration No.', fontsize=12)
     plt.ylabel('Normalized Flux', fontsize=12)
@@ -1113,11 +1086,9 @@ def nine_panel_plot(data, text=None, outfile=None, show_plot=True, **kwargs):
                     vmax = np.nanpercentile(data[frame], max_percentile)
             else:
                 vmax = kwargs['vmax']
-            ax.imshow(data[frame], aspect='auto', origin='lower', vmin=vmin,
-                      vmax=vmax)
+            ax.imshow(data[frame], aspect='auto', origin='lower', vmin=vmin, vmax=vmax)
             if text is not None:
-                ax.text(30, 0.9*np.shape(data[frame])[0], text[frame],
-                        c='white', fontsize=12)
+                ax.text(30, 0.9*np.shape(data[frame])[0], text[frame], c='white', fontsize=12)
             if j != 0:
                 ax.yaxis.set_major_formatter(plt.NullFormatter())
             else:

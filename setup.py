@@ -4,7 +4,7 @@
 from setuptools import setup
 
 setup(name='exotedrf',
-      version='2.1.2',
+      version='2.2.0',
       license='MIT',
       author='Michael Radica',
       author_email='radicamc@uchicago.edu',
@@ -14,7 +14,7 @@ setup(name='exotedrf',
       description='Tools for Reduction of JWST TSOs',
       package_data={'': ['README.md', 'LICENSE']},
       install_requires=['applesoss==2.1.0', 'astropy', 'astroquery',
-                        'bottleneck', 'corner', 'jwst==1.12.5', 'matplotlib',
+                        'bottleneck', 'corner', 'jwst==1.17.1', 'matplotlib',
                         'more_itertools', 'numpy', 'pandas', 'ray',
                         'scikit-learn', 'scipy', 'spectres', 'tqdm',
                         'pastasoss', 'pyyaml'],

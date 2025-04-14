@@ -62,8 +62,7 @@ elif config['npix'] is not None:
     fit_suffix += '_{}pix'.format(config['npix'])
     res_str = 'npix = {}'.format(config['npix'])
 else:
-    raise ValueError('Number of columns to bin or spectral resolution must '
-                     'be provided.')
+    raise ValueError('Number of columns to bin or spectral resolution must be provided.')
 
 # Save a copy of the config file.
 root_dir = 'pipeline_outputs_directory' + config['output_tag'] + '/config_files'
@@ -85,19 +84,16 @@ f.write('\nRun at {}.'.format(time))
 f.close()
 
 # Formatted parameter names for plotting.
-formatted_names = {'per_p1': r'$P$', 't0_p1': r'$T_0$',
-                   'rp_p1_inst': r'$R_p/R_*$', 'inc_p1': r'$i$',
-                   'u1_inst': r'$u_1$', 'u2_inst': r'$u_2$',
-                   'ecc_p1': r'$e$', 'w_p1': r'$\Omega$',
-                   'a_p1': r'$a/R_*$', 'sigma_inst': r'$\sigma$',
-                   'zero_inst': 'zero point', 'theta1_inst': r'$\theta_1$',
-                   'theta2_inst': r'$\theta_2$', 'theta3_inst': r'$\theta_3$',
-                   'theta4_inst': r'$\theta_4$', 'theta5_inst': r'$\theta_5$',
-                   'GP_sigma_inst': r'$GP \sigma$',
+formatted_names = {'per_p1': r'$P$', 't0_p1': r'$T_0$', 'rp_p1_inst': r'$R_p/R_*$',
+                   'inc_p1': r'$i$', 'u1_inst': r'$u_1$', 'u2_inst': r'$u_2$',
+                   'ecc_p1': r'$e$', 'w_p1': r'$\Omega$', 'a_p1': r'$a/R_*$',
+                   'sigma_inst': r'$\sigma$', 'zero_inst': 'zero point',
+                   'theta1_inst': r'$\theta_1$', 'theta2_inst': r'$\theta_2$',
+                   'theta3_inst': r'$\theta_3$', 'theta4_inst': r'$\theta_4$',
+                   'theta5_inst': r'$\theta_5$', 'GP_sigma_inst': r'$GP \sigma$',
                    'GP_rho_inst': r'$GP \rho$', 'GP_S0_inst': r'$GP S0$',
-                   'GO_omega0_inst': r'$GP \Omega_0$', 'GP_Q_inst': r'$GP Q$',
-                   'rho': r'$\rho$', 'tsec_p1': r'$T_{sec}$',
-                   'fp_p1_inst': r'$F_p/F_*$'}
+                   'GO_omega0_inst': r'$GP \Omega_0$', 'GP_Q_inst': r'$GP Q$', 'rho': r'$\rho$',
+                   'tsec_p1': r'$T_{sec}$', 'fp_p1_inst': r'$F_p/F_*$'}
 
 # === Get Detrending Quantities ===
 # Get time axis
@@ -131,12 +127,10 @@ for order in config['orders']:
     first_time = True
     if config['do_plots'] is True:
         if config['observing_mode'] == 'NIRISS/SOSS':
-            expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_' \
-                                     'order{0}.pdf'.format(order, fit_suffix)
+            expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_order{0}.pdf'.format(order, fit_suffix)
             outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
         else:
-            expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_' \
-                                     '{0}.pdf'.format(config['detector'], fit_suffix)
+            expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_{0}.pdf'.format(config['detector'], fit_suffix)
             outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
     else:
         outpdf = None
@@ -147,51 +141,45 @@ for order in config['orders']:
     else:
         fancyprint('Fitting detector {} at {}.'.format(config['detector'], res_str))
     # Unpack wave, flux and error.
-    wave_low = fits.getdata(config['infile'],  1 + 4*(order - 1))
-    wave_up = fits.getdata(config['infile'], 2 + 4*(order - 1))
+    wave = fits.getdata(config['infile'],  1 + 4*(order - 1))
+    wave_err = fits.getdata(config['infile'], 2 + 4*(order - 1))
     flux = fits.getdata(config['infile'], 3 + 4*(order - 1))
     err = fits.getdata(config['infile'], 4 + 4*(order - 1))
     # Cut reference pixel columns if data is not prebinned.
     if config['res'] != 'prebin':
-        wave_low = wave_low[:, 5:-5]
-        wave_up = wave_up[:, 5:-5]
+        wave = wave[5:-5]
+        wave_err = wave_err[5:-5]
         flux = flux[:, 5:-5]
         err = err[:, 5:-5]
-    wave = np.nanmean(np.stack([wave_low, wave_up]), axis=0)
 
     # For order 2, only fit wavelength bins between 0.6 and 0.85µm.
     if order == 2:
-        ii = np.where((wave[0] >= 0.6) & (wave[0] <= 0.85))[0]
+        ii = np.where((wave >= 0.6) & (wave <= 0.85))[0]
         flux, err = flux[:, ii], err[:, ii]
-        wave, wave_low, wave_up = wave[:, ii], wave_low[:, ii], wave_up[:, ii]
+        wave, wave_err = wave[ii], wave_err[ii]
     # For NRS1, only fit wavelengths larger than blue cutoff.
     if config['detector'] == 'NRS1' and config['observing_mode'].upper() == 'NIRSPEC/G395H':
         if config['res'] != 'prebin':
-            ii = np.where(wave[0] >= config['nrs1_blue'])[0]
+            ii = np.where(wave >= config['nrs1_blue'])[0]
             flux, err = flux[:, ii], err[:, ii]
-            wave_low, wave_up = wave_low[:, ii], wave_up[:, ii]
-            wave = wave[:, ii]
+            wave, wave_err = wave[ii], wave_err[ii]
 
     # Bin input spectra to desired resolution.
     if config['res'] is not None:
         if config['res'] == 'pixel' or config['res'] == 'prebin':
-            wave, wave_low, wave_up = wave[0], wave_low[0], wave_up[0]
+            pass
         else:
-            binned_vals = stage4.bin_at_resolution(wave_low[0], wave_up[0],
-                                                   flux.T, err.T,
-                                                   res=config['res'])
+            binned_vals = stage4.bin_at_resolution(wave, flux.T, err.T, res=config['res'])
             wave, wave_err, flux, err = binned_vals
             flux, err = flux.T, err.T
-            wave_low, wave_up = wave - wave_err, wave + wave_err
     else:
-        binned_vals = stage4.bin_at_pixel(flux, err, wave, npix=config['npix'])
-        wave, wave_low, wave_up, flux, err = binned_vals
-        wave, wave_low, wave_up = wave[0], wave_low[0], wave_up[0]
+        binned_vals = stage4.bin_at_pixel(wave, flux, err, npix=config['npix'])
+        wave, wave_err, flux, err = binned_vals
     nints, nbins = np.shape(flux)
 
     # Sort input arrays in order of increasing wavelength.
     ii = np.argsort(wave)
-    wave_low, wave_up, wave = wave_low[ii], wave_up[ii], wave[ii]
+    wave, wave_err = wave[ii], wave_err[ii]
     flux, err = flux[:, ii], err[:, ii]
 
     # Normalize flux and error by the baseline.
@@ -209,13 +197,14 @@ for order in config['orders']:
     # For transit fits, calculate LD coefficients from stellar models.
     if config['lc_model_type'] == 'transit' and config['ld_fit_type'] != 'free':
         calculate = True
-        # First check if LD coefficient files have been provided.
+        # Convert wave and wave_err to wavebin edges.
+        wave_low, wave_up = wave - wave_err, wave + wave_err
+        # Check if LD coefficient files have been provided.
         if config['ldcoef_file{}'.format(order)] is not None:
             calculate = False
             fancyprint('Reading limb-darkening coefficient file.')
             try:
-                ld = stage4.read_ld_coefs(config['ldcoef_file{}'.format(order)],
-                                          wave_low, wave_up)
+                ld = stage4.read_ld_coefs(config['ldcoef_file{}'.format(order)], wave_low, wave_up)
                 u1 = np.array(ld[0])
                 if config['ld_model_type'] != 'linear':
                     u2 = np.array(ld[1])
@@ -223,16 +212,14 @@ for order in config['orders']:
                     u3 = np.array(ld[2])
                     u4 = np.array(ld[3])
             except ValueError:
-                msg = 'LD coefficient file could not be correctly parsed. ' \
-                      'Falling back onto LD calculation.'
-                fancyprint(msg, msg_type='WARNING')
+                fancyprint('LD coefficient file could not be correctly parsed. Falling back onto '
+                           'LD calculation.', msg_type='WARNING')
                 calculate = True
         if calculate is True:
             # Calculate LD coefficients on specified wavelength grid.
             fancyprint('Calculating limb-darkening coefficients.')
             m_h, logg, teff = config['m_h'], config['logg'], config['teff']
-            msg = 'All stellar parameters must be provided to calculate ' \
-                  'limb-darkening coefficients.'
+            msg = 'All stellar parameters must be provided to calculate limb-darkening coefficients.'
             assert np.all(np.array([m_h, logg, teff]) != None), msg
             # Get ExoTiC-LD instrument mode identifier.
             modes = {'NIRISS/SOSS1': 'JWST_NIRISS_SOSSo1',
@@ -248,11 +235,10 @@ for order in config['orders']:
                 thismode = config['observing_mode']
             else:
                 thismode = config['observing_mode'] + '{}'.format(order)
-            ld = stage4.gen_ld_coefs(wave_low, wave_up, m_h, logg, teff,
-                                     config['ld_data_path'],
+            ld = stage4.gen_ld_coefs(wavebin_low=wave_low, wavebin_up=wave_up, m_h=m_h, logg=logg,
+                                     teff=teff, ld_data_path=config['ld_data_path'],
                                      stellar_model_type=config['stellar_model_type'],
-                                     mode=modes[thismode],
-                                     ld_model_type=config['ld_model_type'])
+                                     mode=modes[thismode], ld_model_type=config['ld_model_type'])
             u1 = np.array(ld[0])
             if config['ld_model_type'] != 'linear':
                 u2 = np.array(ld[1])
@@ -277,8 +263,7 @@ for order in config['orders']:
     for wavebin in range(nbins):
         # Data dictionaries, including linear model and GP regressors.
         thisbin = 'wavebin' + str(wavebin)
-        bin_dict = {'times': t,
-                    'flux': norm_flux[:, wavebin]}
+        bin_dict = {'times': t, 'flux': norm_flux[:, wavebin]}
         # If linear models are to be included.
         if config['lm_file'] is not None:
             bin_dict['lm_parameters'] = lm_quantities
@@ -290,8 +275,8 @@ for order in config['orders']:
         # Prior dictionaries.
         prior_dict[thisbin] = copy.deepcopy(priors)
         # For transit only; update the LD prior for this bin if available.
-        # For prior: set prior width to 0.2 around the model value - based on
-        # findings of Patel & Espinoza 2022.
+        # For prior: set prior width to 0.2 around the model value - based on findings of
+        # Patel & Espinoza 2022.
         if config['lc_model_type'] == 'transit' and config['ld_fit_type'] != 'free':
             if config['ld_model_type'] == 'quadratic-kipping':
                 low_lim = 0.0
@@ -333,20 +318,19 @@ for order in config['orders']:
     if 'custom' in config['lc_model_type']:
         if config['custom_lc_model'] is None:
             # No custom light curve function passed, raise error.
-            raise AttributeError('Passed light curve model type is custom, '
-                                 'but no custom model was passed.')
+            raise AttributeError('Passed light curve model type is custom, but no custom model '
+                                 'was passed.')
         elif isinstance(config['custom_lc_model'], str):
             try:
                 custom_lc_function = getattr(model, config['custom_lc_model'])
             except AttributeError:
                 all_models = utils.get_exouprf_built_in_models(model)
-                msg = 'exoUPRF has no built-in light curve model {0}. ' \
-                      'Available models are: {1}'.format(config['custom_lc_model'], all_models)
-                raise AttributeError(msg)
+                raise AttributeError('exoUPRF has no built-in light curve model {0}. Available '
+                                     'models are: {1}'.format(config['custom_lc_model'], all_models))
         else:
             thistype = type(config['custom_lc_model'])
-            raise ValueError('Object passed to custom_lc_model of type {} is '
-                             'not a string or None.'.format(thistype))
+            raise ValueError('Object passed to custom_lc_model of type {} is not a string or '
+                             'None.'.format(thistype))
     else:
         # No custom light curve function to be used, all is good.
         custom_lc_function = None
@@ -357,34 +341,29 @@ for order in config['orders']:
         thisorder = int(config['detector'][-1])
     else:
         thisorder = order
-    fit_results = stage4.fit_lightcurves(data_dict, prior_dict,
-                                         order=thisorder,
-                                         output_dir=outdir,
-                                         nthreads=config['ncores'],
-                                         fit_suffix=fit_suffix,
+    fit_results = stage4.fit_lightcurves(data_dict=data_dict, prior_dict=prior_dict,
+                                         order=thisorder, output_dir=outdir,
+                                         nthreads=config['ncores'], fit_suffix=fit_suffix,
                                          observing_mode=config['observing_mode'],
                                          lc_model_type=config['lc_model_type'],
                                          ld_model=config['ld_model_type'],
-                                         custom_lc_function=custom_lc_function)
+                                         custom_lc_function=custom_lc_function )
 
     # === Summarize Fit Results ===
-    # Loop over results for each wavebin, extract best-fitting parameters and
-    # make summary plots if necessary.
+    # Loop over results for each wavebin, extract best-fitting parameters and make summary plots
+    # if necessary.
     fancyprint('Summarizing fit results.')
     data = np.ones((nints, nbins)) * np.nan
     models = np.ones((4, nints, nbins)) * np.nan
     residuals = np.ones((nints, nbins)) * np.nan
-    order_results = {'dppm': [], 'dppm_err': [], 'wave': wave,
-                     'wave_err': np.mean([wave - wave_low, wave_up - wave],
-                                         axis=0)}
+    order_results = {'dppm': [], 'dppm_err': [], 'wave': wave, 'wave_err': wave_err}
     for i, wavebin in enumerate(fit_results.keys()):
         # Make note if something went wrong with this bin.
         skip = False
         if fit_results[wavebin] is None:
             skip = True
 
-        # Pack best fit Rp/R* into a dictionary.
-        # Append NaNs if the bin was skipped.
+        # Pack best fit Rp/R* into a dictionary. Append NaNs if the bin was skipped.
         if skip is True:
             order_results['dppm'].append(np.nan)
             order_results['dppm_err'].append(np.nan)
@@ -419,15 +398,14 @@ for order in config['orders']:
                 thisgp = {'inst': data_dict[wavebin]['GP_parameters']}
             thislcmod = {'inst': {'p1': config['lc_model_type']}}
             thislcfunc = {'inst': {'p1': custom_lc_function}}
-            result = model.LightCurveModel(param_dict,
-                                           t={'inst': data_dict[wavebin]['times']},
-                                           linear_regressors=thislm,
-                                           gp_regressors=thisgp,
-                                           observations={'inst': {'flux': data_dict[wavebin]['flux']}},
-                                           ld_model=config['ld_model_type'],
-                                           silent=True)
-            result.compute_lightcurves(lc_model_type=thislcmod,
-                                       lc_model_functions=thislcfunc)
+            result = model.LightCurveModel(
+                input_parameters=param_dict,
+                t={'inst': data_dict[wavebin]['times']},
+                linear_regressors=thislm, gp_regressors=thisgp,
+                observations={'inst': {'flux': data_dict[wavebin]['flux']}},
+                ld_model=config['ld_model_type'], silent=True
+            )
+            result.compute_lightcurves(lc_model_type=thislcmod, lc_model_functions=thislcfunc)
 
             # Plot transit model and residuals.
             scatter = param_dict['sigma_inst']['value']
@@ -452,12 +430,11 @@ for order in config['orders']:
                     systematics += gp_model
 
             if config['do_plots'] is True:
-                make_lightcurve_plot(t=(t - t0)*24, data=norm_flux[:, i],
-                                     model=transit_model, scatter=scatter,
-                                     errors=norm_err[:, i], outpdf=outpdf,
+                make_lightcurve_plot(t=(t - t0)*24, data=norm_flux[:, i], model=transit_model,
+                                     scatter=scatter, errors=norm_err[:, i], outpdf=outpdf,
                                      title='bin {0} | {1:.3f}µm'.format(i, wave[i]),
-                                     systematics=systematics, nfit=nfit,
-                                     nbin=int(len(t)/35), rasterized=True)
+                                     systematics=systematics, nfit=nfit, nbin=int(len(t)/35),
+                                     rasterized=True)
                 # Corner plot for fit.
                 if config['include_corner'] is True:
                     posterior_names = []
@@ -468,8 +445,7 @@ for order in config['orders']:
                                 posterior_names.append(formatted_names[param])
                             else:
                                 posterior_names.append(param)
-                    fit_results[wavebin].make_corner_plot(labels=posterior_names,
-                                                          outpdf=outpdf)
+                    fit_results[wavebin].make_corner_plot( labels=posterior_names, outpdf=outpdf)
 
             data[:, i] = norm_flux[:, i]
             models[0, :, i] = transit_model
@@ -487,19 +463,15 @@ for order in config['orders']:
         order_txt = 'order{}'.format(order)
     else:
         order_txt = config['detector']
-    filename = outdir + 'speclightcurve{0}/_models_{1}.npy'.format(fit_suffix,
-                                                                   order_txt)
+    filename = outdir + 'speclightcurve{0}/_models_{1}.npy'.format(fit_suffix, order_txt)
     np.save(filename, models)
     model_file_names.append(filename)
 
     # Plot 2D lightcurves.
     if config['do_plots'] is True:
-        plotting.make_2d_lightcurve_plot(wave, data, outpdf=outpdf,
-                                         title='Normalized Lightcurves')
-        plotting.make_2d_lightcurve_plot(wave, models[0], outpdf=outpdf,
-                                         title='Model Lightcurves')
-        plotting.make_2d_lightcurve_plot(wave, residuals, outpdf=outpdf,
-                                         title='Residuals')
+        plotting.make_2d_lightcurve_plot(wave, data, outpdf=outpdf, title='Normalized Lightcurves')
+        plotting.make_2d_lightcurve_plot(wave, models[0], outpdf=outpdf, title='Model Lightcurves')
+        plotting.make_2d_lightcurve_plot(wave, residuals, outpdf=outpdf, title='Residuals')
         outpdf.close()
         fancyprint('Plot saved to {}'.format(expected_file))
 
@@ -508,18 +480,14 @@ for order in config['orders']:
 fancyprint('Writing spectrum to file.')
 for order in ['1', '2']:
     if 'order '+order not in results_dict.keys():
-        order_results = {'dppm': [], 'dppm_err': [], 'wave': [],
-                         'wave_err': []}
+        order_results = {'dppm': [], 'dppm_err': [], 'wave': [], 'wave_err': []}
         results_dict['order '+order] = order_results
 
 # Concatenate transit depths, wavelengths, and associated errors from both
 # orders.
-depths = np.concatenate([results_dict['order 2']['dppm'],
-                         results_dict['order 1']['dppm']])
-errors = np.concatenate([results_dict['order 2']['dppm_err'],
-                         results_dict['order 1']['dppm_err']])
-waves = np.concatenate([results_dict['order 2']['wave'],
-                        results_dict['order 1']['wave']])
+depths = np.concatenate([results_dict['order 2']['dppm'], results_dict['order 1']['dppm']])
+errors = np.concatenate([results_dict['order 2']['dppm_err'], results_dict['order 1']['dppm_err']])
+waves = np.concatenate([results_dict['order 2']['wave'], results_dict['order 1']['wave']])
 wave_errors = np.concatenate([results_dict['order 2']['wave_err'],
                               results_dict['order 1']['wave_err']])
 orders = np.concatenate([2*np.ones_like(results_dict['order 2']['dppm']),
@@ -564,12 +532,10 @@ if config['gp_parameter'] != '':
 fit_metadata += '#\n'
 
 # Save spectrum.
-stage4.save_transmission_spectrum(waves, wave_errors, depths, errors, orders,
-                                  outdir, filename=filename, target=target,
-                                  extraction_type=extract_type,
-                                  resolution=config['res'],
-                                  fit_meta=fit_metadata,
-                                  occultation_type=config['lc_model_type'],
+stage4.save_transmission_spectrum(wave=waves, wave_err=wave_errors, dppm=depths, dppm_err=errors,
+                                  order=orders, outdir=outdir, filename=filename, target=target,
+                                  extraction_type=extract_type, resolution=config['res'],
+                                  fit_meta=fit_metadata, occultation_type=config['lc_model_type'],
                                   observing_mode=config['observing_mode'])
 fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir+filename))
 fancyprint('Done')

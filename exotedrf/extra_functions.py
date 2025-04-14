@@ -20,18 +20,17 @@ from exotedrf import utils
 from exotedrf.utils import fancyprint
 
 
-def download_observations(proposal_id, instrument_name=None, objectname=None,
-                          filters=None, visit_nos=None):
-    """Directly download uncal files associated with a given observation from
-    the MAST archive.
+def download_observations(proposal_id, instrument_name=None, objectname=None, filters=None,
+                          visit_nos=None):
+    """Directly download uncal files associated with a given observation from the MAST archive.
 
     Parameters
     ----------
     proposal_id : str
         ID for proposal with which the observations are associated.
     instrument_name : str
-        Name of instrument data to retrieve. NIRISS/SOSS, NIRSPEC/SLIT
-        currently supported. (optional).
+        Name of instrument data to retrieve. NIRISS/SOSS, NIRSPEC/SLIT currently supported.
+        (optional).
     objectname : str
         Name of observational target. (optional).
     filters : str
@@ -47,19 +46,15 @@ def download_observations(proposal_id, instrument_name=None, objectname=None,
 
     # Get observations from MAST.
     obs_table = Observations.query_criteria(proposal_id=proposal_id,
-                                            instrument_name=instrument_name,
-                                            filters=filters,
-                                            objectname=objectname,
-                                            radius='.2 deg')
+                                            instrument_name=instrument_name, filters=filters,
+                                            objectname=objectname, radius='.2 deg')
     all_products = Observations.get_product_list(obs_table)
 
-    products = Observations.filter_products(all_products,
-                                            dataproduct_type='timeseries',
-                                            extension='_uncal.fits',
-                                            productType='SCIENCE')
+    products = Observations.filter_products(all_products, dataproduct_type='timeseries',
+                                            extension='_uncal.fits', productType='SCIENCE')
 
-    # If specific visits are specified, retrieve only those files. If not,
-    # retrieve all relevant files.
+    # If specific visits are specified, retrieve only those files. If not, retrieve all relevant
+    # files.
     if visit_nos is not None:
         # Group files by observation number.
         nums = []
@@ -72,9 +67,8 @@ def download_observations(proposal_id, instrument_name=None, objectname=None,
         # Select only files from relevant visits.
         visit_nos = np.atleast_1d(visit_nos)
         if np.max(visit_nos) > len(exps):
-            msg = 'You are trying to retrieve visit {0}, but only {1} ' \
-                  'visits exist.'.format(np.max(visit_nos), len(exps))
-            raise ValueError(msg)
+            raise ValueError('You are trying to retrieve visit {0}, but only {1} '
+                             'visits exist.'.format(np.max(visit_nos), len(exps)))
         fancyprint('Retrieving visit(s) {}.'.format(visit_nos))
         for visit in visit_nos:
             ii = np.where(nums == exps[visit - 1][0])[0]
@@ -98,9 +92,8 @@ def download_observations(proposal_id, instrument_name=None, objectname=None,
 
 def get_throughput_from_photom_file(photom_path):
     """Calculate the throughput based on the photom reference file.
-    Function from Loïc, and is apparently the proper way to get the
-    throughput? Gives different results from contents of spectra reference
-    file.
+    Function from Loïc, and is apparently the proper way to get the throughput? Gives different
+    results from contents of spectra reference file.
 
     Parameters
     ----------
@@ -140,10 +133,10 @@ def get_throughput_from_photom_file(photom_path):
     return w1, w2, thpt1, thpt2
 
 
-def make_smoothed_2d_lightcurve(spec, baseline_ints, nint, dimx, filename,
-                                order=1, tscale=3, wscale=9):
-    """Smooth extracted 2D SOSS light curves on specified time and wavelength
-    scales to use as input for chromatic 1/f correction.
+def make_smoothed_2d_lightcurve(spec, baseline_ints, nint, dimx, filename, order=1, tscale=3,
+                                wscale=9):
+    """Smooth extracted 2D SOSS light curves on specified time and wavelength scales to use as
+    input for chromatic 1/f correction.
 
     Parameters
     ----------
@@ -185,17 +178,14 @@ def make_smoothed_2d_lightcurve(spec, baseline_ints, nint, dimx, filename,
     np.save(filename + suffix, ref_file)
 
 
-def refine_soss_timestamps(mid_int_times, centroids, subarray='SUBSTRIP256',
-                           outfile=None):
-    """SOSS read times are long compared to other instruments meaning that
-    there are several seconds of time difference between when red and blue
-    wavelengths are read. For limb asymmetry studies, this can be important.
-    This function refines the default mid integration times to yield a
-    seperate timestamp for each wavelength, which can then be outputs as 2D
-    maps, or appended to an existing spectrum file.
-    Note, when binning these time stamps it is important to also consider the
-    relative contributions of each wavelength to the bin via the brightness of
-    the stellar spectrum.
+def refine_soss_timestamps(mid_int_times, centroids, subarray='SUBSTRIP256', outfile=None):
+    """SOSS read times are long compared to other instruments meaning that there are several
+    seconds of time difference between when red and blue wavelengths are read. For limb asymmetry
+    studies, this can be important.
+    This function refines the default mid integration times to yield a seperate timestamp for
+    each wavelength, which can then be outputs as 2D maps, or appended to an existing spectrum file.
+    Note, when binning these time stamps it is important to also consider the relative
+    contributions of each wavelength to the bin via the brightness of the stellar spectrum.
 
     Parameters
     ----------
@@ -218,10 +208,9 @@ def refine_soss_timestamps(mid_int_times, centroids, subarray='SUBSTRIP256',
 
     tpix = 1e-5  # Read time for individual pixel
     tgap = 1.2e-4  # Gap time between columns
-    # Note using these times results in a frame time which is ~5ms shorter
-    # than the actual frame time of 5.494s. Not sure why, since these are
-    # apparently the correct pixel and gap times. The frame time formula
-    # (Equ. 3 in Albert+ 2023) gives the 5.494s (for SUBSTRIP256).
+    # Note using these times results in a frame time which is ~5ms shorter than the actual frame
+    # time of 5.494s. Not sure why, since these are apparently the correct pixel and gap times. The
+    # frame time formula (Equ. 3 in Albert+ 2023) gives the 5.494s (for SUBSTRIP256).
 
     # Get readout pattern and subarray dimensions.
     if subarray == 'SUBSTRIP256':

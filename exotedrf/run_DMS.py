@@ -13,8 +13,7 @@ import os
 import shutil
 import sys
 
-from exotedrf.utils import fancyprint, parse_config, unpack_input_dir, \
-    verify_path
+from exotedrf.utils import fancyprint, parse_config, unpack_input_dir, verify_path
 
 # ===== Setup =====
 # Read config file.
@@ -57,22 +56,19 @@ f.write('\nRun at {}.'.format(time))
 f.close()
 
 # Unpack all files in the input directory.
-input_files = unpack_input_dir(config['input_dir'],
-                               mode=config['observing_mode'],
+input_files = unpack_input_dir(config['input_dir'], mode=config['observing_mode'],
                                filetag=config['input_filetag'],
                                filter_detector=config['filter_detector'])
-fancyprint('Identified {0} {1} {2} observation '
-           'segment(s)'.format(len(input_files), config['filter_detector'],
-                               config['observing_mode']))
+fancyprint('Identified {0} {1} {2} observation segment(s)'
+           ''.format(len(input_files), config['filter_detector'], config['observing_mode']))
 for file in input_files:
     fancyprint(' ' + file)
 
 # ===== Run Stage 1 =====
 if 1 in config['run_stages']:
     # Determine which steps to run and which to skip.
-    steps = ['DQInitStep', 'SaturationStep', 'SuperBiasStep', 'RefPixStep',
-             'DarkCurrentStep', 'OneOverFStep_grp', 'LinearityStep',
-             'JumpStep', 'RampFitStep', 'GainScaleStep']
+    steps = ['DQInitStep', 'SaturationStep', 'SuperBiasStep', 'RefPixStep', 'DarkCurrentStep',
+             'OneOverFStep_grp', 'LinearityStep', 'JumpStep', 'RampFitStep', 'GainScaleStep']
     stage1_skip = []
     for step in steps:
         if config[step] == 'skip':
@@ -81,7 +77,8 @@ if 1 in config['run_stages']:
             else:
                 stage1_skip.append(step)
     # Run stage 1.
-    stage1_results = run_stage1(input_files, mode=config['observing_mode'],
+    stage1_results = run_stage1(input_files,
+                                mode=config['observing_mode'],
                                 soss_background_model=config['soss_background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 oof_method=config['oof_method'],
@@ -110,9 +107,8 @@ else:
 # ===== Run Stage 2 =====
 if 2 in config['run_stages']:
     # Determine which steps to run and which to skip.
-    steps = ['AssignWCSStep', 'Extract2DStep', 'SourceTypeStep',
-             'WaveCorrStep', 'FlatFieldStep', 'OneOverFStep_int',
-             'BackgroundStep', 'TracingStep', 'BadPixStep',
+    steps = ['AssignWCSStep', 'Extract2DStep', 'SourceTypeStep', 'WaveCorrStep', 'FlatFieldStep',
+             'OneOverFStep_int', 'BackgroundStep', 'TracingStep', 'BadPixStep',
              'PCAReconstructStep']
     stage2_skip = []
     for step in steps:
@@ -122,7 +118,8 @@ if 2 in config['run_stages']:
             else:
                 stage2_skip.append(step)
     # Run stage 2.
-    stage2_results = run_stage2(stage1_results, mode=config['observing_mode'],
+    stage2_results = run_stage2(stage1_results,
+                                mode=config['observing_mode'],
                                 soss_background_model=config['soss_background_file'],
                                 baseline_ints=config['baseline_ints'],
                                 save_results=config['save_results'],

@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [2.2.0] -- 2025-04-14
+#### Added
+- Explicit support for NIRSpec PRISM observations.
+- Multiple updates to compatability with NIRSpec G395M as well as non-SUB2048 NIRSpec subarrays.
+- Streamline spectral binning using the spectres package. 
+- Increment jwst version to 1.17.1.
+- Minor changes to format of Stage 3 data products (stellar spectra) such that first extension is the central wavelength of a given wavelength bin and second extension is the bin half-width. 
+- Misc. bug fixes.
+
 ### [2.1.2] -- 2025-04-11
 #### Added
 - Bug fixes with pip installation. 
