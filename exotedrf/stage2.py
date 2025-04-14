@@ -18,8 +18,8 @@ import numpy as np
 import os
 import pandas as pd
 from sklearn.decomposition import PCA
+from scipy.interpolate import griddata
 from scipy.ndimage import median_filter
-from scipy.signal import medfilt
 from tqdm import tqdm
 import warnings
 
@@ -499,6 +499,19 @@ class FlatFieldStep:
                 step = calwebb_spec2.flat_field_step.FlatFieldStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 **kwargs)
+
+                # From jwst v1.12.5-1.16.0, again STScI made a change to set DO_NOT_USE pixels to
+                # NaNs when applying the flat field. Cosmetically interpolate these. Just as with
+                # ramp fitting, this does not supercede any bad pixel interpolation later.
+                nint, dimy, dimx = res.data.shape
+                px, py = np.meshgrid(np.arange(dimx), np.arange(dimy))
+                fancyprint('Doing cosmetic NaN interpolation.')
+                for j in range(nint):
+                    ii = np.where(np.isfinite(res.data[j]))
+                    res.data[j] = griddata(ii, res.data[j][ii], (py, px), method='nearest')
+                if save_results is True:
+                    res.save(self.output_dir + res.meta.filename)
+
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -1206,7 +1219,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
     # ===== Temporal Outlier Flagging =====
     fancyprint('Starting temporal outlier flagging...')
     # Median filter the data.
-    cube_filt = medfilt(newdata, (window_size, 1, 1))
+    cube_filt = median_filter(newdata, (window_size, 1, 1))
     if instrument == 'NIRISS':
         cube_filt[:2] = np.median(cube_filt[2:7], axis=0)
         cube_filt[-2:] = np.median(cube_filt[-8:-3], axis=0)
