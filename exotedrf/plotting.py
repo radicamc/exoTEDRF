@@ -347,6 +347,7 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
     fancyprint('Doing diagnostic plot.')
     results = np.atleast_1d(results)
     files = np.random.randint(0, len(results), 9)
+    inst = utils.get_instrument_name(results[0])
 
     # Plot the location of all jumps and hot pixels.
     plt.figure(figsize=(15, 9), facecolor='white')
@@ -370,15 +371,26 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
                     thisstart = datamodel.meta.exposure.integration_start
             nint, ngroup, _, _ = np.shape(cube)
 
+            if inst == 'MIRI':
+                xx, yy = 21, 3
+                miri_drop_groups = utils.get_miri_dropped_frames(dqcube)
+            else:
+                xx, yy = 3, 21
+                miri_drop_groups = []
+
             # Get random group and integration.
             i = np.random.randint(0, nint)
             g = np.random.randint(1, ngroup)
+            while g in miri_drop_groups:
+                g = np.random.randint(1, ngroup)
 
             # Get location of all hot pixels and jump detections.
             hot = utils.get_dq_flag_metrics(pixeldq, ['HOT', 'WARM'])
             jump = utils.get_dq_flag_metrics(dqcube[i, g], ['JUMP_DET'])
+            dnu = utils.get_dq_flag_metrics(dqcube[i, g], ['DO_NOT_USE'])
             hot = np.where(hot != 0)
             jump = np.where(jump != 0)
+            dnu = np.where(dnu != 0)
 
             ax = plt.subplot(gs[k, j])
             diff = cube[i, g] - cube[i, g-1]
@@ -388,28 +400,40 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
             first_time = True
             for ypos, xpos in zip(hot[0], hot[1]):
                 if first_time is True:
-                    marker = Ellipse((xpos, ypos), 21, 3, color='blue', fill=False,
+                    marker = Ellipse((xpos, ypos), yy, xx, color='blue', fill=False,
                                      label='Hot Pixel')
                     ax.add_patch(marker)
                     first_time = False
                 else:
-                    marker = Ellipse((xpos, ypos), 21, 3, color='blue', fill=False)
+                    marker = Ellipse((xpos, ypos), yy, xx, color='blue', fill=False)
+                    ax.add_patch(marker)
+
+            # Show do not use pixel locations.
+            first_time = True
+            for ypos, xpos in zip(dnu[0], dnu[1]):
+                if first_time is True:
+                    marker = Ellipse((xpos, ypos), yy, xx, color='dodgerblue', fill=False,
+                                     label='Bad Pixel')
+                    ax.add_patch(marker)
+                    first_time = False
+                else:
+                    marker = Ellipse((xpos, ypos), yy, xx, color='dodgerblue', fill=False)
                     ax.add_patch(marker)
 
             # Show jump locations.
             first_time = True
             for ypos, xpos in zip(jump[0], jump[1]):
                 if first_time is True:
-                    marker = Ellipse((xpos, ypos), 21, 3, color='red', fill=False,
+                    marker = Ellipse((xpos, ypos), yy, xx, color='red', fill=False,
                                      label='Cosmic Ray')
                     ax.add_patch(marker)
                     first_time = False
                 else:
-                    marker = Ellipse((xpos, ypos), 21, 3, color='red', fill=False)
+                    marker = Ellipse((xpos, ypos), yy, xx, color='red', fill=False)
                     ax.add_patch(marker)
 
-            ax.text(30, 0.9 * np.shape(cube)[-2], '({0}, {1})'.format(thisstart + i, g), c='white',
-                    fontsize=12)
+            ax.text(0.05*np.shape(cube)[-1], 0.9*np.shape(cube)[-2],
+                    '({0}, {1})'.format(thisstart + i, g), c='white', fontsize=12)
             if j != 0:
                 ax.yaxis.set_major_formatter(plt.NullFormatter())
             else:
@@ -437,13 +461,19 @@ def make_linearity_plot(results, old_results, outfile=None, show_plot=True):
     fancyprint('Doing diagnostic plot 1.')
     results = np.atleast_1d(results)
     old_results = np.atleast_1d(old_results)
+    # Get instrument.
+    inst = utils.get_instrument_name(results[0])
     # Just use first segment for a quick look.
     if isinstance(results[0], str):
         cube = fits.getdata(results[0], 1)
+        if inst == 'MIRI':
+            dq_map = fits.getdata(results[0], 3)
         old_cube = fits.getdata(old_results[0], 1)
     else:
         with utils.open_filetype(results[0]) as datamodel:
             cube = datamodel.data
+            if inst == 'MIRI':
+                dq_map = datamodel.groupdq
         with utils.open_filetype(old_results[0]) as datamodel:
             old_cube = datamodel.data
 
@@ -451,6 +481,8 @@ def make_linearity_plot(results, old_results, outfile=None, show_plot=True):
 
     # Get bright pixels in the trace.
     stack = bn.nanmedian(cube[np.random.randint(0, nint, 25), -1], axis=0)
+    if inst == 'MIRI':
+        stack = stack[:, 20:60]
     ii = np.where((stack >= np.nanpercentile(stack, 80)) &
                   (stack < np.nanpercentile(stack, 99)))
 
@@ -473,20 +505,34 @@ def make_linearity_plot(results, old_results, outfile=None, show_plot=True):
 
     # Plot up mean group differences before and after linearity correction.
     plt.figure(figsize=(5, 3))
-    plt.plot(np.arange(len(new_med)), new_med - np.mean(new_med), label='After Correction',
-             c='blue', lw=2)
-    plt.plot(np.arange(len(new_med)), old_med - np.mean(old_med), label='Before Correction',
-             c='red', lw=2)
-    plt.axhline(0, ls='--', c='black', zorder=0)
-    plt.xlabel(r'Groups', fontsize=12)
+    if inst == 'MIRI':
+        miri_drop_groups = utils.get_miri_dropped_frames(dq_map)
+        miri_good_groups = np.delete(np.arange(ngroup), miri_drop_groups) - 1
+        old_med = old_med[miri_good_groups]
+        new_med = new_med[miri_good_groups]
+    old_diff = (old_med - np.mean(old_med))
+    new_diff = (new_med - np.mean(new_med))
+
     locs = np.arange(ngroup-1).astype(int)
     labels = []
     for i in range(ngroup-1):
         labels.append('{0}-{1}'.format(i+2, i+1))
+    if inst == 'MIRI':
+        locs = np.array(locs)[miri_good_groups]
+        labels = np.array(labels)[miri_good_groups]
+
+    plt.plot(locs, new_diff, label='After Correction', c='blue', lw=2)
+    plt.plot(locs, old_diff, label='Before Correction', c='red', lw=2)
+    plt.axhline(0, ls='--', c='black', zorder=0)
+    plt.xlabel(r'Groups', fontsize=12)
+
+    if len(locs) > 10:
+        ii = np.linspace(0, len(locs)-1, 10).astype(int)
+        locs = np.array(locs)[ii]
+        labels = np.array(labels)[ii]
     plt.xticks(locs, labels, rotation=45)
     plt.ylabel('Differences [DN]', fontsize=12)
-    plt.ylim(1.1*np.nanmin(old_med - np.nanmean(old_med)),
-             1.1*np.nanmax(old_med - np.nanmean(old_med)))
+    plt.ylim(1.1*np.nanmin(old_diff), 1.1*np.nanmax(old_diff))
     plt.legend()
 
     if outfile is not None:
@@ -505,19 +551,29 @@ def make_linearity_plot2(results, old_results, outfile=None, show_plot=True):
     fancyprint('Doing diagnostic plot 2.')
     results = np.atleast_1d(results)
     old_results = np.atleast_1d(old_results)
+    # Get instrument.
+    inst = utils.get_instrument_name(results[0])
     # Just use first segment for a quick look.
     if isinstance(results[0], str):
         cube = fits.getdata(results[0], 1)
+        if inst == 'MIRI':
+            dq_map = fits.getdata(results[0], 3)
         old_cube = fits.getdata(old_results[0], 1)
     else:
         with utils.open_filetype(results[0]) as datamodel:
             cube = datamodel.data
+            if inst == 'MIRI':
+                dq_map = datamodel.groupdq
         with utils.open_filetype(old_results[0]) as datamodel:
             old_cube = datamodel.data
 
     nint, ngroup, dimy, dimx = np.shape(cube)
     # Get bright pixels in the trace.
     stack = bn.nanmedian(cube[:, -1], axis=0)
+    if inst == 'MIRI':
+        stack = stack[:, 20:60]
+        miri_drop_groups = utils.get_miri_dropped_frames(dq_map)
+        miri_good_groups = np.delete(np.arange(ngroup), miri_drop_groups)
     ii = np.where((stack >= np.nanpercentile(stack, 80)) &
                   (stack < np.nanpercentile(stack, 99)))
     jj = np.random.randint(0, len(ii[0]), 1000)
@@ -528,19 +584,43 @@ def make_linearity_plot2(results, old_results, outfile=None, show_plot=True):
     oold = np.zeros((1000, ngroup))
     nnew = np.zeros((1000, ngroup))
     for j in range(1000):
-        o = old_cube[i[j], :, y[j], x[j]]
-        ol = np.linspace(np.min(o), np.max(o), ngroup)
-        oold[j] = (o - ol) / np.max(o) * 100
-        n = cube[i[j], :, y[j], x[j]]
-        nl = np.linspace(np.min(n), np.max(n), ngroup)
-        nnew[j] = (n - nl) / np.max(n) * 100
+        if inst == 'MIRI':
+            o = old_cube[i[j], miri_good_groups, y[j], x[j]]
+            ol = np.linspace(np.min(o), np.max(o), len(miri_good_groups))
+            oold[j, miri_good_groups] = (o - ol) / np.max(o) * 100
+            n = cube[i[j], miri_good_groups, y[j], x[j]]
+            nl = np.linspace(np.min(n), np.max(n), len(miri_good_groups))
+            nnew[j, miri_good_groups] = (n - nl) / np.max(n) * 100
+        else:
+            o = old_cube[i[j], :, y[j], x[j]]
+            ol = np.linspace(np.min(o), np.max(o), ngroup)
+            oold[j] = (o - ol) / np.max(o) * 100
+            n = cube[i[j], :, y[j], x[j]]
+            nl = np.linspace(np.min(n), np.max(n), ngroup)
+            nnew[j] = (n - nl) / np.max(n) * 100
 
     # Plot up mean group differences before and after linearity correction.
     plt.figure(figsize=(5, 3))
-    plt.plot(np.arange(ngroup)+1, np.nanmedian(oold, axis=0), label='Before Correction', c='blue')
-    plt.plot(np.arange(ngroup)+1, np.nanmedian(nnew, axis=0), label='After Correction', c='red')
+    locs = np.arange(ngroup-1).astype(int)
+    labels = (np.arange(ngroup)+1).astype(str)
+    if inst == 'MIRI':
+        locs = np.array(locs)[miri_good_groups]
+        labels = np.array(labels)[miri_good_groups]
+        plt.plot((np.arange(ngroup)+1)[miri_good_groups],
+                 np.nanmedian(oold, axis=0)[miri_good_groups], label='Before Correction', c='blue')
+        plt.plot((np.arange(ngroup)+1)[miri_good_groups],
+                 np.nanmedian(nnew, axis=0)[miri_good_groups], label='After Correction', c='red')
+    else:
+        plt.plot(np.arange(ngroup)+1, np.nanmedian(oold, axis=0), label='Before Correction',
+                 c='blue')
+        plt.plot(np.arange(ngroup)+1, np.nanmedian(nnew, axis=0), label='After Correction',
+                 c='red')
     plt.axhline(0, ls='--', c='black')
-    plt.xticks(np.arange(ngroup)+1, (np.arange(ngroup)+1).astype(str))
+    if len(locs) > 10:
+        ii = np.linspace(0, len(locs)-1, 10).astype(int)
+        locs = np.array(locs)[ii]
+        labels = np.array(labels)[ii]
+    plt.xticks(locs, labels)
     plt.xlabel('Group Number', fontsize=12)
     plt.ylabel('Residual [%]', fontsize=12)
     plt.legend()

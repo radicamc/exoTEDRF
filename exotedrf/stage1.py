@@ -55,6 +55,9 @@ class DQInitStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
         # Unpack deepframe.
         if isinstance(hot_pixel_map, str):
             # Want deepframe extension before bad pixel interpolation.
@@ -65,7 +68,8 @@ class DQInitStep:
         else:
             raise ValueError('Invalid type for hot_pixel_map: {}'.format(type(hot_pixel_map)))
 
-    def run(self, save_results=True, force_redo=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, flag_first_miri_frame=True,
+            flag_last_miri_frame=True, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -74,6 +78,10 @@ class DQInitStep:
             If True, save results.
         force_redo : bool
             If True, run step even if output files are detected.
+        flag_first_miri_frame : bool
+            if True, set the first MIRI group to DO_NOT_USE.
+        flag_last_miri_frame : bool
+            if True, set the last MIRI group to DO_NOT_USE.
         kwargs : dict
             Keyword arguments for calwebb_detector1.dq_init_step.DQInitStep.
 
@@ -101,11 +109,104 @@ class DQInitStep:
                 step = calwebb_detector1.dq_init_step.DQInitStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 **kwargs)
+                # Additional calibrations
+                add_cal = False
+                # For MIRI, set first and last group to DO_NOT_USE.
+                if self.instrument == 'MIRI':
+                    if flag_first_miri_frame is True:
+                        fancyprint('Flagging first MIRI frame.')
+                        dnu = utils.get_dq_flag_metrics(res.groupdq[:, 0], ['DO_NOT_USE'])
+                        ii = np.where(dnu != 1)
+                        res.groupdq[:, 0][ii] += 1
+                        add_cal = True
+                    if flag_last_miri_frame is True:
+                        fancyprint('Flagging last MIRI frame.')
+                        dnu = utils.get_dq_flag_metrics(res.groupdq[:, -1], ['DO_NOT_USE'])
+                        ii = np.where(dnu != 1)
+                        res.groupdq[:, -1][ii] += 1
+                        add_cal = True
                 # Flag additional hot pixels not in the default map.
                 if self.hotpix is not None:
                     res = flag_hot_pixels(res, hot_pix=self.hotpix)[0]
-                    # Overwite the previous edition.
+                    add_cal = True
+                # Overwite the previous edition if additional calibrations have been performed.
+                if add_cal is True:
                     res.save(expected_file)
+                # Verify that filename is correct.
+                if save_results is True:
+                    current_name = self.output_dir + res.meta.filename
+                    if expected_file != current_name:
+                        res.close()
+                        os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
+                    res = expected_file
+            results.append(res)
+
+        return results
+
+
+class EmiCorrStep:
+    """Wrapper around default calwebb_detector1 MIRI EMI (electromagnetic interference) correction
+    step (removes 390Hz interference patter in MIRI subarray data).
+    """
+
+    def __init__(self, input_data, output_dir):
+        """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        output_dir : str
+            Path to directory to which to save outputs.
+        """
+
+        # Set up easy attributes.
+        self.tag = 'emicorrstep.fits'
+        self.output_dir = output_dir
+
+        # Unpack input data files.
+        self.datafiles = utils.sort_datamodels(input_data)
+        self.fileroots = utils.get_filename_root(self.datafiles)
+
+    def run(self, save_results=True, force_redo=False, **kwargs):
+        """Method to run the step.
+
+        Parameters
+        ----------
+        save_results : bool
+            If True, save results.
+        force_redo : bool
+            If True, run step even if output files are detected.
+        kwargs : dict
+            Keyword arguments for calwebb_detector1.emicorr_step.EmiCorrStep.
+
+        Returns
+        -------
+        results : list(datamodel)
+            Input data files processed through the step.
+        """
+
+        # Warn user that datamodels will be returned if not saving results.
+        if save_results is False:
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
+
+        results = []
+        all_files = glob.glob(self.output_dir + '*')
+        for i, segment in enumerate(self.datafiles):
+            # If an output file for this segment already exists, skip the step.
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            if expected_file in all_files and force_redo is False:
+                fancyprint('File {} already exists.'.format(expected_file))
+                fancyprint('Skipping EMI Correction Detection Step.')
+                res = expected_file
+            # If no output files are detected, run the step.
+            else:
+                step = calwebb_detector1.emicorr_step.EmiCorrStep()
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                skip=False, **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -449,7 +550,10 @@ class DarkCurrentStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
-    def run(self, save_results=True, force_redo=False, **kwargs):
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
+    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -458,6 +562,10 @@ class DarkCurrentStep:
             If True, save results.
         force_redo : bool
             If True, run step even if output files are detected.
+        do_plot : bool
+            If True, do step diagnostic plot --- MIRI only.
+        show_plot : bool
+            If True, show the step diagnostic plot --- MIRI only.
         kwargs : dict
             Keyword arguments for calwebb_detector1.dark_current_step.DarkCurrentStep.
 
@@ -496,6 +604,21 @@ class DarkCurrentStep:
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
+
+        # For MIRI observations, the dark current and linearity correction are intrinsically
+        # linked as the dark current subtraction helps remove the RSCD signal. But the linearity
+        # correction needs to be performed on the data before any bias or dark subtraction is
+        # performed. So do the final linearity plots now.
+        if do_plot is True and self.instrument == 'MIRI':
+            if save_results is True:
+                plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
+                plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
+            else:
+                plot_file1, plot_file2 = None, None
+            plotting.make_linearity_plot(results, self.datafiles, outfile=plot_file1,
+                                         show_plot=show_plot)
+            plotting.make_linearity_plot2(results, self.datafiles, outfile=plot_file2,
+                                          show_plot=show_plot)
 
         return results
 
@@ -888,6 +1011,7 @@ class OneOverFStep:
         return results
 
 
+# TODO: add in dark step for MIRI
 class LinearityStep:
     """Wrapper around default calwebb_detector1 Linearity Correction step.
     """
@@ -914,7 +1038,8 @@ class LinearityStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False,
+            miri_drop_groups=12, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -927,6 +1052,9 @@ class LinearityStep:
             If True, do step diagnostic plot.
         show_plot : bool
             If True, show the step diagnostic plot.
+        miri_drop_groups : int
+            Number of groups at the beginning of a MIRI exposure ramp to drop due to the RSCD
+            effect.
         kwargs : dict
             Keyword arguments for calwebb_detector1.linearity_step.LinearityStep.
 
@@ -952,9 +1080,28 @@ class LinearityStep:
                 do_plot, show_plot = False, False
             # If no output files are detected, run the step.
             else:
+                # MIRI observations are subject to the RSCD effect in the early groups (see e.g.,
+                # Morrison et al. (2023) PASP, 135, 075004).
+                # Set these groups to DO_NOT_USE until we can think of a better solution.
+                if self.instrument == 'MIRI' and miri_drop_groups is not None:
+                    segment = datamodels.open(segment)
+                    ngroups = segment.meta.exposure.ngroups
+                    if ngroups <= miri_drop_groups + 4:
+                        fancyprint('Exposure only has {0} groups, which is less than the '
+                                   'required amount to drop {1} groups. No additional groups will '
+                                   'be dropped.'.format(ngroups, miri_drop_groups),
+                                   msg_type='WARNING')
+                    else:
+                        fancyprint('Dropping first {} MIRI frame(s).'.format(miri_drop_groups))
+                        for g in range(1, miri_drop_groups+1):
+                            dnu = utils.get_dq_flag_metrics(segment.groupdq[:, g], ['DO_NOT_USE'])
+                            ii = np.where(dnu != 1)
+                            segment.groupdq[:, g][ii] += 1
+
                 step = calwebb_detector1.linearity_step.LinearityStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 **kwargs)
+
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -966,8 +1113,10 @@ class LinearityStep:
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
-        # Do step plot if requested.
-        if do_plot is True:
+
+        # Do step plot if requested (and instrument is not MIRI --- for MIRI do these plots after
+        # the dark current subtraction).
+        if do_plot is True and self.instrument != 'MIRI':
             if save_results is True:
                 plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
@@ -1011,9 +1160,9 @@ class JumpStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, save_results=True, force_redo=False, flag_up_ramp=False,
-            rejection_threshold=15, flag_in_time=True, time_rejection_threshold=10, time_window=5,
-            do_plot=False, show_plot=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, flag_up_ramp=False, rejection_threshold=15,
+            flag_in_time=True, time_rejection_threshold=10, time_window=5, do_plot=False,
+            show_plot=False, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -1071,7 +1220,8 @@ class JumpStep:
                     step = calwebb_detector1.jump_step.JumpStep()
                     res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                     rejection_threshold=rejection_threshold,
-                                    maximum_cores='quarter', minimum_sigclip_groups=1e6, **kwargs)
+                                    maximum_cores='quarter', minimum_sigclip_groups=int(1e6),
+                                    **kwargs)
                 # Time domain jump step must be run for ngroup=2.
                 else:
                     res = segment
@@ -1413,15 +1563,24 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
 
     nints, ngroups, dimy, dimx = np.shape(cube)
 
-    # Mask the detector reset artifact which is picked up by this flagging.
-    # Artifact only affects first 256 integrations for SOSS and first 60 for NIRSpec
-    artifact = utils.mask_reset_artifact(datafile)
+    inst = utils.get_instrument_name(datafile)
+    if inst == 'MIRI':
+        # For MIRI, get list of dropped groups --- don't need to flag these ones.
+        miri_drop_groups = utils.get_miri_dropped_frames(dqcube)
+        artifact = np.zeros((nints, dimy, dimx)).astype(int)
+    else:
+        # Mask the detector reset artifact which is picked up by this flagging.
+        # Artifact only affects first 256 integrations for SOSS and first 60 for NIRSpec
+        artifact = utils.mask_reset_artifact(datafile)
+        miri_drop_groups = []
 
     # Jump detection algorithm based on Nikolov+ (2014). For each integration, create a difference
     # image using the median of surrounding integrations. Flag all pixels with deviations more
     # than X-sigma as comsic rays hits.
     count, interp = 0, 0
     for g in tqdm(range(ngroups)):
+        if g in miri_drop_groups:  # Ignore this group if it's dropped in MIRI.
+            continue
         # Find pixels which deviate more than the specified threshold.
         scale, cube_filt = utils.scatter_normalize_cube(cube[:, g], window=window)
         ii = ((scale >= thresh) & (cube[:, g] > np.nanpercentile(cube[:, g], 10)) & (artifact == 0))
@@ -1453,6 +1612,9 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
     fancyprint('and {} interpolated'.format(interp))
 
     if save_results is True:
+        if not isinstance(datafile, fits.hdu.hdulist.HDUList):
+            datafile.close()
+            datafile = fits.open(output_dir + filename)
         datafile[1].data = cube
         datafile[3].data = dqcube
         outfile = output_dir + fileroot + 'jump.fits'
@@ -2355,6 +2517,7 @@ def subtract_custom_superbias(datafile, superbias, method='constant', centroids=
     return result, scale_factors
 
 
+# TODO : Add in MIRI
 def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                oof_method='scale-achromatic', superbias_method='crds',
                soss_timeseries=None, soss_timeseries_o2=None, save_results=True, pixel_masks=None,

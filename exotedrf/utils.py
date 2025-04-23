@@ -606,6 +606,34 @@ def get_interp_box(data, xbox_size, ybox_size, i, j):
     return box_properties
 
 
+def get_miri_dropped_frames(dq_map):
+    """
+
+    Parameters
+    ----------
+    dq_map : array-like(int)
+
+    Returns
+    -------
+    dropped_groups : ndarray(int)
+        List of dropped MIRI groups.
+    """
+
+    # Get readout pattern,
+    nint, ngroup, dimy, dimx = np.shape(dq_map)
+    npix = dimy * dimx
+    dropped_groups = []
+    # Loop over all groups and find ones which are entirely flagged as DO_NOT_USE.
+    for i in range(ngroup):
+        dnu = get_dq_flag_metrics(dq_map[0, i], ['DO_NOT_USE'])
+        # If entire frame is flagged, add to list.
+        if np.sum(dnu) == npix:
+            dropped_groups.append(i)
+    dropped_groups = np.array(dropped_groups)
+
+    return dropped_groups
+
+
 def get_nrs_detector_name(datafile):
     """Get name of detector.
 
