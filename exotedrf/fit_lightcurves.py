@@ -230,7 +230,8 @@ for order in config['orders']:
                      'NIRSpec/G235H': 'JWST_NIRSpec_G235H',
                      'NIRSpec/G235M': 'JWST_NIRSpec_G235M',
                      'NIRSpec/G140H': 'JWST_NIRSpec_G140H',
-                     'NIRSpec/G140M': 'JWST_NIRSpec_G140M'}
+                     'NIRSpec/G140M': 'JWST_NIRSpec_G140M',
+                     'MIRI/LRS': 'JWST_MIRI_LRS'}
             if config['observing_mode'] != 'NIRISS/SOSS':
                 thismode = config['observing_mode']
             else:
@@ -347,7 +348,7 @@ for order in config['orders']:
                                          observing_mode=config['observing_mode'],
                                          lc_model_type=config['lc_model_type'],
                                          ld_model=config['ld_model_type'],
-                                         custom_lc_function=custom_lc_function )
+                                         custom_lc_function=custom_lc_function)
 
     # === Summarize Fit Results ===
     # Loop over results for each wavebin, extract best-fitting parameters and make summary plots

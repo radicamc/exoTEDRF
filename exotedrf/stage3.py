@@ -485,7 +485,7 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
         # Extract with a variety of widths and find the one that minimizes the white light curve
         # scatter.
         scatter = []
-        for w in tqdm(range(1, 12)):
+        for w in tqdm(range(2, 13)):
             flux = do_box_extraction(cube.transpose(0, 2, 1), ecube.transpose(0, 2, 1), x1,
                                      width=w, progress=False, extract_start=int(np.min(y1)),
                                      extract_end=int(np.max(y1)))[0]
@@ -495,7 +495,7 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
         scatter = np.array(scatter)
         # Find the width that minimizes the scatter.
         ii = np.argmin(scatter)
-        extract_width = np.linspace(1, 11, 11)[ii]
+        extract_width = np.linspace(2, 12, 11)[ii]
         fancyprint('Using width of {} pxiels.'.format(int(extract_width)))
 
         # Do diagnostic plot if requested.
@@ -504,7 +504,8 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
                 outfile = output_dir + 'aperture_optimization.png'
             else:
                 outfile = None
-            plotting.make_soss_width_plot(scatter, ii, outfile=outfile, show_plot=show_plot)
+            plotting.make_soss_width_plot(np.linspace(2, 12, 11), scatter, ii, outfile=outfile,
+                                          show_plot=show_plot)
 
     # ===== Extraction ======
     # Do the extraction.
@@ -617,7 +618,8 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
                 outfile = output_dir + 'aperture_optimization.png'
             else:
                 outfile = None
-            plotting.make_soss_width_plot(scatter, ii, outfile=outfile, show_plot=show_plot)
+            plotting.make_soss_width_plot(np.linspace(1, 11, 11), scatter, ii, outfile=outfile,
+                                          show_plot=show_plot)
 
     # ===== Extraction ======
     # Do the extraction.
@@ -726,7 +728,8 @@ def box_extract_soss(datafiles, centroids, soss_width, do_plot=False, show_plot=
                 outfile = output_dir + 'aperture_optimization.png'
             else:
                 outfile = None
-            plotting.make_soss_width_plot(scatter, ii, outfile=outfile, show_plot=show_plot)
+            plotting.make_soss_width_plot(np.linspace(10, 60, 51), scatter, ii, outfile=outfile,
+                                          show_plot=show_plot)
 
     # ===== Extraction ======
     # Do the extraction.

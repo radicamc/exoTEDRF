@@ -363,6 +363,8 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
             order_txt = 'order{}'.format(order)
         elif observing_mode.split('/')[0].upper() == 'NIRSPEC':
             order_txt = 'NRS{}'.format(order)
+        else:
+            order_txt = ''
         outdir = output_dir + 'speclightcurve{2}/{0}_{1}'.format(order_txt, keyname, fit_suffix)
         all_fits.append(fit_data.remote(data_dict[keyname], prior_dict[keyname],
                                         output_dir=outdir, bin_no=num_bins[i],

@@ -966,14 +966,13 @@ def make_photon_noise_plot(spectrum_files, ngroup, baseline_ints, order=1, label
     plt.show()
 
 
-def make_soss_width_plot(scatter, min_width, outfile=None, show_plot=True):
+def make_soss_width_plot(widths, scatter, min_width, outfile=None, show_plot=True):
     """Make plot showing optimization of extraction box.
     """
 
     plt.figure(figsize=(8, 5))
-    plt.plot(np.linspace(10, 60, 51), scatter, c='royalblue')
-    plt.scatter(np.linspace(10, 60, 51)[min_width], scatter[min_width], marker='*', c='red',
-                s=100, zorder=2)
+    plt.plot(widths, scatter, c='royalblue')
+    plt.scatter(widths[min_width], scatter[min_width], marker='*', c='red', s=100, zorder=2)
 
     plt.xlabel('Aperture Width', fontsize=14)
     plt.ylabel('Scatter', fontsize=14)
