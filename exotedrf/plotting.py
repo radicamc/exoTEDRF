@@ -98,7 +98,8 @@ def make_background_row_plot(before, after, background_model, row_start=230, row
         plt.show()
 
 
-def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=True):
+def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=True,
+                     miri_scale=False):
     """Show locations of interpolated pixels.
     """
 
@@ -107,37 +108,42 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=Tru
     fig, ax = plt.subplots(figsize=(8, 5), facecolor='white')
     plt.imshow(deep, aspect='auto', origin='lower', vmin=0, vmax=np.nanpercentile(deep, 85))
 
+    if miri_scale is True:
+        xx, yy = 3, 21
+    else:
+        xx, yy = 21, 3
+
     # Show hot pixel locations.
     first_time = True
     for ypos, xpos in zip(hotpix[0], hotpix[1]):
         if first_time is True:
-            marker = Ellipse((xpos, ypos), 21, 3, color='red', fill=False, label='Hot Pixel')
+            marker = Ellipse((xpos, ypos), xx, yy, color='red', fill=False, label='Hot Pixel')
             ax.add_patch(marker)
             first_time = False
         else:
-            marker = Ellipse((xpos, ypos), 21, 3, color='red', fill=False)
+            marker = Ellipse((xpos, ypos), xx, yy, color='red', fill=False)
             ax.add_patch(marker)
 
     # Show negative locations.
     first_time = True
     for ypos, xpos in zip(nanpix[0], nanpix[1]):
         if first_time is True:
-            marker = Ellipse((xpos, ypos), 21, 3, color='blue', fill=False, label='Negative')
+            marker = Ellipse((xpos, ypos), xx, yy, color='blue', fill=False, label='Negative')
             ax.add_patch(marker)
             first_time = False
         else:
-            marker = Ellipse((xpos, ypos), 21, 3, color='blue', fill=False)
+            marker = Ellipse((xpos, ypos), xx, yy, color='blue', fill=False)
             ax.add_patch(marker)
 
     # Show 'other' locations.
     first_time = True
     for ypos, xpos in zip(otherpix[0], otherpix[1]):
         if first_time is True:
-            marker = Ellipse((xpos, ypos), 21, 3, color='green', fill=False, label='Other')
+            marker = Ellipse((xpos, ypos), xx, yy, color='green', fill=False, label='Other')
             ax.add_patch(marker)
             first_time = False
         else:
-            marker = Ellipse((xpos, ypos), 21, 3, color='green', fill=False)
+            marker = Ellipse((xpos, ypos), xx, yy, color='green', fill=False)
             ax.add_patch(marker)
 
     plt.yticks(fontsize=10)
@@ -153,15 +159,20 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=Tru
         plt.show()
 
 
-def make_centroiding_plot(deepframe, centroids, instrument, outfile=None, show_plot=True):
+def make_centroiding_plot(deepframe, centroids, instrument, outfile=None, show_plot=True,
+                          miri_scale=False):
     """Make plot showing results of centroiding.
     """
 
     dimy, dimx = np.shape(deepframe)
 
     plt.figure(figsize=(8, 3))
-    plt.imshow(deepframe, aspect='auto', origin='lower', vmin=0,
-               vmax=np.nanpercentile(deepframe, 80))
+    if miri_scale is True:
+        plt.imshow(deepframe, aspect='auto', origin='lower', vmin=np.nanpercentile(deepframe, 10),
+                   vmax=np.nanpercentile(deepframe, 99))
+    else:
+        plt.imshow(deepframe, aspect='auto', origin='lower', vmin=0,
+                   vmax=np.nanpercentile(deepframe, 80))
 
     if instrument == 'NIRISS':
         for order in range(len(centroids)):

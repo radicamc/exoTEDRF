@@ -328,7 +328,7 @@ class BackgroundStep:
     """Wrapper around custom Background Subtraction step.
     """
 
-    def __init__(self, input_data, baseline_ints, background_model, output_dir='./'):
+    def __init__(self, input_data, baseline_ints=None, background_model=None, output_dir='./'):
         """Step initializer.
 
         Parameters
@@ -336,9 +336,9 @@ class BackgroundStep:
         input_data : array-like(str), array-like(datamodel)
             List of paths to input data or the input data itself.
         baseline_ints : array-like(int)
-            Integration number(s) to use as ingress and/or egress.
+            Integration number(s) to use as ingress and/or egress -- SOSS only.
         background_model : np.ndarray(float), str, None
-            Model of background flux.
+            Model of background flux -- SOSS only.
         output_dir : str
             Path to directory to which to save outputs.
         """
@@ -353,17 +353,27 @@ class BackgroundStep:
         self.fileroots = utils.get_filename_root(self.datafiles)
         self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
 
-        # Unpack background model.
-        if isinstance(background_model, str):
-            fancyprint('Reading background model file: {}...'.format(background_model))
-            self.background_model = np.load(background_model)
-        elif (isinstance(background_model, np.ndarray) or
-              background_model is None):
-            self.background_model = background_model
-        else:
-            raise ValueError('Invalid type for background model: {}'.format(type(background_model)))
+        # Get instrument name.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs):
+        # Unpack background model.
+        if self.instrument == 'NIRISS':
+            msg = 'A background model must be provided to correct SOSS observations.'
+            assert background_model is not None, msg
+            if isinstance(background_model, str):
+                fancyprint('Reading background model file: {}...'.format(background_model))
+                self.background_model = np.load(background_model)
+            elif (isinstance(background_model, np.ndarray) or
+                  background_model is None):
+                self.background_model = background_model
+            else:
+                raise ValueError('Invalid type for background model: {}'
+                                 .format(type(background_model)))
+            msg = 'Baseline integration must be provided for NIRISS obseravtions.'
+            assert self.baseline_ints is not None, msg
+
+    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False,
+            miri_trace_width=20, miri_background_width=14, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -373,9 +383,13 @@ class BackgroundStep:
         force_redo : bool
             If True, run step even if output files are detected.
         do_plot : bool
-            If True, do step diagnostic plot.
+            If True, do step diagnostic plot -- SOSS only.
         show_plot : bool
-            If True, show the step diagnostic plot.
+            If True, show the step diagnostic plot -- SOSS only.
+        miri_trace_width : int
+            Full width of the MIRI trace.
+        miri_background_width : int
+            Width of the MIRI background region.
         kwargs : dict
             Keyword arguments for stage2.backgroundstep.
 
@@ -404,31 +418,45 @@ class BackgroundStep:
                 fancyprint('File {} already exists.'.format(expected_file))
                 fancyprint('Skipping Background Subtraction Step.')
                 res = expected_file
-                bkg_model = expected_bkg
+                if self.instrument == 'NIRISS':
+                    bkg_model = expected_bkg
+                else:
+                    bkg_model = None
                 # Do not do plots if skipping step.
                 do_plot, show_plot = False, False
             # If no output files are detected, run the step.
+            # This step is for both NIRISS and MIRI observations, though the functionalities are
+            # very different. Split off here.
             else:
-                # Generate some necessary quantities -- only do this for the first segment.
-                if first_time:
-                    fancyprint('Creating reference deep stack.')
-                    deepstack = utils.make_baseline_stack_general(datafiles=self.datafiles,
-                                                                  baseline_ints=self.baseline_ints)
-                    first_time = False
+                if self.instrument == 'NIRISS':
+                    # Generate some necessary quantities -- only do this for the first segment.
+                    if first_time:
+                        fancyprint('Creating reference deep stack.')
+                        deepstack = utils.make_baseline_stack_general(datafiles=self.datafiles,
+                                                                      baseline_ints=self.baseline_ints)
+                        first_time = False
 
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('ignore')
-                    step_results = backgroundstep(datafile=segment,
-                                                  background_model=self.background_model,
-                                                  deepstack=deepstack, output_dir=self.output_dir,
-                                                  save_results=save_results,
-                                                  fileroot=self.fileroots[i],
-                                                  fileroot_noseg=self.fileroot_noseg, **kwargs)
-                    res, bkg_model = step_results
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings('ignore')
+                        step_results = backgroundstep_soss(datafile=segment,
+                                                           background_model=self.background_model,
+                                                           deepstack=deepstack,
+                                                           output_dir=self.output_dir,
+                                                           save_results=save_results,
+                                                           fileroot=self.fileroots[i],
+                                                           fileroot_noseg=self.fileroot_noseg,
+                                                           **kwargs)
+                        res, bkg_model = step_results
+                else:
+                    res = backgroundstep_miri(datafile=segment, trace_mask_width=miri_trace_width,
+                                              background_width=miri_background_width,
+                                              output_dir=self.output_dir, save_results=save_results,
+                                              fileroot=self.fileroots[i])
+                    bkg_model = None
             results.append(res)
 
         # Do step plot if requested.
-        if do_plot is True:
+        if do_plot is True and self.instrument == 'NIRISS':
             if save_results is True:
                 plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
@@ -891,9 +919,56 @@ class TracingStep:
         return centroids, order0mask, smoothed_lc
 
 
-def backgroundstep(datafile, background_model, deepstack, output_dir='./', save_results=True,
-                   fileroot=None, fileroot_noseg='', scale1=None, background_coords1=None,
-                   scale2=None, background_coords2=None, differential=False):
+def backgroundstep_miri(datafile, trace_mask_width=20, background_width=14,
+                        output_dir='./', save_results=True, fileroot=None):
+    fancyprint('Starting MIRI background subtraction step.')
+
+    # Output directory formatting.
+    if output_dir is not None:
+        if output_dir[-1] != '/':
+            output_dir += '/'
+
+    # Load in data.
+    if isinstance(datafile, str):
+        cube = fits.getdata(datafile, 1)
+        filename = datafile
+    else:
+        with utils.open_filetype(datafile) as currentfile:
+            cube = currentfile.data
+            filename = currentfile.meta.filename
+    fancyprint('Processing file: {}.'.format(filename))
+
+    trace_halfwidth = int(trace_mask_width / 2)
+    # Knowing that the MIRI trace is centered more or less on pixel column 36.
+    # Create a cube with only the background columns and median over each row.
+    bkg_cube = np.concatenate(
+        [cube[:, :, (36 - trace_halfwidth - background_width):(36 - trace_halfwidth + 1)],
+         cube[:, :, (36 + trace_halfwidth):(36 + trace_halfwidth + background_width + 1)]], axis=2)
+    bkg = np.nanmedian(bkg_cube, axis=2)
+
+    # Save interpolated data.
+    if save_results is True:
+        # Open input file and subtract background from data
+        thisfile = fits.open(datafile)
+        thisfile[1].data = cube - bkg[:, :, None]
+        # Save corrected data.
+        result = output_dir + fileroot + 'backgroundstep.fits'
+        thisfile[0].header['FILENAME'] = fileroot + 'backgroundstep.fits'
+        thisfile.writeto(result, overwrite=True)
+        fancyprint('File saved to: {}.'.format(result))
+    # If not saving results, need to work in datamodels to not break interoperability with stsci
+    # pipeline.
+    else:
+        currentfile = utils.open_filetype(datafile)
+        result = copy.deepcopy(currentfile)
+        result.data = cube - bkg[:, :, None]
+
+    return result
+
+
+def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', save_results=True,
+                        fileroot=None, fileroot_noseg='', scale1=None, background_coords1=None,
+                        scale2=None, background_coords2=None, differential=False):
     """Background subtraction must be carefully treated with SOSS observations. Due to the extent
     of the PSF wings, there are very few, if any, non-illuminated pixels to serve as a sky region.
     Furthermore, the zodi background has a unique stepped shape, which would render a constant
@@ -941,7 +1016,7 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./', save_
         Background model, scaled to the flux level of each group median.
     """
 
-    fancyprint('Starting background subtraction step.')
+    fancyprint('Starting SOSS background subtraction step.')
     if isinstance(datafile, str):
         filename = datafile
     else:
@@ -1159,6 +1234,13 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
         ymax = dimy
         ybox_size = 0
 
+    # For MIRI, we don't want to do the spatial flagging as it tends to flag the peak of the trace
+    # itself and is of limited value picking out other potentially bad pixels.
+    # We'll still interpolate known DO_NOT_USE or other bad pixels, but we won't flag any more. So
+    # set the space threshold to an arbitrarily high value.
+    if instrument == 'MIRI':
+        space_thresh = int(1e6)
+
     # Find locations of bad pixels in the deep frame.
     if to_flag is None:
         # Initialize storage arrays.
@@ -1295,8 +1377,12 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
         nanpix = np.where(nanpix != 0)
         otherpix = np.where(otherpix != 0)
         deepframe[np.isnan(deepframe)] = 0
+        if instrument == 'MIRI':
+            miri = True
+        else:
+            miri = False
         plotting.make_badpix_plot(deepframe, hotpix, nanpix, otherpix, outfile=outfile,
-                                  show_plot=show_plot)
+                                  show_plot=show_plot, miri_scale=miri)
 
     return result, badpix
 
@@ -1350,19 +1436,28 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
         else:
             cube = np.concatenate([cube, this_data], axis=0)
 
+    # Get instrument name.
+    instrument = utils.get_instrument_name(datafiles[0])
+
     # Calculate the trace stability using PCA -- original pass without any components removed.
     fancyprint('Calculating TSO stability.')
     if save_results is True:
         outfile = output_dir + 'stability_pca.png'
         # Get proper detector names for NIRSpec.
-        instrument = utils.get_instrument_name(datafiles[0])
         if instrument == 'NIRSPEC':
             det = utils.get_nrs_detector_name(datafiles[0])
             outfile = outfile.replace('.png', '_{}.png'.format(det))
     else:
         outfile = None
 
-    pcs, var, _ = soss_stability_pca(cube, n_components=pca_components, outfile=outfile,
+    # For MIRI trim the frame down to get rid of e.g., the lightsaber artifact which introduces its
+    # own signals.
+    if instrument == 'MIRI':
+        cube_clipped = cube[:, :, 12:61]
+    else:
+        cube_clipped = cube
+
+    pcs, var, _ = soss_stability_pca(cube_clipped, n_components=pca_components, outfile=outfile,
                                      do_plot=do_plot, show_plot=show_plot)
 
     # If requested, reconstruct the data cube removing PCs associated with detector trends.
@@ -1380,13 +1475,16 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
         for pc in remove_components:
             # Get the reconstruction of the data using the soecified component.
             if pc != 1:
-                out_ncmo = soss_stability_pca(cube, n_components=pc-1)[2]
-                out_nc = soss_stability_pca(cube, n_components=pc)[2]
+                out_ncmo = soss_stability_pca(cube_clipped, n_components=pc-1)[2]
+                out_nc = soss_stability_pca(cube_clipped, n_components=pc)[2]
                 thiscomp = out_nc - out_ncmo
             else:
-                thiscomp = soss_stability_pca(cube, n_components=pc)[2]
+                thiscomp = soss_stability_pca(cube_clipped, n_components=pc)[2]
             # Remove the reconstruction.
-            newcube -= thiscomp
+            if instrument == 'MIRI':
+                newcube[:, :, 12:61] -= thiscomp
+            else:
+                newcube -= thiscomp
 
         # Calculate the trace stability using PCA -- final result, with components removed.
         fancyprint('Calculating reconstructed TSO stability.')
@@ -1396,8 +1494,13 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
         if instrument == 'NIRSPEC':
             det = utils.get_nrs_detector_name(datafiles[0])
             outfile = outfile.replace('.png', '_{}.png'.format(det))
-        pcs, var, _ = soss_stability_pca(newcube, n_components=pca_components, outfile=outfile,
-                                         do_plot=do_plot, show_plot=show_plot)
+        # Again, trim MIRI.
+        if instrument == 'MIRI':
+            newcube_clipped = newcube[:, :, 12:61]
+        else:
+            newcube_clipped = newcube
+        pcs, var, _ = soss_stability_pca(newcube_clipped, n_components=pca_components,
+                                         outfile=outfile, do_plot=do_plot, show_plot=show_plot)
 
         # Save the reconstructed datafiles.
         results, current_int = [], 0
@@ -1524,7 +1627,7 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
         save_filename = output_dir + fileroot_noseg
         centroids = utils.get_centroids_soss(deepframe, tracetable, subarray,
                                              save_results=save_results, save_filename=save_filename)
-    else:
+    elif instrument == 'NIRSPEC':
         # Get centroids via the edgetrigger method.
         save_filename = output_dir + fileroot_noseg
         det = utils.get_nrs_detector_name(datafiles[0])
@@ -1533,6 +1636,11 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
         xstart = utils.get_nrs_trace_start(det, subarray, grating)
         centroids = utils.get_centroids_nirspec(deepframe, xstart=xstart, save_results=save_results,
                                                 save_filename=save_filename)
+    else:
+        # Get centroids via the edgetrigger method.
+        save_filename = output_dir + fileroot_noseg
+        centroids = utils.get_centroids_miri(deepframe, ystart=50, save_results=save_results,
+                                             save_filename=save_filename)
 
     # Do diagnostic plot if requested.
     if do_plot is True:
@@ -1543,8 +1651,11 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
                 outfile = output_dir + 'centroiding.png'
         else:
             outfile = None
+        miri_scale = False
+        if instrument == 'MIRI':
+            miri_scale = True
         plotting.make_centroiding_plot(deepframe, centroids, instrument, show_plot=show_plot,
-                                       outfile=outfile)
+                                       outfile=outfile, miri_scale=miri_scale)
 
     # ===== PART 2: Create order 0 background contamination mask =====
     # If requested, create a mask for all background order 0 contaminants.
@@ -1709,6 +1820,7 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_
     return pcs, var, reconstruction
 
 
+# TODO: add in MIRI
 def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, save_results=True,
                force_redo=False, space_thresh=15, time_thresh=15,  remove_components=None,
                pca_components=10, soss_timeseries=None, soss_timeseries_o2=None,

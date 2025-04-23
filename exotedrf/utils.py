@@ -226,6 +226,71 @@ def format_out_frames_2(out_frames, max_nint):
     return baseline_ints
 
 
+def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_filename=''):
+    """Get the MIRI trace centroids via the edgetrigger method.
+
+    Parameters
+    ----------
+    deepframe : array-like[float]
+        Median stack.
+    ystart : int
+        Starting y-pixel position on the frame.
+    yend : int, None
+        Ending y-pixel position on the frame.
+    save_results : bool
+        If True, save results to file.
+    save_filename : str
+        Filename of save file.
+
+    Returns
+    -------
+    cens : array-like[float]
+        X and Y centroids.
+    """
+
+    dimy, dimx = np.shape(deepframe)
+    if yend is None:
+        yend = dimy
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore')
+        # To calculate the centroids, regardless of the start and end positions specified, use the
+        # pixels where the trace is actually bright.
+        # Also need to flip the deep frame so that the trace is horizontal.
+        cens = apl.get_centroids_edgetrigger(deepframe[::-1].T[:, 26:250], mode='mean',
+                                             poly_order=1, halfwidth=2)
+
+    # Unflip/transpose the X and Y coordinates.
+    x1, y1 = cens[1], dimy - (26+cens[0])
+    yy1 = np.linspace(ystart, yend-1, (yend-1) - ystart+1)
+    # If the requested start and end positions are wider than the extent assumed above, extrapolate.
+    # The trace is fit with a first-order polynomial, so extrapolation is fine.
+    if np.min(yy1) < (dimy-250) or np.max(yy1) > (dimy-26):
+        pp = np.polyfit(y1, x1, 1)
+        xx1 = np.polyval(pp, yy1)
+    # If not, interpolate.
+    else:
+        xx1 = np.interp(yy1, y1, x1)
+
+    if save_results is True:
+        centroids_dict = {'xpos': xx1, 'ypos': yy1}
+        df = pd.DataFrame(data=centroids_dict)
+        if save_filename[-1] != '_':
+            save_filename += '_'
+        outfile_name = save_filename + 'centroids.csv'
+        outfile = open(outfile_name, 'w')
+        outfile.write('# File Contents: Edgetrigger trace centroids\n')
+        outfile.write('# File Creation Date: {}\n'.format(
+            datetime.utcnow().replace(microsecond=0).isoformat()))
+        outfile.write('# File Author: MCR\n')
+        df.to_csv(outfile, index=False)
+        outfile.close()
+        fancyprint('Centroids saved to {}'.format(outfile_name))
+
+    cens = np.array([xx1, yy1])
+
+    return cens
+
+
 def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
                           save_filename=''):
     """Get the NIRSpec trace centroids via the edgetrigger method.
