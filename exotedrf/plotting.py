@@ -17,6 +17,7 @@ from matplotlib.patches import Ellipse
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import median_filter
+from scipy.stats import sigmaclip
 import warnings
 
 from exotedrf import utils
@@ -1137,14 +1138,17 @@ def plot_quicklook_lightcurve(datafiles):
                 postage = cube[:, 12:17, 900:1500]
             else:
                 postage = cube[:, 6:10, :500]
+    elif instrument == 'MIRI':
+        postage = cube[:, 350:400, 35:38]
     else:
         postage = cube[:, 20:60, 1500:1550]
     timeseries = np.nansum(postage, axis=(1, 2))
+    timeseries = sigmaclip(timeseries, low=2.0, high=2.0).clipped
 
     # Make plot.
     plt.figure(figsize=(6, 4))
-    plt.errorbar(np.arange(len(timeseries)), timeseries / np.nanmedian(timeseries[:20]),
-                 fmt='o', mfc='white', mec='royalblue', ms=3)
+    plt.errorbar(np.arange(len(timeseries)), timeseries, fmt='o', mfc='white', mec='royalblue',
+                 ms=3)
     plt.xlabel('Integration No.', fontsize=12)
     plt.ylabel('Normalized Flux', fontsize=12)
     plt.show()
