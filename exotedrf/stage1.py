@@ -171,6 +171,9 @@ class EmiCorrStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
@@ -189,6 +192,12 @@ class EmiCorrStep:
             Input data files processed through the step.
         """
 
+        # Only run for MIRI observations.
+        if self.instrument != 'MIRI':
+            fancyprint('EMI Correction only necessary for MIRI.')
+            fancyprint('Skipping EMI Correction Step.')
+            return self.datafiles
+
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
@@ -200,7 +209,7 @@ class EmiCorrStep:
             expected_file = self.output_dir + self.fileroots[i] + self.tag
             if expected_file in all_files and force_redo is False:
                 fancyprint('File {} already exists.'.format(expected_file))
-                fancyprint('Skipping EMI Correction Detection Step.')
+                fancyprint('Skipping EMI Correction Step.')
                 res = expected_file
             # If no output files are detected, run the step.
             else:
@@ -297,6 +306,89 @@ class SaturationStep:
         return results
 
 
+class ResetStep:
+    """Wrapper around default calwebb_detector1 reset anomaly correction step.
+    """
+
+    def __init__(self, input_data, output_dir):
+        """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        output_dir : str
+            Path to directory to which to save outputs.
+        """
+
+        # Set up easy attributes.
+        self.tag = 'resetstep.fits'
+        self.output_dir = output_dir
+
+        # Unpack input data files.
+        self.datafiles = utils.sort_datamodels(input_data)
+        self.fileroots = utils.get_filename_root(self.datafiles)
+
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
+    def run(self, save_results=True, force_redo=False, **kwargs):
+        """Method to run the step.
+
+        Parameters
+        ----------
+        save_results : bool
+            If True, save results.
+        force_redo : bool
+            If True, run step even if output files are detected.
+        kwargs : dict
+            Keyword arguments for calwebb_detector1.reset_step.ResetStep.
+
+        Returns
+        -------
+        results : list(datamodel)
+            Input data files processed through the step.
+        """
+
+        # Only run for MIRI observations.
+        if self.instrument != 'MIRI':
+            fancyprint('Reset anomaly correction only necessary for MIRI.')
+            fancyprint('Skipping Reset Anomaly Correction Step.')
+            return self.datafiles
+
+        # Warn user that datamodels will be returned if not saving results.
+        if save_results is False:
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
+
+        results = []
+        all_files = glob.glob(self.output_dir + '*')
+        for i, segment in enumerate(self.datafiles):
+            # If an output file for this segment already exists, skip the step.
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            if expected_file in all_files and force_redo is False:
+                fancyprint('File {} already exists.'.format(expected_file))
+                fancyprint('Skipping Reset Anomaly Correction Step.')
+                res = expected_file
+            # If no output files are detected, run the step.
+            else:
+                step = calwebb_detector1.reset_step.ResetStep()
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
+                # Verify that filename is correct.
+                if save_results is True:
+                    current_name = self.output_dir + res.meta.filename
+                    if expected_file != current_name:
+                        res.close()
+                        os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
+                    res = expected_file
+            results.append(res)
+
+        return results
+
+
 class SuperBiasStep:
     """Wrapper around default calwebb_detector1 Super Bias Subtraction step with some custom
     modifications.
@@ -366,6 +458,12 @@ class SuperBiasStep:
         results : list(datamodel)
             Input data files processed through the step.
         """
+
+        # Only run for NIR observations.
+        if self.instrument == 'MIRI':
+            fancyprint('Superbias subtraction not necessary for MIRI.')
+            fancyprint('Skipping Superbias Subtraction Step.')
+            return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
@@ -476,6 +574,9 @@ class RefPixStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
@@ -493,6 +594,12 @@ class RefPixStep:
         results : list(datamodel)
             Input data files processed through the step.
         """
+
+        # Only run for NIRISS observations.
+        if self.instrument != 'NIRISS':
+            fancyprint('Reference Pixel Correction only implemented for NIRISS.')
+            fancyprint('Skipping Reference Pixel Correction Step.')
+            return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
@@ -553,7 +660,7 @@ class DarkCurrentStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -562,10 +669,6 @@ class DarkCurrentStep:
             If True, save results.
         force_redo : bool
             If True, run step even if output files are detected.
-        do_plot : bool
-            If True, do step diagnostic plot --- MIRI only.
-        show_plot : bool
-            If True, show the step diagnostic plot --- MIRI only.
         kwargs : dict
             Keyword arguments for calwebb_detector1.dark_current_step.DarkCurrentStep.
 
@@ -574,6 +677,12 @@ class DarkCurrentStep:
         results : list(datamodel)
             Input data files processed through the step.
         """
+
+        # Only run for NIR observations.
+        if self.instrument == 'MIRI':
+            fancyprint('Dark subtraction is performed during linearity correction for MIRI.')
+            fancyprint('Skipping Dark Current Subtraction Step.')
+            return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
@@ -604,21 +713,6 @@ class DarkCurrentStep:
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
-
-        # For MIRI observations, the dark current and linearity correction are intrinsically
-        # linked as the dark current subtraction helps remove the RSCD signal. But the linearity
-        # correction needs to be performed on the data before any bias or dark subtraction is
-        # performed. So do the final linearity plots now.
-        if do_plot is True and self.instrument == 'MIRI':
-            if save_results is True:
-                plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
-                plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
-            else:
-                plot_file1, plot_file2 = None, None
-            plotting.make_linearity_plot(results, self.datafiles, outfile=plot_file1,
-                                         show_plot=show_plot)
-            plotting.make_linearity_plot2(results, self.datafiles, outfile=plot_file2,
-                                          show_plot=show_plot)
 
         return results
 
@@ -777,6 +871,12 @@ class OneOverFStep:
         results : list(datamodel), list(str)
             Input data files processed through the step.
         """
+
+        # Only run for NIR observations.
+        if self.instrument == 'MIRI':
+            fancyprint('1/f noise subtraction not necessary for MIRI.')
+            fancyprint('Skipping 1/f Correction Step.')
+            return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
@@ -1011,9 +1111,9 @@ class OneOverFStep:
         return results
 
 
-# TODO: add in dark step for MIRI
 class LinearityStep:
-    """Wrapper around default calwebb_detector1 Linearity Correction step.
+    """Wrapper around default calwebb_detector1 Linearity Correction step with some custom
+    modifications.
     """
 
     def __init__(self, input_data, output_dir):
@@ -1039,7 +1139,7 @@ class LinearityStep:
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False,
-            miri_drop_groups=12, **kwargs):
+            miri_drop_groups=12, miri_subtract_dark=True, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -1055,6 +1155,8 @@ class LinearityStep:
         miri_drop_groups : int
             Number of groups at the beginning of a MIRI exposure ramp to drop due to the RSCD
             effect.
+        miri_subtract_dark : bool
+            If True, also perform the MIRI dark current subtraction after linearity correction.
         kwargs : dict
             Keyword arguments for calwebb_detector1.linearity_step.LinearityStep.
 
@@ -1080,12 +1182,31 @@ class LinearityStep:
                 do_plot, show_plot = False, False
             # If no output files are detected, run the step.
             else:
+                # If it's a MIRI observations and we're going to subtract the dark, we don't need
+                # to save the output at this intermediate point.
+                if self.instrument == 'MIRI' and miri_subtract_dark is True:
+                    this_save = False
+                else:
+                    this_save = save_results
+                step = calwebb_detector1.linearity_step.LinearityStep()
+                res = step.call(segment, output_dir=self.output_dir, save_results=this_save,
+                                **kwargs)
+
+                # === MIRI-Specific Calibrations ===
+                # For MIRI observations, the dark current and linearity correction are intrinsically
+                # linked as the dark current subtraction helps remove the RSCD signal. But the
+                # linearity correction needs to be performed on the data before any bias or dark
+                # subtraction is performed.
+                if self.instrument == 'MIRI' and miri_subtract_dark is True:
+                    fancyprint('Subtracting the dark current signal.')
+                    step = calwebb_detector1.dark_current_step.DarkCurrentStep()
+                    res = step.call(res, output_dir=self.output_dir, save_results=save_results)
+
                 # MIRI observations are subject to the RSCD effect in the early groups (see e.g.,
                 # Morrison et al. (2023) PASP, 135, 075004).
                 # Set these groups to DO_NOT_USE until we can think of a better solution.
                 if self.instrument == 'MIRI' and miri_drop_groups is not None:
-                    segment = datamodels.open(segment)
-                    ngroups = segment.meta.exposure.ngroups
+                    ngroups = res.meta.exposure.ngroups
                     if ngroups <= miri_drop_groups + 4:
                         fancyprint('Exposure only has {0} groups, which is less than the '
                                    'required amount to drop {1} groups. No additional groups will '
@@ -1094,13 +1215,10 @@ class LinearityStep:
                     else:
                         fancyprint('Dropping first {} MIRI frame(s).'.format(miri_drop_groups))
                         for g in range(1, miri_drop_groups+1):
-                            dnu = utils.get_dq_flag_metrics(segment.groupdq[:, g], ['DO_NOT_USE'])
+                            dnu = utils.get_dq_flag_metrics(res.groupdq[:, g], ['DO_NOT_USE'])
                             ii = np.where(dnu != 1)
-                            segment.groupdq[:, g][ii] += 1
-
-                step = calwebb_detector1.linearity_step.LinearityStep()
-                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
-                                **kwargs)
+                            res.groupdq[:, g][ii] += 1
+                        res.save(self.output_dir + res.meta.filename)
 
                 # Verify that filename is correct.
                 if save_results is True:
@@ -1114,9 +1232,8 @@ class LinearityStep:
                     res = expected_file
             results.append(res)
 
-        # Do step plot if requested (and instrument is not MIRI --- for MIRI do these plots after
-        # the dark current subtraction).
-        if do_plot is True and self.instrument != 'MIRI':
+        # Do step plot if requested.
+        if do_plot is True:
             if save_results is True:
                 plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')

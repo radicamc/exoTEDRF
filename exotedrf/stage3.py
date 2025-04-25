@@ -131,7 +131,7 @@ class Extract1DStep:
 
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
-        if self.instrument == 'NIRSPEC' and extract_method == 'atoca':
+        if self.instrument != 'NIRISS' and extract_method == 'atoca':
             fancyprint('ATOCA extraction selected but observation does not use NIRISS/SOSS. '
                        'Switching to box extraction.', msg_type='WARNING')
             self.extract_method = 'box'
@@ -977,9 +977,12 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
     flux = datafiles[1]
     ferr = datafiles[2]
 
+    if st_teff is not None or st_logg is not None or st_met is not None:
+        fancyprint('Wavelength calibration not implemented for MIRI.', msg_type='WARNING')
+        fancyprint('Using the default wavelength solution.', msg_type='WARNING')
     # Remove any NaN pixels --- important for NIRSpec NRS1.
-    ii = np.where(np.isfinite(wave1d))[0]
-    wave1d_trim = wave1d[ii]
+    # ii = np.where(np.isfinite(wave1d))[0]
+    # wave1d_trim = wave1d[ii]
 
     # Now cross-correlate with stellar model --- skip for MIRI for now.
     # if None in [st_teff, st_logg, st_met]:
@@ -990,8 +993,7 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
     #     # Create a grid of stellar parameters, and download PHOENIX spectra for each grid point.
     #     thisout = output_dir + 'phoenix_models'
     #     utils.verify_path(thisout)
-    #     res = utils.download_stellar_spectra(st_teff, st_logg, st_met,
-    #                                          outdir=thisout)
+    #     res = utils.download_stellar_spectra(st_teff, st_logg, st_met, outdir=thisout)
     #     wave_file, flux_files = res
     #     # Interpolate model grid to correct stellar parameters.
     #     # Reverse direction of both arrays since SOSS is extracted red to blue.
@@ -1020,10 +1022,10 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
     header_dict['Method'] = extract_params['method']
     header_dict['Width'] = extract_params['extract_width']
     # Calculate the limits of each wavelength bin.
-    half_width = make_bins(wave1d_trim)[1] / 2
+    half_width = make_bins(wave1d)[1] / 2
 
     # Pack the stellar spectra and save to file if requested.
-    data = [wave1d_trim, half_width, flux_clip, ferr, times]
+    data = [wave1d, np.abs(half_width), flux_clip, ferr, times]
     names = ['Wave', 'Wave Err', 'Flux', 'Flux Err', 'Time']
     units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD_TDB']
     spectra = utils.save_extracted_spectra(filename, data, names, units, header_dict,
@@ -1087,8 +1089,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
         # Create a grid of stellar parameters, and download PHOENIX spectra for each grid point.
         thisout = output_dir + 'phoenix_models'
         utils.verify_path(thisout)
-        res = utils.download_stellar_spectra(st_teff, st_logg, st_met,
-                                             outdir=thisout)
+        res = utils.download_stellar_spectra(st_teff, st_logg, st_met, outdir=thisout)
         wave_file, flux_files = res
         # Interpolate model grid to correct stellar parameters.
         # Reverse direction of both arrays since SOSS is extracted red to blue.
@@ -1102,7 +1103,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
         x1d_flux = np.nansum(flux, axis=0)[ii]
         wave_shift = do_ccf(wave1d_trim, x1d_flux, mod_flux, oversample=1)
         fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
-        wave1d_trim += wave_shift
+        wave1d += wave_shift
 
     # Clip remaining 3-sigma outliers.
     flux_clip = utils.sigma_clip_lightcurves(flux, window=11, thresh=3)
@@ -1117,10 +1118,10 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
     header_dict['Method'] = extract_params['method']
     header_dict['Width'] = extract_params['extract_width']
     # Calculate the limits of each wavelength bin.
-    half_width = make_bins(wave1d_trim)[1] / 2
+    half_width = make_bins(wave1d)[1] / 2
 
     # Pack the stellar spectra and save to file if requested.
-    data = [wave1d_trim, half_width, flux_clip, ferr, times]
+    data = [wave1d, np.abs(half_width), flux_clip, ferr, times]
     names = ['Wave', 'Wave Err', 'Flux', 'Flux Err', 'Time']
     units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD_TDB']
     spectra = utils.save_extracted_spectra(filename, data, names, units, header_dict,
@@ -1273,8 +1274,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     half_width_o2 = make_bins(wave1d_o2)[1] / 2
 
     # Pack the stellar spectra and save to file if requested.
-    data = [wave1d_o1, half_width_o1, flux_o1_clip, ferr_o1,
-            wave1d_o2, half_width_o2, flux_o2_clip, ferr_o2, times]
+    data = [wave1d_o1, np.abs(half_width_o1), flux_o1_clip, ferr_o1,
+            wave1d_o2, np.abs(half_width_o2), flux_o2_clip, ferr_o2, times]
     names = ['Wave O1', 'Wave Err O1', 'Flux O1', 'Flux Err O1',
              'Wave O2', 'Wave Err O2', 'Flux O2', 'Flux Err O2', 'Time']
     units = ['Micron', 'Micron', 'DN/s', 'DN/s',

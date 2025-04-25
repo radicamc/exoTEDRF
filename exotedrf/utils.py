@@ -17,6 +17,7 @@ import os
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import median_filter
+from scipy.optimize import least_squares
 import warnings
 import yaml
 
@@ -1340,6 +1341,53 @@ def parse_config(config_file):
     return config
 
 
+def robust_polyfit(x, y, order, maxiter=5, nstd=3.):
+    """Perform a robust polynomial fit.
+
+    Paremeters
+    ----------
+    x : array, list
+        Independent fitting variable.
+    y : array, list
+        Dependent fitting variable.
+    order : int
+        Polynomial order to fit.
+    maxiter : int
+        Number of iterations for outlier rejection.
+    nstd : float
+        Number of standard deviations to consider a value an outlier.
+
+    Returns
+    -------
+    res : array[float]
+        The best fitting polynomial parameters.
+    """
+
+    def _poly_res(p, x, y):
+        """Residuals from a polynomial.
+        """
+        return np.polyval(p, x) - y
+
+    ii = np.where(np.isfinite(y))
+    x, y = x[ii], y[ii]
+    mask = np.ones_like(x, dtype='bool')
+    for niter in range(maxiter):
+
+        # Fit the data and evaluate the best-fit model.
+        param = np.polyfit(x[mask], y[mask], order)
+        yfit = np.polyval(param, x)
+
+        # Compute residuals and mask ouliers.
+        res = y - yfit
+        stddev = np.std(res)
+        mask = np.abs(res) <= nstd*stddev
+
+    res = least_squares(_poly_res, param, loss='huber', f_scale=0.1,
+                        args=(x[mask], y[mask])).x
+
+    return res
+
+
 def save_extracted_spectra(filename, data, names, units, header_dict=None, header_comments=None,
                            save_results=True):
     """Pack stellar spectra into a fits file.
@@ -1438,15 +1486,18 @@ def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir, ld_model_ty
     # Remove old LD file if one exists.
     if observing_mode == 'NIRISS/SOSS':
         filename = (target+'_order' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type))
-    else:
+    elif 'NIRSPEC' in observing_mode:
         filename = (target + '_NRS' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type))
+    else:
+        filename = (target + '_LRS_exotic-ld_{}.csv'.format(ld_model_type))
     if os.path.exists(outdir + filename):
         os.remove(outdir + filename)
     # Add header info.
     f = open(outdir + filename, 'a')
     f.write('# Target: {}\n'.format(target))
     f.write('# Instrument: {}\n'.format(observing_mode))
-    f.write('# SOSS Order/NRS Detector: {}\n'.format(order))
+    if observing_mode != 'MIRI/LRS':
+        f.write('# SOSS Order/NRS Detector: {}\n'.format(order))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
     f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0).isoformat()))
     f.write('# Stellar M/H: {}\n'.format(m_h))
@@ -1522,13 +1573,12 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
     flux_clipped = np.copy(flux)
     nints, nwaves = np.shape(flux)
     flux_filt = median_filter(flux, (window, 1))
-    ii = window//2
+    ii = window // 2
     flux_filt[:ii] = np.median(flux_filt[ii:(ii+window)], axis=0)
     flux_filt[-ii:] = np.median(flux_filt[-(ii+1+window):-(ii+1)], axis=0)
 
     # Check along the time axis for outlier pixels.
-    std_dev = np.median(np.abs(0.5 * (flux[0:-2] + flux[2:]) -
-                               flux[1:-1]), axis=0)
+    std_dev = np.median(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)
     std_dev = np.where(std_dev == 0, np.inf, std_dev)
     scale = np.abs(flux - flux_filt) / std_dev
     ii = np.where((scale > thresh))

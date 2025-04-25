@@ -137,6 +137,9 @@ class Extract2DStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
@@ -154,6 +157,12 @@ class Extract2DStep:
         results : list(datamodel)
             Input data files processed through the step.
         """
+
+        # Only run for NIRSpec observations.
+        if self.instrument != 'NIRSPEC':
+            fancyprint('2D extraction only necessary for NIRSpec.')
+            fancyprint('Skipping 2D Extraction Step.')
+            return self.datafiles
 
         results = []
         all_files = glob.glob(self.output_dir + '*')
@@ -277,6 +286,9 @@ class WaveCorrStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
@@ -294,6 +306,12 @@ class WaveCorrStep:
         results : list(datamodel)
             Input data files processed through the step.
         """
+
+        # Only run for NIRSpec observations.
+        if self.instrument != 'NIRSPEC':
+            fancyprint('Wavelength correction only necessary for NIRSpec.')
+            fancyprint('Skipping Wavelength Correction Step.')
+            return self.datafiles
 
         results = []
         all_files = glob.glob(self.output_dir + '*')
@@ -451,7 +469,7 @@ class BackgroundStep:
                     res = backgroundstep_miri(datafile=segment, trace_mask_width=miri_trace_width,
                                               background_width=miri_background_width,
                                               output_dir=self.output_dir, save_results=save_results,
-                                              fileroot=self.fileroots[i])
+                                              fileroot=self.fileroots[i], **kwargs)
                     bkg_model = None
             results.append(res)
 
@@ -919,7 +937,7 @@ class TracingStep:
         return centroids, order0mask, smoothed_lc
 
 
-def backgroundstep_miri(datafile, trace_mask_width=20, background_width=14,
+def backgroundstep_miri(datafile, trace_mask_width=20, background_width=14, method='slope',
                         output_dir='./', save_results=True, fileroot=None):
     fancyprint('Starting MIRI background subtraction step.')
 
@@ -939,18 +957,42 @@ def backgroundstep_miri(datafile, trace_mask_width=20, background_width=14,
     fancyprint('Processing file: {}.'.format(filename))
 
     trace_halfwidth = int(trace_mask_width / 2)
+    fancyprint('Starting background subtraction using the {} method'.format(method))
     # Knowing that the MIRI trace is centered more or less on pixel column 36.
     # Create a cube with only the background columns and median over each row.
-    bkg_cube = np.concatenate(
-        [cube[:, :, (36 - trace_halfwidth - background_width):(36 - trace_halfwidth + 1)],
-         cube[:, :, (36 + trace_halfwidth):(36 + trace_halfwidth + background_width + 1)]], axis=2)
-    bkg = np.nanmedian(bkg_cube, axis=2)
+    if method == 'median':
+        # Construct the cube of background columns.
+        bkg_cube = np.concatenate(
+            [cube[:, :, (36 - trace_halfwidth - background_width):(36 - trace_halfwidth + 1)],
+             cube[:, :, (36 + trace_halfwidth):(36 + trace_halfwidth + background_width + 1)]],
+            axis=2)
+        # Median over this cube and subtract the background level.
+        bkg = np.nanmedian(bkg_cube, axis=2)
+        cube_corr = cube - bkg[:, :, None]
+    # Or fit a slope to the background region.
+    elif method == 'slope':
+        nint, dimy, dimx = np.shape(cube)
+        bkg_cube, bkg = np.copy(cube), np.zeros_like(cube)
+        # Mask out the frame edge columns and the trace.
+        bkg_cube[:, :, :(36 - trace_halfwidth - background_width + 1)] = np.nan
+        bkg_cube[:, :, (36 + trace_halfwidth + background_width):] = np.nan
+        bkg_cube[:, :, (36 - trace_halfwidth):(36 + trace_halfwidth + 1)] = np.nan
+        # Loop over all integrations and rows and fit a slope to the unmasked background columns.
+        xx = np.arange(dimx)
+        for i in tqdm(range(nint)):
+            for j in range(dimy):
+                pp = utils.robust_polyfit(xx, bkg_cube[i, j], order=1)
+                bkg[i, j] = np.polyval(pp, xx)
+        # Subtract off the background
+        cube_corr = cube - bkg
+    else:
+        raise ValueError('Unknown method: {}.'.format(method))
 
     # Save interpolated data.
     if save_results is True:
         # Open input file and subtract background from data
         thisfile = fits.open(datafile)
-        thisfile[1].data = cube - bkg[:, :, None]
+        thisfile[1].data = cube_corr
         # Save corrected data.
         result = output_dir + fileroot + 'backgroundstep.fits'
         thisfile[0].header['FILENAME'] = fileroot + 'backgroundstep.fits'
@@ -1230,9 +1272,15 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
     if instrument == 'NIRISS':
         ymax = dimy - 5
         ybox_size = 0
-    else:
+        xbox_size = box_size
+    elif instrument == 'NIRSPEC':
         ymax = dimy
         ybox_size = 0
+        xbox_size = box_size
+    else:
+        ymax = dimy
+        ybox_size = box_size
+        xbox_size = 0
 
     # For MIRI, we don't want to do the spatial flagging as it tends to flag the peak of the trace
     # itself and is of limited value picking out other potentially bad pixels.
@@ -1293,7 +1341,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
     fancyprint('Doing pixel replacement...')
     for i in tqdm(range(nint)):
         newdata[i], thisdq = utils.do_replacement(newdata[i], badpix, dq=np.ones_like(newdata[i]),
-                                                  xbox_size=box_size, ybox_size=ybox_size)
+                                                  xbox_size=xbox_size, ybox_size=ybox_size)
         # Set DQ flags for these pixels to zero (use the pixel).
         thisdq = ~thisdq.astype(bool)
         newdq[:, thisdq] = 0
@@ -1473,7 +1521,7 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
 
         newcube = np.copy(cube)
         for pc in remove_components:
-            # Get the reconstruction of the data using the soecified component.
+            # Get the reconstruction of the data using the specified component.
             if pc != 1:
                 out_ncmo = soss_stability_pca(cube_clipped, n_components=pc-1)[2]
                 out_nc = soss_stability_pca(cube_clipped, n_components=pc)[2]

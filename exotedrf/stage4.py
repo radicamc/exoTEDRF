@@ -310,7 +310,7 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins, lc_model_typ
 
 def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthreads=4,
                     observing_mode='NIRISS/SOSS', lc_model_type='transit', ld_model='quadratic',
-                    custom_lc_function=None):
+                    custom_lc_function=None, debug=False):
     """Wrapper about both the exoUPRF and ray libraries to parallelize exoUPRF's light curve
     fitting functionality.
 
@@ -336,6 +336,9 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
         Limb darkening model identifier.
     custom_lc_function : func, None
         Custom light curve function call, if being used.
+    debug : bool
+        If True, always break when encountering an error.
+
 
     Returns
     -------
@@ -369,7 +372,8 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
         all_fits.append(fit_data.remote(data_dict[keyname], prior_dict[keyname],
                                         output_dir=outdir, bin_no=num_bins[i],
                                         num_bins=len(num_bins), lc_model_type=lc_model_type,
-                                        ld_model=ld_model, model_function=custom_lc_function))
+                                        ld_model=ld_model, model_function=custom_lc_function,
+                                        debug=debug))
     # Run the fits.
     ray_results = ray.get(all_fits)
 
