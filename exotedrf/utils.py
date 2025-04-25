@@ -227,7 +227,8 @@ def format_out_frames_2(out_frames, max_nint):
     return baseline_ints
 
 
-def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_filename=''):
+def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_filename='',
+                       allow_slope=False):
     """Get the MIRI trace centroids via the edgetrigger method.
 
     Parameters
@@ -242,6 +243,9 @@ def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_f
         If True, save results to file.
     save_filename : str
         Filename of save file.
+    allow_slope : bool
+        If True, fit a first order polynomial to trace positions, allowing for the trace to be
+        tilted relative to the vertical.
 
     Returns
     -------
@@ -257,8 +261,12 @@ def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_f
         # To calculate the centroids, regardless of the start and end positions specified, use the
         # pixels where the trace is actually bright.
         # Also need to flip the deep frame so that the trace is horizontal.
+        if allow_slope is True:
+            poly_order = 1
+        else:
+            poly_order = 0
         cens = apl.get_centroids_edgetrigger(deepframe[::-1].T[:, 26:250], mode='mean',
-                                             poly_order=1, halfwidth=2)
+                                             poly_order=poly_order, halfwidth=2)
 
     # Unflip/transpose the X and Y coordinates.
     x1, y1 = cens[1], dimy - (26+cens[0])

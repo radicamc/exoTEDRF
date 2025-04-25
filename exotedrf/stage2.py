@@ -346,7 +346,8 @@ class BackgroundStep:
     """Wrapper around custom Background Subtraction step.
     """
 
-    def __init__(self, input_data, baseline_ints=None, background_model=None, output_dir='./'):
+    def __init__(self, input_data, baseline_ints=None, background_model=None, miri_method='median',
+                 output_dir='./'):
         """Step initializer.
 
         Parameters
@@ -357,6 +358,8 @@ class BackgroundStep:
             Integration number(s) to use as ingress and/or egress -- SOSS only.
         background_model : np.ndarray(float), str, None
             Model of background flux -- SOSS only.
+        miri_method : str
+            Method to calculate MIRI background; either 'median' or 'slope'.
         output_dir : str
             Path to directory to which to save outputs.
         """
@@ -389,6 +392,9 @@ class BackgroundStep:
                                  .format(type(background_model)))
             msg = 'Baseline integration must be provided for NIRISS obseravtions.'
             assert self.baseline_ints is not None, msg
+
+        # For MIRI, save method.
+        self.miri_method = miri_method
 
     def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False,
             miri_trace_width=20, miri_background_width=14, **kwargs):
@@ -469,7 +475,8 @@ class BackgroundStep:
                     res = backgroundstep_miri(datafile=segment, trace_mask_width=miri_trace_width,
                                               background_width=miri_background_width,
                                               output_dir=self.output_dir, save_results=save_results,
-                                              fileroot=self.fileroots[i], **kwargs)
+                                              fileroot=self.fileroots[i], method=self.miri_method,
+                                              **kwargs)
                     bkg_model = None
             results.append(res)
 
@@ -1868,7 +1875,6 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_
     return pcs, var, reconstruction
 
 
-# TODO: add in MIRI
 def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, save_results=True,
                force_redo=False, space_thresh=15, time_thresh=15,  remove_components=None,
                pca_components=10, soss_timeseries=None, soss_timeseries_o2=None,
@@ -1876,7 +1882,8 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
                skip_steps=None, generate_lc=True, soss_inner_mask_width=40,
                soss_outer_mask_width=70, nirspec_mask_width=16, pixel_masks=None,
                generate_order0_mask=True, f277w=None, do_plot=False, show_plot=False,
-               centroids=None, **kwargs):
+               centroids=None, miri_trace_width=20, miri_background_width=14,
+               miri_background_method='median', **kwargs):
     """Run the exoTEDRF Stage 2 pipeline: spectroscopic processing, using a combination of official
     STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_spec2.html
@@ -1942,6 +1949,12 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         saving to file.
     centroids : str, None
         Path to file containing trace positions for all orders.
+    miri_trace_width : int
+        Full width of the MIRI trace.
+    miri_background_width : int
+        Width of the MIRI background region.
+    miri_background_method : str
+        Method to calculate MIRI background; either 'median' or 'slope'.
 
     Returns
     -------
@@ -2018,7 +2031,7 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Background Subtraction Step =====
-    if mode == 'NIRISS/SOSS':
+    if 'NIRSPEC' not in mode:
         # Custom DMS step.
         if 'BackgroundStep' not in skip_steps:
             if 'BackgroundStep' in kwargs.keys():
@@ -2026,9 +2039,11 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
             else:
                 step_kwargs = {}
             step = BackgroundStep(results, baseline_ints=baseline_ints,
-                                  background_model=soss_background_model, output_dir=outdir)
+                                  background_model=soss_background_model,
+                                  miri_method=miri_background_method, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
-                               show_plot=show_plot, **step_kwargs)[0]
+                               show_plot=show_plot, miri_trace_width=miri_trace_width,
+                               miri_background_width=miri_background_width, **step_kwargs)[0]
 
     # ===== 1/f Noise Correction Step =====
     # Custom DMS step.

@@ -2634,14 +2634,14 @@ def subtract_custom_superbias(datafile, superbias, method='constant', centroids=
     return result, scale_factors
 
 
-# TODO : Add in MIRI
 def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                oof_method='scale-achromatic', superbias_method='crds',
                soss_timeseries=None, soss_timeseries_o2=None, save_results=True, pixel_masks=None,
                force_redo=False, hot_pixel_map=None, flag_up_ramp=False, rejection_threshold=15,
                flag_in_time=True, time_rejection_threshold=10, root_dir='./', output_tag='',
                skip_steps=None, do_plot=False, show_plot=False, soss_inner_mask_width=40,
-               soss_outer_mask_width=70, centroids=None, nirspec_mask_width=16, **kwargs):
+               soss_outer_mask_width=70, centroids=None, nirspec_mask_width=16, miri_drop_groups=12,
+               miri_subtract_dark=True, **kwargs):
     """Run the exoTEDRF Stage 1 pipeline: detector level processing, using a combination of
     official STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_detector1.html
@@ -2705,6 +2705,10 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         Path to file containing trace positions for each order.
     nirspec_mask_width : int
         Full-width (in pixels) around the target trace to mask for NIRSpec.
+    miri_drop_groups : int
+        Number of groups at the beginning of a MIRI exposure ramp to drop due to the RSCD effect.
+    miri_subtract_dark : bool
+        If True, also perform the MIRI dark current subtraction after linearity correction.
 
     Returns
     -------
@@ -2737,6 +2741,16 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         step = DQInitStep(results, output_dir=outdir, hot_pixel_map=hot_pixel_map)
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
+    # ===== EMI Correction Step =====
+    # Default DMS step.
+    if 'EmiCorrStep' not in skip_steps:
+        if 'EmiCorrStep' in kwargs.keys():
+            step_kwargs = kwargs['EmiCorrStep']
+        else:
+            step_kwargs = {}
+        step = EmiCorrStep(results, output_dir=outdir)
+        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+
     # ===== Saturation Detection Step =====
     # Default DMS step.
     if 'SaturationStep' not in skip_steps:
@@ -2745,6 +2759,16 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         else:
             step_kwargs = {}
         step = SaturationStep(results, output_dir=outdir)
+        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+
+    # ===== Reset Anomaly Correction Step =====
+    # Default DMS step.
+    if 'ResetStep' not in skip_steps:
+        if 'ResetStep' in kwargs.keys():
+            step_kwargs = kwargs['ResetStep']
+        else:
+            step_kwargs = {}
+        step = ResetStep(results, output_dir=outdir)
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Superbias Subtraction Step =====
@@ -2771,13 +2795,14 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
 
     # ===== Dark Current Subtraction Step =====
     # Default DMS step.
-    if 'DarkCurrentStep' not in skip_steps:
-        if 'DarkCurrentStep' in kwargs.keys():
-            step_kwargs = kwargs['DarkCurrentStep']
-        else:
-            step_kwargs = {}
-        step = DarkCurrentStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+    if mode != 'MIRI/LRS':
+        if 'DarkCurrentStep' not in skip_steps:
+            if 'DarkCurrentStep' in kwargs.keys():
+                step_kwargs = kwargs['DarkCurrentStep']
+            else:
+                step_kwargs = {}
+            step = DarkCurrentStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     if 'OneOverFStep' not in skip_steps:
         if mode == 'NIRISS/SOSS':
@@ -2809,7 +2834,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                            nirspec_mask_width=nirspec_mask_width, **step_kwargs)
 
     # ===== Linearity Correction Step =====
-    # Default DMS step.
+    # Default/Custom DMS step.
     if 'LinearityStep' not in skip_steps:
         if 'LinearityStep' in kwargs.keys():
             step_kwargs = kwargs['LinearityStep']
@@ -2817,7 +2842,8 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = {}
         step = LinearityStep(results, output_dir=outdir)
         results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
-                           show_plot=show_plot, **step_kwargs)
+                           show_plot=show_plot, miri_drop_groups=miri_drop_groups,
+                           miri_subtract_dark=miri_subtract_dark, **step_kwargs)
 
     # ===== Jump Detection Step =====
     # Default/Custom DMS step.

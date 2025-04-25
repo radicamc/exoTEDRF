@@ -9,8 +9,7 @@ crds_cache_path : './crds_cache/'
 input_dir : 'DMS_uncal/'
 # Input file tag.
 input_filetag : 'uncal'
-# Instrument mode used. Currently tested are 'NIRISS/SOSS' and 'NIRSpec/G395H', though other NIRSpec gratings are
-# also supported.
+# Instrument mode used; e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', 'MIRI/LRS'.
 observing_mode : 'NIRISS/SOSS'
 # Type of filter or detector used. For SOSS, either 'CLEAR' or 'F277W'. For NIRSpec, either 'NRS1' or 'NRS2'.
 filter_detector : 'CLEAR'
@@ -18,11 +17,13 @@ filter_detector : 'CLEAR'
 # ===== Stage 1 Input Files & Parameters =====
 # List of stage 1 steps to run or skip.
 DQInitStep : 'run'
+EmiCorrStep : 'skip'       # MIRI only
 SaturationStep : 'run'
-SuperBiasStep : 'run'
+ResetStep : 'skip'         # MIRI only
+SuperBiasStep : 'run'      # SOSS/NIRSpec only
 RefPixStep : 'run'         # SOSS only
-DarkCurrentStep : 'skip'
-OneOverFStep_grp : 'run'
+DarkCurrentStep : 'skip'   # SOSS/NIRSpec only
+OneOverFStep_grp : 'run'   # SOSS/NIRSpec only
 LinearityStep : 'run'
 JumpStep : 'run'
 RampFitStep : 'run'
@@ -50,6 +51,9 @@ soss_inner_mask_width : 40
 soss_outer_mask_width : 70
 # (NIRSpec only) For 1/f correction; width, in pixels, of trace mask.
 nirspec_mask_width : 16
+# (MIRI only) For linearity correction, number of groups to drop at the start of an integration to mitigate the RSCD
+# effect.
+miri_drop_groups : 12
 # For jump detection; whether to flag outliers up-the-ramp (jwst default).
 flag_up_ramp : False
 # For jump detection; sigma threshold for a pixel to be flagged as an outlier.
@@ -68,16 +72,22 @@ Extract2DStep : 'skip'     # NIRSpec only
 SourceTypeStep: 'run'
 WaveCorrStep : 'skip'      # NIRSpec only
 FlatFieldStep : 'run'      # SOSS only
-BackgroundStep : 'run'     # SOSS only
-OneOverFStep_int : 'skip'
+BackgroundStep : 'run'     # SOSS/MIRI only
+OneOverFStep_int : 'skip'  # SOSS/NIRSpec only
 BadPixStep : 'run'
 PCAReconstructStep : 'run'
 TracingStep : 'run'
+# (MIRI only) For background subtraction; width (in pixels) to mask around the trace.
+miri_trace_width : 20
+# (MIRI only) For background subtraction; width (in pixels) of the background region to use on either side of the trace.
+miri_background_width : 14
+# (MIRI only) Method to use for background subtraction; either 'median' or 'slope'.
+miri_background_method : 'median'
 # For outlier detection; sigma threshold for a pixel to be flagged as an outlier, spatially.
 space_outlier_threshold : 15
 # For outlier detection; sigma threshold for a pixel to be flagged as an outlier, temporally.
 time_outlier_threshold : 10
-# Number of principle components to extract. Only necessary if calculate_stability is True.
+# Number of principle components to extract. Only necessary if running PCAReconstructStep.
 pca_components : 10
 # PCA components to remove during the TSO reconstruction (optional).
 remove_components : None
@@ -94,7 +104,7 @@ f277w : None
 stage2_kwargs : {}
 
 # ===== Stage 3 Input Files & Parameters =====
-# Extraction method. For SOSS, options are 'box' or 'atoca'. For NIRSpec, only 'box' is offered.
+# Extraction method. For SOSS, options are 'box' or 'atoca'. For all other instruments, only 'box' is offered.
 extract_method : 'box'
 # Box width to extract around the trace center. Passing 'optimize' will find and use the aperture width that minimizes
 # the white light curve scatter.
