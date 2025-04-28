@@ -809,8 +809,8 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None,
             else:
                 up_part = edge_up[xx] % 1
                 low_part = 1 - edge_low[xx] % 1
-                this_flux += (up_part * cube[i, up_whole, x] + low_part * cube[i, low_whole, x])
-                this_err += (up_part * err[i, up_whole, x]**2 + low_part * err[i, low_whole, x]**2)
+                this_flux += (up_part * cube[i, up_whole, x] + low_part * cube[i, low_whole-1, x])
+                this_err += (up_part * err[i, up_whole, x]**2 + low_part * err[i, low_whole-1, x]**2)
                 f[i, x] = this_flux
                 ferr[i, x] = np.sqrt(this_err)
 

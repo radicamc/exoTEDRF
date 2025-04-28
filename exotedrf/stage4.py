@@ -278,6 +278,35 @@ def bin_at_resolution(wave, flux, flux_err, res, method='sum'):
     return binned_waves, binned_werr, binned_flux, binned_ferr
 
 
+def calculate_residual_covariance(model_files):
+    """Calculate the covariance matrix for a set of light curve fitting residuals.
+
+    Parameters
+    ----------
+    model_files : str, array-like(str)
+        List of paths to files with best-fitting light curve models.
+
+    Returns
+    -------
+    cov_matrix : ndarray(float)
+        Covariance matrix.
+    """
+
+    model_files = np.atleast_1d(model_files)
+    model_files = np.sort(model_files)[::-1]
+
+    for i, model in enumerate(model_files):
+        if i == 0:
+            models = np.load(model)
+        else:
+            models = np.concatenate([models, np.load(model)], axis=2)
+
+    res = models[3] - models[0]
+    cov_matrix = np.corrcoef(res.T)
+
+    return cov_matrix
+
+
 @ray.remote
 def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins, lc_model_type, ld_model,
              model_function, debug=False):

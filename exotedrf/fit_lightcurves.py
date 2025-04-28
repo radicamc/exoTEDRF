@@ -127,10 +127,12 @@ def fit_lightcurves(config):
     for order in config['orders']:
         if config['do_plots'] is True:
             if config['observing_mode'] == 'NIRISS/SOSS':
-                expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_order{0}.pdf'.format(order, fit_suffix)
+                expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_order{0}.pdf'.format(
+                    order, fit_suffix)
                 outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
             elif 'NIRSPEC' in config['observing_mode']:
-                expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_{0}.pdf'.format(config['detector'], fit_suffix)
+                expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_{0}.pdf'.format(
+                    config['detector'], fit_suffix)
                 outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
             else:
                 expected_file = outdir + 'speclightcurve{}/lightcurve_fit.pdf'.format(fit_suffix)
@@ -146,10 +148,10 @@ def fit_lightcurves(config):
         else:
             fancyprint('Fitting light curves at {}.'.format(res_str))
         # Unpack wave, flux and error.
-        wave = fits.getdata(config['infile'],  1 + 4*(order - 1))
-        wave_err = fits.getdata(config['infile'], 2 + 4*(order - 1))
-        flux = fits.getdata(config['infile'], 3 + 4*(order - 1))
-        err = fits.getdata(config['infile'], 4 + 4*(order - 1))
+        wave = fits.getdata(config['infile'], 1 + 4 * (order - 1))
+        wave_err = fits.getdata(config['infile'], 2 + 4 * (order - 1))
+        flux = fits.getdata(config['infile'], 3 + 4 * (order - 1))
+        err = fits.getdata(config['infile'], 4 + 4 * (order - 1))
         # Cut reference pixel columns if data is not prebinned.
         if config['res'] != 'prebin':
             wave = wave[5:-5]
@@ -339,7 +341,8 @@ def fit_lightcurves(config):
                 except AttributeError:
                     all_models = utils.get_exouprf_built_in_models(model)
                     raise AttributeError('exoUPRF has no built-in light curve model {0}. Available '
-                                         'models are: {1}'.format(config['custom_lc_model'], all_models))
+                                         'models are: {1}'.format(config['custom_lc_model'],
+                                                                  all_models))
             else:
                 thistype = type(config['custom_lc_model'])
                 raise ValueError('Object passed to custom_lc_model of type {} is not a string or '
@@ -388,16 +391,16 @@ def fit_lightcurves(config):
                     md = this_result['rp_p1_inst']['median']
                     up = this_result['rp_p1_inst']['up_1sigma']
                     lw = this_result['rp_p1_inst']['low_1sigma']
-                    order_results['dppm'].append((md**2)*1e6)
-                    err_low = (md**2 - (md - lw)**2)*1e6
-                    err_up = ((up + md)**2 - md**2)*1e6
+                    order_results['dppm'].append((md ** 2) * 1e6)
+                    err_low = (md ** 2 - (md - lw) ** 2) * 1e6
+                    err_up = ((up + md) ** 2 - md ** 2) * 1e6
                 else:
                     md = this_result['fp_p1_inst']['median']
                     up = this_result['fp_p1_inst']['up_1sigma']
                     lw = this_result['fp_p1_inst']['low_1sigma']
-                    order_results['dppm'].append(md*1e6)
-                    err_low = (md**2 - (md - lw)**2)*1e6
-                    err_up = ((up + md)**2 - md**2)*1e6
+                    order_results['dppm'].append(md * 1e6)
+                    err_low = (md ** 2 - (md - lw) ** 2) * 1e6
+                    err_up = ((up + md) ** 2 - md ** 2) * 1e6
                 order_results['dppm_err'].append(np.max([err_up, err_low]))
 
             # Summarize fits and make plots if necessary.
@@ -444,10 +447,10 @@ def fit_lightcurves(config):
                         systematics += gp_model
 
                 if config['do_plots'] is True:
-                    make_lightcurve_plot(t=(t - t0)*24, data=norm_flux[:, i], model=transit_model,
+                    make_lightcurve_plot(t=(t - t0) * 24, data=norm_flux[:, i], model=transit_model,
                                          scatter=scatter, errors=norm_err[:, i], outpdf=outpdf,
                                          title='bin {0} | {1:.3f}µm'.format(i, wave[i]),
-                                         systematics=systematics, nfit=nfit, nbin=int(len(t)/35),
+                                         systematics=systematics, nfit=nfit, nbin=int(len(t) / 35),
                                          rasterized=True)
                     # Corner plot for fit.
                     if config['include_corner'] is True:
@@ -459,7 +462,7 @@ def fit_lightcurves(config):
                                     posterior_names.append(formatted_names[param])
                                 else:
                                     posterior_names.append(param)
-                        fit_results[wavebin].make_corner_plot( labels=posterior_names, outpdf=outpdf)
+                        fit_results[wavebin].make_corner_plot(labels=posterior_names, outpdf=outpdf)
 
                 data[:, i] = norm_flux[:, i]
                 models[0, :, i] = transit_model
@@ -497,9 +500,9 @@ def fit_lightcurves(config):
     # Save the transmission spectrum.
     fancyprint('Writing spectrum to file.')
     for order in ['1', '2']:
-        if 'order '+order not in results_dict.keys():
+        if 'order ' + order not in results_dict.keys():
             order_results = {'dppm': [], 'dppm_err': [], 'wave': [], 'wave_err': []}
-            results_dict['order '+order] = order_results
+            results_dict['order ' + order] = order_results
 
     # Concatenate transit depths, wavelengths, and associated errors from both
     # orders.
@@ -509,7 +512,7 @@ def fit_lightcurves(config):
     waves = np.concatenate([results_dict['order 2']['wave'], results_dict['order 1']['wave']])
     wave_errors = np.concatenate([results_dict['order 2']['wave_err'],
                                   results_dict['order 1']['wave_err']])
-    orders = np.concatenate([2*np.ones_like(results_dict['order 2']['dppm']),
+    orders = np.concatenate([2 * np.ones_like(results_dict['order 2']['dppm']),
                              np.ones_like(results_dict['order 1']['dppm'])]).astype(int)
 
     # Get target/reduction metadata.
@@ -558,7 +561,26 @@ def fit_lightcurves(config):
                                       fit_meta=fit_metadata,
                                       occultation_type=config['lc_model_type'],
                                       observing_mode=config['observing_mode'])
-    fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir+filename))
+    fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir + filename))
+
+    # === Covariance Matrix ===
+    # Get the covariance matrix for the residuals.
+    fancyprint('Calculating covariance matrix.')
+    cov_matrix = stage4.calculate_residual_covariance(model_file_names)
+    # Save covariance matrix.
+    if config['observing_mode'].upper() in ['NIRISS/SOSS', 'MIRI/LRS']:
+        order_txt = ''
+    else:
+        order_txt = '_{}'.format(config['detector'])
+    filename = outdir + 'speclightcurve{0}/_covariance_matrix{1}.npy'.format(fit_suffix, order_txt)
+    np.save(filename, cov_matrix)
+
+    # Do the covariance matrix plot if requested.
+    if config['do_plots'] is True:
+        plotfile = outdir + 'speclightcurve{1}/covariance_matrix{0}.pdf'.format(order_txt,
+                                                                                fit_suffix)
+        plotting.make_lightcurve_covariance_plot(cov_matrix, waves, outfile=plotfile)
+
     fancyprint('Done')
 
     return
