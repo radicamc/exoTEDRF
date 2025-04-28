@@ -208,7 +208,7 @@ def fit_lightcurves(config):
             priors[param]['value'] = hyperp
 
         # For transit fits, calculate LD coefficients from stellar models.
-        if config['lc_model_type'] == 'transit' and config['ld_fit_type'] != 'free':
+        if 'transit' in config['lc_model_type'] and config['ld_fit_type'] != 'free':
             calculate = True
             # Convert wave and wave_err to wavebin edges.
             wave_low, wave_up = wave - wave_err, wave + wave_err
@@ -292,7 +292,7 @@ def fit_lightcurves(config):
             # For transit only; update the LD prior for this bin if available.
             # For prior: set prior width to 0.2 around the model value - based on findings of
             # Patel & Espinoza 2022.
-            if config['lc_model_type'] == 'transit' and config['ld_fit_type'] != 'free':
+            if 'transit' in config['lc_model_type'] and config['ld_fit_type'] != 'free':
                 if config['ld_model_type'] == 'quadratic-kipping':
                     low_lim = 0.0
                 else:
