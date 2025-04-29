@@ -22,7 +22,6 @@ import warnings
 import yaml
 
 import applesoss.edgetrigger_centroids as apl
-from jwst import datamodels
 
 
 def do_replacement(frame, badpix_map, dq=None, xbox_size=5, ybox_size=0):
@@ -627,6 +626,7 @@ def get_instrument_name(datafile):
         Name of instrument.
     """
 
+    from jwst import datamodels
     if isinstance(datafile, str):
         instrument = fits.getheader(datafile)['INSTRUME'].upper()
     elif isinstance(datafile, fits.hdu.hdulist.HDUList):
@@ -722,6 +722,7 @@ def get_nrs_detector_name(datafile):
         Name of detector.
     """
 
+    from jwst import datamodels
     if isinstance(datafile, str):
         with fits.open(datafile) as file:
             detector = file[0].header['DETECTOR'].lower()
@@ -746,6 +747,7 @@ def get_nrs_grating(datafile):
         Name of grating.
     """
 
+    from jwst import datamodels
     if isinstance(datafile, str):
         grating = fits.getheader(datafile)['GRATING'].upper()
     elif isinstance(datafile, fits.hdu.hdulist.HDUList):
@@ -810,6 +812,7 @@ def get_soss_subarray(datafile):
         Name of subarray.
     """
 
+    from jwst import datamodels
     if isinstance(datafile, str):
         subarray = fits.getheader(datafile)['SUBARRAY'].upper()
     elif isinstance(datafile, fits.hdu.hdulist.HDUList):
@@ -1306,6 +1309,7 @@ def open_filetype(datafile):
         If the filetype passed is not str or jwst.datamodel.
     """
 
+    from jwst import datamodels
     if isinstance(datafile, str):
         data = datamodels.open(datafile)
     elif isinstance(datafile, (datamodels.CubeModel, datamodels.RampModel,
@@ -1702,19 +1706,21 @@ def unpack_input_dir(indir, mode, filter_detector, filetag=''):
             continue
         # Keep files of the correct exposure with the correct tag.
         try:
-            if (header['INSTRUME'] == instrument.upper() and
-                    instrument == 'NIRISS'):
+            if header['INSTRUME'] == instrument.upper() and instrument == 'NIRISS':
                 if header['EXP_TYPE'].split('_')[1] == exposure_type:
                     if header['FILTER'] == filter_detector:
                         if filetag in file:
                             segments.append(file)
-            elif (header['INSTRUME'] == instrument.upper() and
-                  instrument == 'NIRSpec'):
+            elif header['INSTRUME'] == instrument.upper() and instrument == 'NIRSpec':
                 if header['EXP_TYPE'] == 'NRS_BRIGHTOBJ':
                     if header['GRATING'] == exposure_type:
                         if header['DETECTOR'] == filter_detector:
                             if filetag in file:
                                 segments.append(file)
+            elif header['INSTRUME'] == instrument.upper() and instrument == 'MIRI':
+                if header['EXP_TYPE'] == 'MIR_LRS-SLITLESS':
+                    if filetag in file:
+                        segments.append(file)
             else:
                 continue
         except KeyError:

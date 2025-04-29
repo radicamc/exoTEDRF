@@ -70,8 +70,12 @@ def unpack_files(config):
     input_files = unpack_input_dir(config['input_dir'], mode=config['observing_mode'],
                                    filetag=config['input_filetag'],
                                    filter_detector=config['filter_detector'])
+    if config['observing_mode'] == 'MIRI/LRS':
+        thisfilter = ''
+    else:
+        thisfilter = config['filter_detector']
     fancyprint('Identified {0} {1} {2} observation segment(s)'
-               .format(len(input_files), config['filter_detector'], config['observing_mode']))
+               .format(len(input_files), thisfilter, config['observing_mode']))
     for file in input_files:
         fancyprint(' ' + file)
 
