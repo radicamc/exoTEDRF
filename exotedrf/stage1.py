@@ -760,6 +760,9 @@ class OneOverFStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
         # Unpack centroids.
         if isinstance(centroids, str):
             fancyprint('Reading centroids file: {}...'.format(centroids))
@@ -767,24 +770,29 @@ class OneOverFStep:
         else:
             self.centroids = centroids
 
-        # Unpack timeseries.
-        if isinstance(soss_timeseries, str):
-            fancyprint('Reading timeseries file: {}...'.format(soss_timeseries))
-            self.timeseries = np.load(soss_timeseries)
-        elif isinstance(soss_timeseries, np.ndarray) or soss_timeseries is None:
-            self.timeseries = soss_timeseries
-        else:
-            raise ValueError('Invalid type for timeseries: {}'.format(type(soss_timeseries)))
+        # Unpack timeseries -- SOSS only.
+        self.timeseries = None
+        if self.instrument == 'NIRISS':
+            if isinstance(soss_timeseries, str):
+                fancyprint('Reading timeseries file: {}...'.format(soss_timeseries))
+                self.timeseries = np.load(soss_timeseries)
+            elif isinstance(soss_timeseries, np.ndarray) or soss_timeseries is None:
+                self.timeseries = soss_timeseries
+            else:
+                raise ValueError('Invalid type for timeseries: {}'.format(type(soss_timeseries)))
 
-        # Unpack timeseries for order 2.
-        if isinstance(soss_timeseries_o2, str):
-            fancyprint('Reading order 2 timeseries file: {}...'.format(soss_timeseries_o2))
-            self.timeseries_o2 = np.load(soss_timeseries_o2)
-        elif (isinstance(soss_timeseries_o2, np.ndarray) or
-              soss_timeseries_o2 is None):
-            self.timeseries_o2 = soss_timeseries_o2
-        else:
-            raise ValueError('Invalid type for timeseries_o2: {}'.format(type(soss_timeseries_o2)))
+        # Unpack timeseries for order 2 -- SOSS only.
+        self.timeseries_o2 = None
+        if self.instrument == 'NIRISS':
+            if isinstance(soss_timeseries_o2, str):
+                fancyprint('Reading order 2 timeseries file: {}...'.format(soss_timeseries_o2))
+                self.timeseries_o2 = np.load(soss_timeseries_o2)
+            elif (isinstance(soss_timeseries_o2, np.ndarray) or
+                  soss_timeseries_o2 is None):
+                self.timeseries_o2 = soss_timeseries_o2
+            else:
+                raise ValueError('Invalid type for timeseries_o2: {}'
+                                 .format(type(soss_timeseries_o2)))
 
         # Unpack pixel masks.
         if pixel_masks is not None:
@@ -806,18 +814,16 @@ class OneOverFStep:
         else:
             self.pixel_masks = pixel_masks
 
-        # Unpack background.
-        if isinstance(soss_background, str):
-            fancyprint('Reading background file: {}...'.format(soss_background))
-            self.background = np.load(soss_background)
-        elif (isinstance(soss_background, np.ndarray) or
-              soss_background is None):
-            self.background = soss_background
-        else:
-            raise ValueError('Invalid type for background: {}'.format(type(soss_background)))
-
-        # Get instrument.
-        self.instrument = utils.get_instrument_name(self.datafiles[0])
+        # Unpack background -- SOSS only.
+        self.background = None
+        if self.instrument == 'NIRISS':
+            if isinstance(soss_background, str):
+                fancyprint('Reading background file: {}...'.format(soss_background))
+                self.background = np.load(soss_background)
+            elif isinstance(soss_background, np.ndarray) or soss_background is None:
+                self.background = soss_background
+            else:
+                raise ValueError('Invalid type for background: {}'.format(type(soss_background)))
 
         # If NIRSpec, get Grating -- needed for frame time in this function
         if self.instrument == 'NIRSPEC':
@@ -2744,12 +2750,15 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     # ===== EMI Correction Step =====
     # Default DMS step.
     if 'EmiCorrStep' not in skip_steps:
-        if 'EmiCorrStep' in kwargs.keys():
-            step_kwargs = kwargs['EmiCorrStep']
+        if mode.upper() == 'MIRI/LRS':
+            if 'EmiCorrStep' in kwargs.keys():
+                step_kwargs = kwargs['EmiCorrStep']
+            else:
+                step_kwargs = {}
+            step = EmiCorrStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
         else:
-            step_kwargs = {}
-        step = EmiCorrStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+            fancyprint('EmiCorrStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Saturation Detection Step =====
     # Default DMS step.
@@ -2764,38 +2773,47 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     # ===== Reset Anomaly Correction Step =====
     # Default DMS step.
     if 'ResetStep' not in skip_steps:
-        if 'ResetStep' in kwargs.keys():
-            step_kwargs = kwargs['ResetStep']
+        if mode.upper() == 'MIRI/LRS':
+            if 'ResetStep' in kwargs.keys():
+                step_kwargs = kwargs['ResetStep']
+            else:
+                step_kwargs = {}
+            step = ResetStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
         else:
-            step_kwargs = {}
-        step = ResetStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+            fancyprint('ResetStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Superbias Subtraction Step =====
     # Default/Custom DMS step.
     if 'SuperBiasStep' not in skip_steps:
-        if 'SuperBiasStep' in kwargs.keys():
-            step_kwargs = kwargs['SuperBiasStep']
+        if mode.upper() != 'MIRI/LRS':
+            if 'SuperBiasStep' in kwargs.keys():
+                step_kwargs = kwargs['SuperBiasStep']
+            else:
+                step_kwargs = {}
+            step = SuperBiasStep(results, output_dir=outdir, centroids=centroids,
+                                 method=superbias_method)
+            results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
+                               show_plot=show_plot, **step_kwargs)
         else:
-            step_kwargs = {}
-        step = SuperBiasStep(results, output_dir=outdir, centroids=centroids,
-                             method=superbias_method)
-        results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
-                           show_plot=show_plot, **step_kwargs)
+            fancyprint('SuperBiasStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Reference Pixel Correction Step =====
     # Default DMS step.
     if 'RefPixStep' not in skip_steps:
-        if 'RefPixStep' in kwargs.keys():
-            step_kwargs = kwargs['RefPixStep']
+        if mode.upper() == 'NIRISS/SOSS':
+            if 'RefPixStep' in kwargs.keys():
+                step_kwargs = kwargs['RefPixStep']
+            else:
+                step_kwargs = {}
+            step = RefPixStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
         else:
-            step_kwargs = {}
-        step = RefPixStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+            fancyprint('RefPixStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Dark Current Subtraction Step =====
     # Default DMS step.
-    if mode != 'MIRI/LRS':
+    if mode.upper() != 'MIRI/LRS':
         if 'DarkCurrentStep' not in skip_steps:
             if 'DarkCurrentStep' in kwargs.keys():
                 step_kwargs = kwargs['DarkCurrentStep']
@@ -2804,34 +2822,40 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step = DarkCurrentStep(results, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
-    if 'OneOverFStep' not in skip_steps:
-        if mode == 'NIRISS/SOSS':
-            # ===== Background Subtraction Step =====
-            # Custom DMS step - imported from Stage2.
-            if 'BackgroundStep' in kwargs.keys():
-                step_kwargs = kwargs['BackgroundStep']
+    if mode.upper() != 'MIRI/LRS':
+        if 'OneOverFStep' not in skip_steps:
+            if mode == 'NIRISS/SOSS':
+                # ===== Background Subtraction Step =====
+                # Custom DMS step - imported from Stage2.
+                if 'BackgroundStep' in kwargs.keys():
+                    step_kwargs = kwargs['BackgroundStep']
+                else:
+                    step_kwargs = {}
+                step = stage2.BackgroundStep(input_data=results, baseline_ints=baseline_ints,
+                                             background_model=soss_background_model,
+                                             output_dir=outdir)
+                results = step.run(save_results=save_results, force_redo=force_redo,
+                                   do_plot=do_plot, show_plot=show_plot, **step_kwargs)
+                results, soss_background_model = results
+
+            # ===== 1/f Noise Correction Step =====
+            # Custom DMS step.
+            if 'OneOverFStep' in kwargs.keys():
+                step_kwargs = kwargs['OneOverFStep']
             else:
                 step_kwargs = {}
-            step = stage2.BackgroundStep(input_data=results, baseline_ints=baseline_ints,
-                                         background_model=soss_background_model, output_dir=outdir)
-            results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
-                               show_plot=show_plot, **step_kwargs)
-            results, soss_background_model = results
-
-        # ===== 1/f Noise Correction Step =====
-        # Custom DMS step.
-        if 'OneOverFStep' in kwargs.keys():
-            step_kwargs = kwargs['OneOverFStep']
-        else:
-            step_kwargs = {}
-        step = OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
-                            pixel_masks=pixel_masks, centroids=centroids,
-                            soss_background=soss_background_model, method=oof_method,
-                            soss_timeseries=soss_timeseries, soss_timeseries_o2=soss_timeseries_o2)
-        results = step.run(soss_inner_mask_width=soss_inner_mask_width,
-                           soss_outer_mask_width=soss_outer_mask_width, save_results=save_results,
-                           force_redo=force_redo, do_plot=do_plot, show_plot=show_plot,
-                           nirspec_mask_width=nirspec_mask_width, **step_kwargs)
+            step = OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
+                                pixel_masks=pixel_masks, centroids=centroids,
+                                soss_background=soss_background_model, method=oof_method,
+                                soss_timeseries=soss_timeseries,
+                                soss_timeseries_o2=soss_timeseries_o2)
+            results = step.run(soss_inner_mask_width=soss_inner_mask_width,
+                               soss_outer_mask_width=soss_outer_mask_width,
+                               save_results=save_results, force_redo=force_redo, do_plot=do_plot,
+                               show_plot=show_plot, nirspec_mask_width=nirspec_mask_width,
+                               **step_kwargs)
+    else:
+        fancyprint('OneOverFStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Linearity Correction Step =====
     # Default/Custom DMS step.

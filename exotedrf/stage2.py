@@ -872,7 +872,7 @@ class TracingStep:
 
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
-        if self.instrument == 'NIRSPEC':
+        if self.instrument != 'NIRISS':
             if generate_order0_mask is True:
                 fancyprint('generate_order0_mask is set to True, but mode is not NIRISS/SOSS. '
                            'Ignoring generate_order0_mask.', msg_type='WARNING')
@@ -883,7 +883,7 @@ class TracingStep:
                 self.generate_lc = False
 
     def run(self, pixel_flags=None, save_results=True, force_redo=False, smoothing_scale=None,
-            do_plot=False, show_plot=False):
+            do_plot=False, show_plot=False, allow_miri_slope=False):
         """Method to run the step.
 
         Parameters
@@ -902,15 +902,13 @@ class TracingStep:
             If True, do step diagnostic plot.
         show_plot : bool
             If True, show the step diagnostic plot.
+        allow_miri_slope : bool
+            If True, allow the MIRI centroids to be sloped.
 
         Returns
         -------
-        centroids : np.ndarray(float)
-            Trace centroids for all three orders.
-        order0mask : np.ndarray(bool), None
-            If requested, the order 0 mask.
-        smoothed_lc : np.ndarray(float), None
-            If requested, the smoothed order 1 white light curve.
+        centroids : np.ndarray(float), str
+            Trace centroids for all orders or path to centroids file.
         """
 
         fancyprint('TracingStep instance created.')
@@ -923,25 +921,21 @@ class TracingStep:
             fancyprint('Main output file already exists.')
             fancyprint('If you wish to still produce secondary outputs, run with force_redo=True.')
             fancyprint('Skipping Tracing Step.')
-            centroids = pd.read_csv(expected_file, comment='#')
-            tracemask, order0mask, smoothed_lc = None, None, None
+            centroids = expected_file
         # If no output files are detected, run the step.
         else:
-            step_results = tracingstep(datafiles=self.datafiles, deepframe=self.deepframe,
-                                       pixel_flags=pixel_flags,
-                                       generate_order0_mask=self.generate_order0_mask,
-                                       f277w=self.f277w, generate_lc=self.generate_lc,
-                                       baseline_ints=self.baseline_ints,
-                                       smoothing_scale=smoothing_scale,
-                                       output_dir=self.output_dir,
-                                       save_results=save_results,
-                                       fileroot_noseg=self.fileroot_noseg,
-                                       do_plot=do_plot, show_plot=show_plot)
-            centroids, order0mask, smoothed_lc = step_results
+            centroids = tracingstep(datafiles=self.datafiles, deepframe=self.deepframe,
+                                    pixel_flags=pixel_flags, baseline_ints=self.baseline_ints,
+                                    generate_order0_mask=self.generate_order0_mask,
+                                    f277w=self.f277w, generate_lc=self.generate_lc,
+                                    smoothing_scale=smoothing_scale, output_dir=self.output_dir,
+                                    save_results=save_results, fileroot_noseg=self.fileroot_noseg,
+                                    do_plot=do_plot, show_plot=show_plot,
+                                    allow_miri_slope=allow_miri_slope)
 
         fancyprint('Step TracingStep done.')
 
-        return centroids, order0mask, smoothed_lc
+        return centroids
 
 
 def backgroundstep_miri(datafile, trace_mask_width=20, background_width=14, method='slope',
@@ -1603,7 +1597,7 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
 def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mask=False,
                 f277w=None, generate_lc=True, baseline_ints=None, smoothing_scale=None,
                 output_dir='./', save_results=True, fileroot_noseg='', do_plot=False,
-                show_plot=False):
+                show_plot=False, allow_miri_slope=False):
     """A multipurpose step to perform some initial analysis of the 2D dataframes and produce
     products which can be useful in further reduction iterations. The three functionalities are
     detailed below:
@@ -1641,15 +1635,13 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
         If True, do the step diagnostic plot.
     show_plot : bool
         If True, show the step diagnostic plot instead of/in addition to saving it to file.
+    allow_miri_slope : bool
+        If True, allow the MIRI centroids to be sloped.
 
     Returns
     -------
-    centroids : np.ndarray(float)
-        Trace centroids for all three orders.
-    order0mask : np.ndarray(bool), None
-        If requested, the order 0 mask.
-    smoothed_lc : np.ndarray(float), None
-        If requested, the smoothed order 1 white light curve.
+    centroids : np.ndarray(float), str
+        Trace centroids for all orders, or path to centroids file.
     """
 
     fancyprint('Starting Tracing Step.')
@@ -1695,7 +1687,8 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
         # Get centroids via the edgetrigger method.
         save_filename = output_dir + fileroot_noseg
         centroids = utils.get_centroids_miri(deepframe, ystart=50, save_results=save_results,
-                                             save_filename=save_filename)
+                                             save_filename=save_filename,
+                                             allow_slope=allow_miri_slope)
 
     # Do diagnostic plot if requested.
     if do_plot is True:
@@ -1712,14 +1705,24 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
         plotting.make_centroiding_plot(deepframe, centroids, instrument, show_plot=show_plot,
                                        outfile=outfile, miri_scale=miri_scale)
 
+    if save_results is True:
+        centroids = save_filename + 'centroids.csv'
+
+    # If not saving outputs, skip optional parts.
+    if generate_lc is True or generate_order0_mask is True:
+        if save_results is False:
+            fancyprint('Optional outputs requested but save_results=False. '
+                       'Skipping optional outputs.', msg_type='WARNING')
+            generate_order0_mask = False
+            generate_lc = False
+
     # ===== PART 2: Create order 0 background contamination mask =====
     # If requested, create a mask for all background order 0 contaminants.
-    order0mask = None
     if generate_order0_mask is True:
         fancyprint('Generating background order 0 mask.')
         order0mask = make_order0_mask_from_f277w(f277w)
 
-        # Save the order 0 mask to file if requested.
+        # Save the order 0 mask to file.
         if save_results is True:
             # If we are to combine the trace mask with existing pixel mask.
             if pixel_flags is not None:
@@ -1745,7 +1748,6 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
 
     # ===== PART 3: Calculate a smoothed light curve =====
     # If requested, generate a smoothed estimate of the order 1 white light curve.
-    smoothed_lc = None
     if generate_lc is True:
         fancyprint('Generating a smoothed light curve')
         # Format the baseline frames.
@@ -1769,7 +1771,7 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
             fancyprint('Smoothed light curve saved to {}'.format(outfile))
             np.save(outfile, smoothed_lc)
 
-    return centroids, order0mask, smoothed_lc
+    return centroids
 
 
 def make_order0_mask_from_f277w(f277w, thresh_std=1, thresh_size=10):
@@ -1960,6 +1962,8 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
     -------
     results : list(CubeModel)
         Datafiles for each segment processed through Stage 2.
+    centroids : ndarray(fllat), str
+        Centroids for all spectral orders.
     """
 
     # ============== DMS Stage 2 ==============
@@ -1988,15 +1992,17 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Extract 2D Step =====
-    if mode == 'NIRSpec/G395H':
-        # Default DMS step.
-        if 'Extract2DStep' not in skip_steps:
+    # Default DMS step.
+    if 'Extract2DStep' not in skip_steps:
+        if 'NIRSPEC' in mode.upper():
             if 'Extract2DStep' in kwargs.keys():
                 step_kwargs = kwargs['Extract2DStep']
             else:
                 step_kwargs = {}
             step = Extract2DStep(results, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+        else:
+            fancyprint('Extract2DStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Source Type Determination Step =====
     # Default DMS step.
@@ -2009,31 +2015,35 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Wavelength Correction Step =====
-    if mode == 'NIRSpec/G395H':
-        # Default DMS step.
-        if 'WaveCorrStep' not in skip_steps:
+    # Default DMS step.
+    if 'WaveCorrStep' not in skip_steps:
+        if 'NIRSPEC' in mode.upper():
             if 'WaveCorrStep' in kwargs.keys():
                 step_kwargs = kwargs['WaveCorrStep']
             else:
                 step_kwargs = {}
             step = WaveCorrStep(results, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+        else:
+            fancyprint('WaveCorrStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Flat Field Correction Step =====
-    if mode == 'NIRISS/SOSS':
-        # Default DMS step.
-        if 'FlatFieldStep' not in skip_steps:
+    # Default DMS step.
+    if 'FlatFieldStep' not in skip_steps:
+        if 'NIRSPEC' not in mode.upper():
             if 'FlatFieldStep' in kwargs.keys():
                 step_kwargs = kwargs['FlatFieldStep']
             else:
                 step_kwargs = {}
             step = FlatFieldStep(results, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+        else:
+            fancyprint('FlatFieldStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Background Subtraction Step =====
-    if 'NIRSPEC' not in mode:
-        # Custom DMS step.
-        if 'BackgroundStep' not in skip_steps:
+    # Custom DMS step.
+    if 'BackgroundStep' not in skip_steps:
+        if 'NIRSPEC' not in mode.upper():
             if 'BackgroundStep' in kwargs.keys():
                 step_kwargs = kwargs['BackgroundStep']
             else:
@@ -2044,23 +2054,28 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
             results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
                                show_plot=show_plot, miri_trace_width=miri_trace_width,
                                miri_background_width=miri_background_width, **step_kwargs)[0]
+        else:
+            fancyprint('BackgroundStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== 1/f Noise Correction Step =====
     # Custom DMS step.
     if 'OneOverFStep' not in skip_steps:
-        if 'OneOverFStep' in kwargs.keys():
-            step_kwargs = kwargs['OneOverFStep']
+        if mode.upper() != 'MIRI/LRS':
+            if 'OneOverFStep' in kwargs.keys():
+                step_kwargs = kwargs['OneOverFStep']
+            else:
+                step_kwargs = {}
+            step = stage1.OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
+                                       pixel_masks=pixel_masks, centroids=centroids,
+                                       method=oof_method, soss_timeseries=soss_timeseries,
+                                       soss_timeseries_o2=soss_timeseries_o2)
+            results = step.run(soss_inner_mask_width=soss_inner_mask_width,
+                               soss_outer_mask_width=soss_outer_mask_width,
+                               nirspec_mask_width=nirspec_mask_width, save_results=save_results,
+                               force_redo=force_redo, do_plot=do_plot, show_plot=show_plot,
+                               **step_kwargs)
         else:
-            step_kwargs = {}
-        step = stage1.OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
-                                   pixel_masks=pixel_masks, centroids=centroids, method=oof_method,
-                                   soss_timeseries=soss_timeseries,
-                                   soss_timeseries_o2=soss_timeseries_o2)
-        results = step.run(soss_inner_mask_width=soss_inner_mask_width,
-                           soss_outer_mask_width=soss_outer_mask_width,
-                           nirspec_mask_width=nirspec_mask_width, save_results=save_results,
-                           force_redo=force_redo, do_plot=do_plot, show_plot=show_plot,
-                           **step_kwargs)
+            fancyprint('OneOverFStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Bad Pixel Correction Step =====
     # Custom DMS step.
@@ -2095,8 +2110,10 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         step = TracingStep(results, deepframe=deepframe, output_dir=outdir,
                            generate_order0_mask=generate_order0_mask, f277w=f277w,
                            generate_lc=generate_lc, baseline_ints=baseline_ints)
-        step.run(pixel_flags=pixel_masks, smoothing_scale=smoothing_scale,
-                 save_results=save_results, do_plot=do_plot, show_plot=show_plot,
-                 force_redo=force_redo)
+        centroids = step.run(pixel_flags=pixel_masks, smoothing_scale=smoothing_scale,
+                             save_results=save_results, do_plot=do_plot, show_plot=show_plot,
+                             force_redo=force_redo)
+    else:
+        centroids = None
 
-    return results
+    return results, centroids

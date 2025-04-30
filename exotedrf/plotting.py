@@ -638,7 +638,7 @@ def make_linearity_plot2(results, old_results, outfile=None, show_plot=True):
 
     # Plot up mean group differences before and after linearity correction.
     plt.figure(figsize=(5, 3))
-    locs = np.arange(ngroup-1).astype(int)
+    locs = np.arange(ngroup).astype(int)
     labels = (np.arange(ngroup)+1).astype(str)
     if inst == 'MIRI':
         locs = np.array(locs)[miri_good_groups]

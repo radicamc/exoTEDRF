@@ -71,7 +71,7 @@ AssignWCSStep : 'run'
 Extract2DStep : 'skip'     # NIRSpec only
 SourceTypeStep: 'run'
 WaveCorrStep : 'skip'      # NIRSpec only
-FlatFieldStep : 'run'      # SOSS only
+FlatFieldStep : 'run'      # SOSS/MIRI only
 BackgroundStep : 'run'     # SOSS/MIRI only
 OneOverFStep_int : 'skip'  # SOSS/NIRSpec only
 BadPixStep : 'run'

@@ -264,8 +264,16 @@ def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_f
             poly_order = 1
         else:
             poly_order = 0
-        cens = apl.get_centroids_edgetrigger(deepframe[::-1].T[:, 26:250], mode='mean',
-                                             poly_order=poly_order, halfwidth=2)
+        try:
+            cens = apl.get_centroids_edgetrigger(deepframe[::-1].T[:, 26:250], mode='mean',
+                                                 poly_order=poly_order, halfwidth=2)
+        # This prevents a bug in the edgetrigger polyfit routine where if the centroids are all
+        # exactly along the same column they are all rejected by the sigma clipping. For some
+        # reason, increasing the polynomial order avoids this but doesn't change the resulting
+        # centroids.
+        except TypeError:
+            cens = apl.get_centroids_edgetrigger(deepframe[::-1].T[:, 26:250], mode='mean',
+                                                 poly_order=1, halfwidth=2)
 
     # Unflip/transpose the X and Y coordinates.
     x1, y1 = cens[1], dimy - (26+cens[0])

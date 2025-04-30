@@ -130,9 +130,9 @@ def run_dms(config, input_files):
     # ===== Run Stage 2 =====
     if 2 in config['run_stages']:
         # Determine which steps to run and which to skip.
-        steps = ['AssignWCSStep', 'Extract2DStep', 'SourceTypeStep', 'WaveCorrStep', 'FlatFieldStep',
-                 'OneOverFStep_int', 'BackgroundStep', 'TracingStep', 'BadPixStep',
-                 'PCAReconstructStep']
+        steps = ['AssignWCSStep', 'Extract2DStep', 'SourceTypeStep', 'WaveCorrStep',
+                 'FlatFieldStep', 'OneOverFStep_int', 'BackgroundStep', 'TracingStep',
+                 'BadPixStep', 'PCAReconstructStep']
         stage2_skip = []
         for step in steps:
             if config[step] == 'skip':
@@ -170,17 +170,25 @@ def run_dms(config, input_files):
                                     miri_background_width=config['miri_background_width'],
                                     miri_background_method=config['miri_background_method'],
                                     **config['stage2_kwargs'])
+        stage2_results, centroids = stage2_results
     else:
         stage2_results = input_files
+        centroids = config['centroids']
 
     # ===== Run Stage 3 =====
     if 3 in config['run_stages']:
+        # If centroids are passed in the config file, they take precedence over anything
+        # calculated in Stage 2.
+        if config['centroids'] is None:
+            this_centroid = centroids
+        else:
+            this_centroid = config['centroids']
         stage3_results = run_stage3(stage2_results,
                                     save_results=config['save_results'],
                                     force_redo=config['force_redo'],
                                     extract_method=config['extract_method'],
                                     soss_specprofile=config['soss_specprofile'],
-                                    centroids=config['centroids'],
+                                    centroids=this_centroid,
                                     extract_width=config['extract_width'],
                                     st_teff=config['st_teff'],
                                     st_logg=config['st_logg'],
