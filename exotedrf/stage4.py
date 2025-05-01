@@ -278,6 +278,35 @@ def bin_at_resolution(wave, flux, flux_err, res, method='sum'):
     return binned_waves, binned_werr, binned_flux, binned_ferr
 
 
+def calculate_residual_covariance(model_files):
+    """Calculate the covariance matrix for a set of light curve fitting residuals.
+
+    Parameters
+    ----------
+    model_files : str, array-like(str)
+        List of paths to files with best-fitting light curve models.
+
+    Returns
+    -------
+    cov_matrix : ndarray(float)
+        Covariance matrix.
+    """
+
+    model_files = np.atleast_1d(model_files)
+    model_files = np.sort(model_files)[::-1]
+
+    for i, model in enumerate(model_files):
+        if i == 0:
+            models = np.load(model)
+        else:
+            models = np.concatenate([models, np.load(model)], axis=2)
+
+    res = models[3] - models[0]
+    cov_matrix = np.corrcoef(res.T)
+
+    return cov_matrix
+
+
 @ray.remote
 def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins, lc_model_type, ld_model,
              model_function, debug=False):
@@ -310,7 +339,7 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins, lc_model_typ
 
 def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthreads=4,
                     observing_mode='NIRISS/SOSS', lc_model_type='transit', ld_model='quadratic',
-                    custom_lc_function=None):
+                    custom_lc_function=None, debug=False):
     """Wrapper about both the exoUPRF and ray libraries to parallelize exoUPRF's light curve
     fitting functionality.
 
@@ -336,6 +365,9 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
         Limb darkening model identifier.
     custom_lc_function : func, None
         Custom light curve function call, if being used.
+    debug : bool
+        If True, always break when encountering an error.
+
 
     Returns
     -------
@@ -363,11 +395,14 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
             order_txt = 'order{}'.format(order)
         elif observing_mode.split('/')[0].upper() == 'NIRSPEC':
             order_txt = 'NRS{}'.format(order)
+        else:
+            order_txt = ''
         outdir = output_dir + 'speclightcurve{2}/{0}_{1}'.format(order_txt, keyname, fit_suffix)
         all_fits.append(fit_data.remote(data_dict[keyname], prior_dict[keyname],
                                         output_dir=outdir, bin_no=num_bins[i],
                                         num_bins=len(num_bins), lc_model_type=lc_model_type,
-                                        ld_model=ld_model, model_function=custom_lc_function))
+                                        ld_model=ld_model, model_function=custom_lc_function,
+                                        debug=debug))
     # Run the fits.
     ray_results = ray.get(all_fits)
 

@@ -137,6 +137,9 @@ class Extract2DStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
@@ -154,6 +157,12 @@ class Extract2DStep:
         results : list(datamodel)
             Input data files processed through the step.
         """
+
+        # Only run for NIRSpec observations.
+        if self.instrument != 'NIRSPEC':
+            fancyprint('2D extraction only necessary for NIRSpec.')
+            fancyprint('Skipping 2D Extraction Step.')
+            return self.datafiles
 
         results = []
         all_files = glob.glob(self.output_dir + '*')
@@ -277,6 +286,9 @@ class WaveCorrStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
@@ -294,6 +306,12 @@ class WaveCorrStep:
         results : list(datamodel)
             Input data files processed through the step.
         """
+
+        # Only run for NIRSpec observations.
+        if self.instrument != 'NIRSPEC':
+            fancyprint('Wavelength correction only necessary for NIRSpec.')
+            fancyprint('Skipping Wavelength Correction Step.')
+            return self.datafiles
 
         results = []
         all_files = glob.glob(self.output_dir + '*')
@@ -328,7 +346,8 @@ class BackgroundStep:
     """Wrapper around custom Background Subtraction step.
     """
 
-    def __init__(self, input_data, baseline_ints, background_model, output_dir='./'):
+    def __init__(self, input_data, baseline_ints=None, background_model=None, miri_method='median',
+                 output_dir='./'):
         """Step initializer.
 
         Parameters
@@ -336,9 +355,11 @@ class BackgroundStep:
         input_data : array-like(str), array-like(datamodel)
             List of paths to input data or the input data itself.
         baseline_ints : array-like(int)
-            Integration number(s) to use as ingress and/or egress.
+            Integration number(s) to use as ingress and/or egress -- SOSS only.
         background_model : np.ndarray(float), str, None
-            Model of background flux.
+            Model of background flux -- SOSS only.
+        miri_method : str
+            Method to calculate MIRI background; either 'median' or 'slope'.
         output_dir : str
             Path to directory to which to save outputs.
         """
@@ -353,17 +374,30 @@ class BackgroundStep:
         self.fileroots = utils.get_filename_root(self.datafiles)
         self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
 
-        # Unpack background model.
-        if isinstance(background_model, str):
-            fancyprint('Reading background model file: {}...'.format(background_model))
-            self.background_model = np.load(background_model)
-        elif (isinstance(background_model, np.ndarray) or
-              background_model is None):
-            self.background_model = background_model
-        else:
-            raise ValueError('Invalid type for background model: {}'.format(type(background_model)))
+        # Get instrument name.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs):
+        # Unpack background model.
+        if self.instrument == 'NIRISS':
+            msg = 'A background model must be provided to correct SOSS observations.'
+            assert background_model is not None, msg
+            if isinstance(background_model, str):
+                fancyprint('Reading background model file: {}...'.format(background_model))
+                self.background_model = np.load(background_model)
+            elif (isinstance(background_model, np.ndarray) or
+                  background_model is None):
+                self.background_model = background_model
+            else:
+                raise ValueError('Invalid type for background model: {}'
+                                 .format(type(background_model)))
+            msg = 'Baseline integration must be provided for NIRISS obseravtions.'
+            assert self.baseline_ints is not None, msg
+
+        # For MIRI, save method.
+        self.miri_method = miri_method
+
+    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False,
+            miri_trace_width=20, miri_background_width=14, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -373,9 +407,13 @@ class BackgroundStep:
         force_redo : bool
             If True, run step even if output files are detected.
         do_plot : bool
-            If True, do step diagnostic plot.
+            If True, do step diagnostic plot -- SOSS only.
         show_plot : bool
-            If True, show the step diagnostic plot.
+            If True, show the step diagnostic plot -- SOSS only.
+        miri_trace_width : int
+            Full width of the MIRI trace.
+        miri_background_width : int
+            Width of the MIRI background region.
         kwargs : dict
             Keyword arguments for stage2.backgroundstep.
 
@@ -404,31 +442,46 @@ class BackgroundStep:
                 fancyprint('File {} already exists.'.format(expected_file))
                 fancyprint('Skipping Background Subtraction Step.')
                 res = expected_file
-                bkg_model = expected_bkg
+                if self.instrument == 'NIRISS':
+                    bkg_model = expected_bkg
+                else:
+                    bkg_model = None
                 # Do not do plots if skipping step.
                 do_plot, show_plot = False, False
             # If no output files are detected, run the step.
+            # This step is for both NIRISS and MIRI observations, though the functionalities are
+            # very different. Split off here.
             else:
-                # Generate some necessary quantities -- only do this for the first segment.
-                if first_time:
-                    fancyprint('Creating reference deep stack.')
-                    deepstack = utils.make_baseline_stack_general(datafiles=self.datafiles,
-                                                                  baseline_ints=self.baseline_ints)
-                    first_time = False
+                if self.instrument == 'NIRISS':
+                    # Generate some necessary quantities -- only do this for the first segment.
+                    if first_time:
+                        fancyprint('Creating reference deep stack.')
+                        deepstack = utils.make_baseline_stack_general(datafiles=self.datafiles,
+                                                                      baseline_ints=self.baseline_ints)
+                        first_time = False
 
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('ignore')
-                    step_results = backgroundstep(datafile=segment,
-                                                  background_model=self.background_model,
-                                                  deepstack=deepstack, output_dir=self.output_dir,
-                                                  save_results=save_results,
-                                                  fileroot=self.fileroots[i],
-                                                  fileroot_noseg=self.fileroot_noseg, **kwargs)
-                    res, bkg_model = step_results
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings('ignore')
+                        step_results = backgroundstep_soss(datafile=segment,
+                                                           background_model=self.background_model,
+                                                           deepstack=deepstack,
+                                                           output_dir=self.output_dir,
+                                                           save_results=save_results,
+                                                           fileroot=self.fileroots[i],
+                                                           fileroot_noseg=self.fileroot_noseg,
+                                                           **kwargs)
+                        res, bkg_model = step_results
+                else:
+                    res = backgroundstep_miri(datafile=segment, trace_mask_width=miri_trace_width,
+                                              background_width=miri_background_width,
+                                              output_dir=self.output_dir, save_results=save_results,
+                                              fileroot=self.fileroots[i], method=self.miri_method,
+                                              **kwargs)
+                    bkg_model = None
             results.append(res)
 
         # Do step plot if requested.
-        if do_plot is True:
+        if do_plot is True and self.instrument == 'NIRISS':
             if save_results is True:
                 plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
@@ -819,7 +872,7 @@ class TracingStep:
 
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
-        if self.instrument == 'NIRSPEC':
+        if self.instrument != 'NIRISS':
             if generate_order0_mask is True:
                 fancyprint('generate_order0_mask is set to True, but mode is not NIRISS/SOSS. '
                            'Ignoring generate_order0_mask.', msg_type='WARNING')
@@ -830,7 +883,7 @@ class TracingStep:
                 self.generate_lc = False
 
     def run(self, pixel_flags=None, save_results=True, force_redo=False, smoothing_scale=None,
-            do_plot=False, show_plot=False):
+            do_plot=False, show_plot=False, allow_miri_slope=False):
         """Method to run the step.
 
         Parameters
@@ -849,15 +902,13 @@ class TracingStep:
             If True, do step diagnostic plot.
         show_plot : bool
             If True, show the step diagnostic plot.
+        allow_miri_slope : bool
+            If True, allow the MIRI centroids to be sloped.
 
         Returns
         -------
-        centroids : np.ndarray(float)
-            Trace centroids for all three orders.
-        order0mask : np.ndarray(bool), None
-            If requested, the order 0 mask.
-        smoothed_lc : np.ndarray(float), None
-            If requested, the smoothed order 1 white light curve.
+        centroids : np.ndarray(float), str
+            Trace centroids for all orders or path to centroids file.
         """
 
         fancyprint('TracingStep instance created.')
@@ -870,30 +921,97 @@ class TracingStep:
             fancyprint('Main output file already exists.')
             fancyprint('If you wish to still produce secondary outputs, run with force_redo=True.')
             fancyprint('Skipping Tracing Step.')
-            centroids = pd.read_csv(expected_file, comment='#')
-            tracemask, order0mask, smoothed_lc = None, None, None
+            centroids = expected_file
         # If no output files are detected, run the step.
         else:
-            step_results = tracingstep(datafiles=self.datafiles, deepframe=self.deepframe,
-                                       pixel_flags=pixel_flags,
-                                       generate_order0_mask=self.generate_order0_mask,
-                                       f277w=self.f277w, generate_lc=self.generate_lc,
-                                       baseline_ints=self.baseline_ints,
-                                       smoothing_scale=smoothing_scale,
-                                       output_dir=self.output_dir,
-                                       save_results=save_results,
-                                       fileroot_noseg=self.fileroot_noseg,
-                                       do_plot=do_plot, show_plot=show_plot)
-            centroids, order0mask, smoothed_lc = step_results
+            centroids = tracingstep(datafiles=self.datafiles, deepframe=self.deepframe,
+                                    pixel_flags=pixel_flags, baseline_ints=self.baseline_ints,
+                                    generate_order0_mask=self.generate_order0_mask,
+                                    f277w=self.f277w, generate_lc=self.generate_lc,
+                                    smoothing_scale=smoothing_scale, output_dir=self.output_dir,
+                                    save_results=save_results, fileroot_noseg=self.fileroot_noseg,
+                                    do_plot=do_plot, show_plot=show_plot,
+                                    allow_miri_slope=allow_miri_slope)
 
         fancyprint('Step TracingStep done.')
 
-        return centroids, order0mask, smoothed_lc
+        return centroids
 
 
-def backgroundstep(datafile, background_model, deepstack, output_dir='./', save_results=True,
-                   fileroot=None, fileroot_noseg='', scale1=None, background_coords1=None,
-                   scale2=None, background_coords2=None, differential=False):
+def backgroundstep_miri(datafile, trace_mask_width=20, background_width=14, method='slope',
+                        output_dir='./', save_results=True, fileroot=None):
+    fancyprint('Starting MIRI background subtraction step.')
+
+    # Output directory formatting.
+    if output_dir is not None:
+        if output_dir[-1] != '/':
+            output_dir += '/'
+
+    # Load in data.
+    if isinstance(datafile, str):
+        cube = fits.getdata(datafile, 1)
+        filename = datafile
+    else:
+        with utils.open_filetype(datafile) as currentfile:
+            cube = currentfile.data
+            filename = currentfile.meta.filename
+    fancyprint('Processing file: {}.'.format(filename))
+
+    trace_halfwidth = int(trace_mask_width / 2)
+    fancyprint('Starting background subtraction using the {} method'.format(method))
+    # Knowing that the MIRI trace is centered more or less on pixel column 36.
+    # Create a cube with only the background columns and median over each row.
+    if method == 'median':
+        # Construct the cube of background columns.
+        bkg_cube = np.concatenate(
+            [cube[:, :, (36 - trace_halfwidth - background_width):(36 - trace_halfwidth + 1)],
+             cube[:, :, (36 + trace_halfwidth):(36 + trace_halfwidth + background_width + 1)]],
+            axis=2)
+        # Median over this cube and subtract the background level.
+        bkg = np.nanmedian(bkg_cube, axis=2)
+        cube_corr = cube - bkg[:, :, None]
+    # Or fit a slope to the background region.
+    elif method == 'slope':
+        nint, dimy, dimx = np.shape(cube)
+        bkg_cube, bkg = np.copy(cube), np.zeros_like(cube)
+        # Mask out the frame edge columns and the trace.
+        bkg_cube[:, :, :(36 - trace_halfwidth - background_width + 1)] = np.nan
+        bkg_cube[:, :, (36 + trace_halfwidth + background_width):] = np.nan
+        bkg_cube[:, :, (36 - trace_halfwidth):(36 + trace_halfwidth + 1)] = np.nan
+        # Loop over all integrations and rows and fit a slope to the unmasked background columns.
+        xx = np.arange(dimx)
+        for i in tqdm(range(nint)):
+            for j in range(dimy):
+                pp = utils.robust_polyfit(xx, bkg_cube[i, j], order=1)
+                bkg[i, j] = np.polyval(pp, xx)
+        # Subtract off the background
+        cube_corr = cube - bkg
+    else:
+        raise ValueError('Unknown method: {}.'.format(method))
+
+    # Save interpolated data.
+    if save_results is True:
+        # Open input file and subtract background from data
+        thisfile = fits.open(datafile)
+        thisfile[1].data = cube_corr
+        # Save corrected data.
+        result = output_dir + fileroot + 'backgroundstep.fits'
+        thisfile[0].header['FILENAME'] = fileroot + 'backgroundstep.fits'
+        thisfile.writeto(result, overwrite=True)
+        fancyprint('File saved to: {}.'.format(result))
+    # If not saving results, need to work in datamodels to not break interoperability with stsci
+    # pipeline.
+    else:
+        currentfile = utils.open_filetype(datafile)
+        result = copy.deepcopy(currentfile)
+        result.data = cube - bkg[:, :, None]
+
+    return result
+
+
+def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', save_results=True,
+                        fileroot=None, fileroot_noseg='', scale1=None, background_coords1=None,
+                        scale2=None, background_coords2=None, differential=False):
     """Background subtraction must be carefully treated with SOSS observations. Due to the extent
     of the PSF wings, there are very few, if any, non-illuminated pixels to serve as a sky region.
     Furthermore, the zodi background has a unique stepped shape, which would render a constant
@@ -941,7 +1059,7 @@ def backgroundstep(datafile, background_model, deepstack, output_dir='./', save_
         Background model, scaled to the flux level of each group median.
     """
 
-    fancyprint('Starting background subtraction step.')
+    fancyprint('Starting SOSS background subtraction step.')
     if isinstance(datafile, str):
         filename = datafile
     else:
@@ -1155,9 +1273,22 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
     if instrument == 'NIRISS':
         ymax = dimy - 5
         ybox_size = 0
-    else:
+        xbox_size = box_size
+    elif instrument == 'NIRSPEC':
         ymax = dimy
         ybox_size = 0
+        xbox_size = box_size
+    else:
+        ymax = dimy
+        ybox_size = box_size
+        xbox_size = 0
+
+    # For MIRI, we don't want to do the spatial flagging as it tends to flag the peak of the trace
+    # itself and is of limited value picking out other potentially bad pixels.
+    # We'll still interpolate known DO_NOT_USE or other bad pixels, but we won't flag any more. So
+    # set the space threshold to an arbitrarily high value.
+    if instrument == 'MIRI':
+        space_thresh = int(1e6)
 
     # Find locations of bad pixels in the deep frame.
     if to_flag is None:
@@ -1211,7 +1342,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
     fancyprint('Doing pixel replacement...')
     for i in tqdm(range(nint)):
         newdata[i], thisdq = utils.do_replacement(newdata[i], badpix, dq=np.ones_like(newdata[i]),
-                                                  xbox_size=box_size, ybox_size=ybox_size)
+                                                  xbox_size=xbox_size, ybox_size=ybox_size)
         # Set DQ flags for these pixels to zero (use the pixel).
         thisdq = ~thisdq.astype(bool)
         newdq[:, thisdq] = 0
@@ -1295,8 +1426,12 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
         nanpix = np.where(nanpix != 0)
         otherpix = np.where(otherpix != 0)
         deepframe[np.isnan(deepframe)] = 0
+        if instrument == 'MIRI':
+            miri = True
+        else:
+            miri = False
         plotting.make_badpix_plot(deepframe, hotpix, nanpix, otherpix, outfile=outfile,
-                                  show_plot=show_plot)
+                                  show_plot=show_plot, miri_scale=miri)
 
     return result, badpix
 
@@ -1350,19 +1485,28 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
         else:
             cube = np.concatenate([cube, this_data], axis=0)
 
+    # Get instrument name.
+    instrument = utils.get_instrument_name(datafiles[0])
+
     # Calculate the trace stability using PCA -- original pass without any components removed.
     fancyprint('Calculating TSO stability.')
     if save_results is True:
         outfile = output_dir + 'stability_pca.png'
         # Get proper detector names for NIRSpec.
-        instrument = utils.get_instrument_name(datafiles[0])
         if instrument == 'NIRSPEC':
             det = utils.get_nrs_detector_name(datafiles[0])
             outfile = outfile.replace('.png', '_{}.png'.format(det))
     else:
         outfile = None
 
-    pcs, var, _ = soss_stability_pca(cube, n_components=pca_components, outfile=outfile,
+    # For MIRI trim the frame down to get rid of e.g., the lightsaber artifact which introduces its
+    # own signals.
+    if instrument == 'MIRI':
+        cube_clipped = cube[:, :, 12:61]
+    else:
+        cube_clipped = cube
+
+    pcs, var, _ = soss_stability_pca(cube_clipped, n_components=pca_components, outfile=outfile,
                                      do_plot=do_plot, show_plot=show_plot)
 
     # If requested, reconstruct the data cube removing PCs associated with detector trends.
@@ -1378,15 +1522,18 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
 
         newcube = np.copy(cube)
         for pc in remove_components:
-            # Get the reconstruction of the data using the soecified component.
+            # Get the reconstruction of the data using the specified component.
             if pc != 1:
-                out_ncmo = soss_stability_pca(cube, n_components=pc-1)[2]
-                out_nc = soss_stability_pca(cube, n_components=pc)[2]
+                out_ncmo = soss_stability_pca(cube_clipped, n_components=pc-1)[2]
+                out_nc = soss_stability_pca(cube_clipped, n_components=pc)[2]
                 thiscomp = out_nc - out_ncmo
             else:
-                thiscomp = soss_stability_pca(cube, n_components=pc)[2]
+                thiscomp = soss_stability_pca(cube_clipped, n_components=pc)[2]
             # Remove the reconstruction.
-            newcube -= thiscomp
+            if instrument == 'MIRI':
+                newcube[:, :, 12:61] -= thiscomp
+            else:
+                newcube -= thiscomp
 
         # Calculate the trace stability using PCA -- final result, with components removed.
         fancyprint('Calculating reconstructed TSO stability.')
@@ -1396,8 +1543,13 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
         if instrument == 'NIRSPEC':
             det = utils.get_nrs_detector_name(datafiles[0])
             outfile = outfile.replace('.png', '_{}.png'.format(det))
-        pcs, var, _ = soss_stability_pca(newcube, n_components=pca_components, outfile=outfile,
-                                         do_plot=do_plot, show_plot=show_plot)
+        # Again, trim MIRI.
+        if instrument == 'MIRI':
+            newcube_clipped = newcube[:, :, 12:61]
+        else:
+            newcube_clipped = newcube
+        pcs, var, _ = soss_stability_pca(newcube_clipped, n_components=pca_components,
+                                         outfile=outfile, do_plot=do_plot, show_plot=show_plot)
 
         # Save the reconstructed datafiles.
         results, current_int = [], 0
@@ -1445,7 +1597,7 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
 def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mask=False,
                 f277w=None, generate_lc=True, baseline_ints=None, smoothing_scale=None,
                 output_dir='./', save_results=True, fileroot_noseg='', do_plot=False,
-                show_plot=False):
+                show_plot=False, allow_miri_slope=False):
     """A multipurpose step to perform some initial analysis of the 2D dataframes and produce
     products which can be useful in further reduction iterations. The three functionalities are
     detailed below:
@@ -1483,15 +1635,13 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
         If True, do the step diagnostic plot.
     show_plot : bool
         If True, show the step diagnostic plot instead of/in addition to saving it to file.
+    allow_miri_slope : bool
+        If True, allow the MIRI centroids to be sloped.
 
     Returns
     -------
-    centroids : np.ndarray(float)
-        Trace centroids for all three orders.
-    order0mask : np.ndarray(bool), None
-        If requested, the order 0 mask.
-    smoothed_lc : np.ndarray(float), None
-        If requested, the smoothed order 1 white light curve.
+    centroids : np.ndarray(float), str
+        Trace centroids for all orders, or path to centroids file.
     """
 
     fancyprint('Starting Tracing Step.')
@@ -1524,7 +1674,7 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
         save_filename = output_dir + fileroot_noseg
         centroids = utils.get_centroids_soss(deepframe, tracetable, subarray,
                                              save_results=save_results, save_filename=save_filename)
-    else:
+    elif instrument == 'NIRSPEC':
         # Get centroids via the edgetrigger method.
         save_filename = output_dir + fileroot_noseg
         det = utils.get_nrs_detector_name(datafiles[0])
@@ -1533,6 +1683,12 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
         xstart = utils.get_nrs_trace_start(det, subarray, grating)
         centroids = utils.get_centroids_nirspec(deepframe, xstart=xstart, save_results=save_results,
                                                 save_filename=save_filename)
+    else:
+        # Get centroids via the edgetrigger method.
+        save_filename = output_dir + fileroot_noseg
+        centroids = utils.get_centroids_miri(deepframe, ystart=50, save_results=save_results,
+                                             save_filename=save_filename,
+                                             allow_slope=allow_miri_slope)
 
     # Do diagnostic plot if requested.
     if do_plot is True:
@@ -1543,17 +1699,30 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
                 outfile = output_dir + 'centroiding.png'
         else:
             outfile = None
+        miri_scale = False
+        if instrument == 'MIRI':
+            miri_scale = True
         plotting.make_centroiding_plot(deepframe, centroids, instrument, show_plot=show_plot,
-                                       outfile=outfile)
+                                       outfile=outfile, miri_scale=miri_scale)
+
+    if save_results is True:
+        centroids = save_filename + 'centroids.csv'
+
+    # If not saving outputs, skip optional parts.
+    if generate_lc is True or generate_order0_mask is True:
+        if save_results is False:
+            fancyprint('Optional outputs requested but save_results=False. '
+                       'Skipping optional outputs.', msg_type='WARNING')
+            generate_order0_mask = False
+            generate_lc = False
 
     # ===== PART 2: Create order 0 background contamination mask =====
     # If requested, create a mask for all background order 0 contaminants.
-    order0mask = None
     if generate_order0_mask is True:
         fancyprint('Generating background order 0 mask.')
         order0mask = make_order0_mask_from_f277w(f277w)
 
-        # Save the order 0 mask to file if requested.
+        # Save the order 0 mask to file.
         if save_results is True:
             # If we are to combine the trace mask with existing pixel mask.
             if pixel_flags is not None:
@@ -1579,7 +1748,6 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
 
     # ===== PART 3: Calculate a smoothed light curve =====
     # If requested, generate a smoothed estimate of the order 1 white light curve.
-    smoothed_lc = None
     if generate_lc is True:
         fancyprint('Generating a smoothed light curve')
         # Format the baseline frames.
@@ -1603,7 +1771,7 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
             fancyprint('Smoothed light curve saved to {}'.format(outfile))
             np.save(outfile, smoothed_lc)
 
-    return centroids, order0mask, smoothed_lc
+    return centroids
 
 
 def make_order0_mask_from_f277w(f277w, thresh_std=1, thresh_size=10):
@@ -1716,7 +1884,8 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
                skip_steps=None, generate_lc=True, soss_inner_mask_width=40,
                soss_outer_mask_width=70, nirspec_mask_width=16, pixel_masks=None,
                generate_order0_mask=True, f277w=None, do_plot=False, show_plot=False,
-               centroids=None, **kwargs):
+               centroids=None, miri_trace_width=20, miri_background_width=14,
+               miri_background_method='median', **kwargs):
     """Run the exoTEDRF Stage 2 pipeline: spectroscopic processing, using a combination of official
     STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_spec2.html
@@ -1782,11 +1951,19 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         saving to file.
     centroids : str, None
         Path to file containing trace positions for all orders.
+    miri_trace_width : int
+        Full width of the MIRI trace.
+    miri_background_width : int
+        Width of the MIRI background region.
+    miri_background_method : str
+        Method to calculate MIRI background; either 'median' or 'slope'.
 
     Returns
     -------
     results : list(CubeModel)
         Datafiles for each segment processed through Stage 2.
+    centroids : ndarray(fllat), str
+        Centroids for all spectral orders.
     """
 
     # ============== DMS Stage 2 ==============
@@ -1815,15 +1992,17 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Extract 2D Step =====
-    if mode == 'NIRSpec/G395H':
-        # Default DMS step.
-        if 'Extract2DStep' not in skip_steps:
+    # Default DMS step.
+    if 'Extract2DStep' not in skip_steps:
+        if 'NIRSPEC' in mode.upper():
             if 'Extract2DStep' in kwargs.keys():
                 step_kwargs = kwargs['Extract2DStep']
             else:
                 step_kwargs = {}
             step = Extract2DStep(results, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+        else:
+            fancyprint('Extract2DStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Source Type Determination Step =====
     # Default DMS step.
@@ -1836,56 +2015,67 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Wavelength Correction Step =====
-    if mode == 'NIRSpec/G395H':
-        # Default DMS step.
-        if 'WaveCorrStep' not in skip_steps:
+    # Default DMS step.
+    if 'WaveCorrStep' not in skip_steps:
+        if 'NIRSPEC' in mode.upper():
             if 'WaveCorrStep' in kwargs.keys():
                 step_kwargs = kwargs['WaveCorrStep']
             else:
                 step_kwargs = {}
             step = WaveCorrStep(results, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+        else:
+            fancyprint('WaveCorrStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Flat Field Correction Step =====
-    if mode == 'NIRISS/SOSS':
-        # Default DMS step.
-        if 'FlatFieldStep' not in skip_steps:
+    # Default DMS step.
+    if 'FlatFieldStep' not in skip_steps:
+        if 'NIRSPEC' not in mode.upper():
             if 'FlatFieldStep' in kwargs.keys():
                 step_kwargs = kwargs['FlatFieldStep']
             else:
                 step_kwargs = {}
             step = FlatFieldStep(results, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+        else:
+            fancyprint('FlatFieldStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Background Subtraction Step =====
-    if mode == 'NIRISS/SOSS':
-        # Custom DMS step.
-        if 'BackgroundStep' not in skip_steps:
+    # Custom DMS step.
+    if 'BackgroundStep' not in skip_steps:
+        if 'NIRSPEC' not in mode.upper():
             if 'BackgroundStep' in kwargs.keys():
                 step_kwargs = kwargs['BackgroundStep']
             else:
                 step_kwargs = {}
             step = BackgroundStep(results, baseline_ints=baseline_ints,
-                                  background_model=soss_background_model, output_dir=outdir)
+                                  background_model=soss_background_model,
+                                  miri_method=miri_background_method, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
-                               show_plot=show_plot, **step_kwargs)[0]
+                               show_plot=show_plot, miri_trace_width=miri_trace_width,
+                               miri_background_width=miri_background_width, **step_kwargs)[0]
+        else:
+            fancyprint('BackgroundStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== 1/f Noise Correction Step =====
     # Custom DMS step.
     if 'OneOverFStep' not in skip_steps:
-        if 'OneOverFStep' in kwargs.keys():
-            step_kwargs = kwargs['OneOverFStep']
+        if mode.upper() != 'MIRI/LRS':
+            if 'OneOverFStep' in kwargs.keys():
+                step_kwargs = kwargs['OneOverFStep']
+            else:
+                step_kwargs = {}
+            step = stage1.OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
+                                       pixel_masks=pixel_masks, centroids=centroids,
+                                       method=oof_method, soss_timeseries=soss_timeseries,
+                                       soss_timeseries_o2=soss_timeseries_o2)
+            results = step.run(soss_inner_mask_width=soss_inner_mask_width,
+                               soss_outer_mask_width=soss_outer_mask_width,
+                               nirspec_mask_width=nirspec_mask_width, save_results=save_results,
+                               force_redo=force_redo, do_plot=do_plot, show_plot=show_plot,
+                               **step_kwargs)
         else:
-            step_kwargs = {}
-        step = stage1.OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
-                                   pixel_masks=pixel_masks, centroids=centroids, method=oof_method,
-                                   soss_timeseries=soss_timeseries,
-                                   soss_timeseries_o2=soss_timeseries_o2)
-        results = step.run(soss_inner_mask_width=soss_inner_mask_width,
-                           soss_outer_mask_width=soss_outer_mask_width,
-                           nirspec_mask_width=nirspec_mask_width, save_results=save_results,
-                           force_redo=force_redo, do_plot=do_plot, show_plot=show_plot,
-                           **step_kwargs)
+            fancyprint('OneOverFStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Bad Pixel Correction Step =====
     # Custom DMS step.
@@ -1920,8 +2110,10 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         step = TracingStep(results, deepframe=deepframe, output_dir=outdir,
                            generate_order0_mask=generate_order0_mask, f277w=f277w,
                            generate_lc=generate_lc, baseline_ints=baseline_ints)
-        step.run(pixel_flags=pixel_masks, smoothing_scale=smoothing_scale,
-                 save_results=save_results, do_plot=do_plot, show_plot=show_plot,
-                 force_redo=force_redo)
+        centroids = step.run(pixel_flags=pixel_masks, smoothing_scale=smoothing_scale,
+                             save_results=save_results, do_plot=do_plot, show_plot=show_plot,
+                             force_redo=force_redo)
+    else:
+        centroids = None
 
-    return results
+    return results, centroids

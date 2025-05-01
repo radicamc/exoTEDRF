@@ -34,5 +34,5 @@ Alternatively, the package can be grabbed from GitHub (inlcludes all pipeline st
 
 
 .. note::
-    **exoTEDRF** is currently compatible with python 3.10.4 and v1.12.5 of the `STScI JWST pipeline <https://github.com/spacetelescope/jwst>`_. If you wish to run a
+    **exoTEDRF** is currently compatible with python 3.10.4 and v1.17.1 of the `STScI JWST pipeline <https://github.com/spacetelescope/jwst>`_. If you wish to run a
     different version of jwst, certain functionalities of **exoTEDRF** may not work.
