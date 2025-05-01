@@ -4,7 +4,7 @@
 from setuptools import setup
 
 setup(name='exotedrf',
-      version='2.2.0',
+      version='2.3.0',
       license='MIT',
       author='Michael Radica',
       author_email='radicamc@uchicago.edu',
@@ -18,7 +18,7 @@ setup(name='exotedrf',
                         'more_itertools', 'numpy', 'pandas', 'ray',
                         'scikit-learn', 'scipy', 'spectres', 'tqdm',
                         'pastasoss', 'pyyaml'],
-      extras_require={'stage4': ['exotedrf', 'exouprf', 'exotic_ld', 'h5py'],
+      extras_require={'stage4': ['exotedrf', 'exouprf==1.0.3', 'exotic_ld', 'h5py'],
                       'webbpsf': ['exotedrf', 'webbpsf>=1.1.1']},
       classifiers=[
         'Development Status :: 3 - Alpha',
