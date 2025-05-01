@@ -11,7 +11,7 @@ The modularity and tunability of **exoTEDRF** make it easy to run multiple reduc
 
 **exoTEDRF** also has full support for TSOs with NIRISS/SOSS, an observing mode which is underserved by the current ecosystem of JWST reduction tools, including being the only pipeline with the ability to run the **ATOCA** extraction algorithm to explicitly model the SOSS order overlap.
 
-Currently supported instruments/modes are: **NIRISS/SOSS** and **NIRSpec/BOTS**. **MIRI/LRS** is in development.
+Currently supported instruments/modes are: **NIRISS/SOSS**, **NIRSpec/BOTS**, and **MIRI/LRS**. Support for other modes will be added as necessary/requested.
 
 .. toctree::
    :maxdepth: 2
