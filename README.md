@@ -10,7 +10,7 @@ ___
 
 **exoTEDRF** (formerly supreme-SPOON) is an end-to-end pipeline for JWST exoplanet time series observations.  
 
-Currently supports: **NIRISS/SOSS** and **NIRSpec/BOTS**. **MIRI/LRS** is in development.
+Currently supported are: **NIRISS/SOSS**, **NIRSpec/BOTS**, and **MIRI/LRS**. Other instruments/modes will be added as needed/requested. 
 
 ## Documentation
 An installation guide, code documentation, and tutorials are included in the [exoTEDRF documentation](https://exotedrf.readthedocs.io/en/latest/index.html).

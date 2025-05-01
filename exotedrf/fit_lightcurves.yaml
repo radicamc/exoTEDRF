@@ -7,14 +7,19 @@
 output_tag : ''
 # File containing light curves to fit.
 infile : ''
-# Instrument mode used. Currently tested are 'NIRISS/SOSS' and 'NIRSpec/G395H', though other NIRSpec gratings are
-# also supported.
+# Instrument mode used, e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', etc.
 observing_mode : 'NIRISS/SOSS'
 # (NIRSpec only) Detector used.
 detector : 'NRS1'
 # (NIRSpec only) blue wavelength cutoff for NRS1.
 # Note: ignore if using pre-binned data.
 nrs1_blue : 2.8
+# (MIRI only) blue wavelength cutoff for LRS.
+# Note: ignore if using pre-binned data.
+lrs_blue : 5.0
+# (MIRI only) red wavelength cutoff for LRS.
+# Note: ignore if using pre-binned data.
+lrs_red : 12.0
 # (SOSS only) Orders to fit.
 orders : [1, 2]
 # Suffix to apply to fit output files.
@@ -41,6 +46,8 @@ res : 'pixel'
 npix : None
 # Planet identifier.
 planet_letter : 'b'
+# If True, run light curve fitting in debugging mode (i.e., don't catch errors).
+debug : False
 
 # ====== Fit Priors + Parameters ======
 # Fitting priors in exoUPRF format.

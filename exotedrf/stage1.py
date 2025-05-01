@@ -55,6 +55,9 @@ class DQInitStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
         # Unpack deepframe.
         if isinstance(hot_pixel_map, str):
             # Want deepframe extension before bad pixel interpolation.
@@ -65,7 +68,8 @@ class DQInitStep:
         else:
             raise ValueError('Invalid type for hot_pixel_map: {}'.format(type(hot_pixel_map)))
 
-    def run(self, save_results=True, force_redo=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, flag_first_miri_frame=True,
+            flag_last_miri_frame=True, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -74,6 +78,10 @@ class DQInitStep:
             If True, save results.
         force_redo : bool
             If True, run step even if output files are detected.
+        flag_first_miri_frame : bool
+            if True, set the first MIRI group to DO_NOT_USE.
+        flag_last_miri_frame : bool
+            if True, set the last MIRI group to DO_NOT_USE.
         kwargs : dict
             Keyword arguments for calwebb_detector1.dq_init_step.DQInitStep.
 
@@ -101,11 +109,113 @@ class DQInitStep:
                 step = calwebb_detector1.dq_init_step.DQInitStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 **kwargs)
+                # Additional calibrations
+                add_cal = False
+                # For MIRI, set first and last group to DO_NOT_USE.
+                if self.instrument == 'MIRI':
+                    if flag_first_miri_frame is True:
+                        fancyprint('Flagging first MIRI frame.')
+                        dnu = utils.get_dq_flag_metrics(res.groupdq[:, 0], ['DO_NOT_USE'])
+                        ii = np.where(dnu != 1)
+                        res.groupdq[:, 0][ii] += 1
+                        add_cal = True
+                    if flag_last_miri_frame is True:
+                        fancyprint('Flagging last MIRI frame.')
+                        dnu = utils.get_dq_flag_metrics(res.groupdq[:, -1], ['DO_NOT_USE'])
+                        ii = np.where(dnu != 1)
+                        res.groupdq[:, -1][ii] += 1
+                        add_cal = True
                 # Flag additional hot pixels not in the default map.
                 if self.hotpix is not None:
                     res = flag_hot_pixels(res, hot_pix=self.hotpix)[0]
-                    # Overwite the previous edition.
+                    add_cal = True
+                # Overwite the previous edition if additional calibrations have been performed.
+                if add_cal is True:
                     res.save(expected_file)
+                # Verify that filename is correct.
+                if save_results is True:
+                    current_name = self.output_dir + res.meta.filename
+                    if expected_file != current_name:
+                        res.close()
+                        os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
+                    res = expected_file
+            results.append(res)
+
+        return results
+
+
+class EmiCorrStep:
+    """Wrapper around default calwebb_detector1 MIRI EMI (electromagnetic interference) correction
+    step (removes 390Hz interference patter in MIRI subarray data).
+    """
+
+    def __init__(self, input_data, output_dir):
+        """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        output_dir : str
+            Path to directory to which to save outputs.
+        """
+
+        # Set up easy attributes.
+        self.tag = 'emicorrstep.fits'
+        self.output_dir = output_dir
+
+        # Unpack input data files.
+        self.datafiles = utils.sort_datamodels(input_data)
+        self.fileroots = utils.get_filename_root(self.datafiles)
+
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
+    def run(self, save_results=True, force_redo=False, **kwargs):
+        """Method to run the step.
+
+        Parameters
+        ----------
+        save_results : bool
+            If True, save results.
+        force_redo : bool
+            If True, run step even if output files are detected.
+        kwargs : dict
+            Keyword arguments for calwebb_detector1.emicorr_step.EmiCorrStep.
+
+        Returns
+        -------
+        results : list(datamodel)
+            Input data files processed through the step.
+        """
+
+        # Only run for MIRI observations.
+        if self.instrument != 'MIRI':
+            fancyprint('EMI Correction only necessary for MIRI.')
+            fancyprint('Skipping EMI Correction Step.')
+            return self.datafiles
+
+        # Warn user that datamodels will be returned if not saving results.
+        if save_results is False:
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
+
+        results = []
+        all_files = glob.glob(self.output_dir + '*')
+        for i, segment in enumerate(self.datafiles):
+            # If an output file for this segment already exists, skip the step.
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            if expected_file in all_files and force_redo is False:
+                fancyprint('File {} already exists.'.format(expected_file))
+                fancyprint('Skipping EMI Correction Step.')
+                res = expected_file
+            # If no output files are detected, run the step.
+            else:
+                step = calwebb_detector1.emicorr_step.EmiCorrStep()
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                skip=False, **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -196,6 +306,89 @@ class SaturationStep:
         return results
 
 
+class ResetStep:
+    """Wrapper around default calwebb_detector1 reset anomaly correction step.
+    """
+
+    def __init__(self, input_data, output_dir):
+        """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        output_dir : str
+            Path to directory to which to save outputs.
+        """
+
+        # Set up easy attributes.
+        self.tag = 'resetstep.fits'
+        self.output_dir = output_dir
+
+        # Unpack input data files.
+        self.datafiles = utils.sort_datamodels(input_data)
+        self.fileroots = utils.get_filename_root(self.datafiles)
+
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
+    def run(self, save_results=True, force_redo=False, **kwargs):
+        """Method to run the step.
+
+        Parameters
+        ----------
+        save_results : bool
+            If True, save results.
+        force_redo : bool
+            If True, run step even if output files are detected.
+        kwargs : dict
+            Keyword arguments for calwebb_detector1.reset_step.ResetStep.
+
+        Returns
+        -------
+        results : list(datamodel)
+            Input data files processed through the step.
+        """
+
+        # Only run for MIRI observations.
+        if self.instrument != 'MIRI':
+            fancyprint('Reset anomaly correction only necessary for MIRI.')
+            fancyprint('Skipping Reset Anomaly Correction Step.')
+            return self.datafiles
+
+        # Warn user that datamodels will be returned if not saving results.
+        if save_results is False:
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
+
+        results = []
+        all_files = glob.glob(self.output_dir + '*')
+        for i, segment in enumerate(self.datafiles):
+            # If an output file for this segment already exists, skip the step.
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            if expected_file in all_files and force_redo is False:
+                fancyprint('File {} already exists.'.format(expected_file))
+                fancyprint('Skipping Reset Anomaly Correction Step.')
+                res = expected_file
+            # If no output files are detected, run the step.
+            else:
+                step = calwebb_detector1.reset_step.ResetStep()
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
+                # Verify that filename is correct.
+                if save_results is True:
+                    current_name = self.output_dir + res.meta.filename
+                    if expected_file != current_name:
+                        res.close()
+                        os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
+                    res = expected_file
+            results.append(res)
+
+        return results
+
+
 class SuperBiasStep:
     """Wrapper around default calwebb_detector1 Super Bias Subtraction step with some custom
     modifications.
@@ -265,6 +458,12 @@ class SuperBiasStep:
         results : list(datamodel)
             Input data files processed through the step.
         """
+
+        # Only run for NIR observations.
+        if self.instrument == 'MIRI':
+            fancyprint('Superbias subtraction not necessary for MIRI.')
+            fancyprint('Skipping Superbias Subtraction Step.')
+            return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
@@ -375,6 +574,9 @@ class RefPixStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
@@ -392,6 +594,12 @@ class RefPixStep:
         results : list(datamodel)
             Input data files processed through the step.
         """
+
+        # Only run for NIRISS observations.
+        if self.instrument != 'NIRISS':
+            fancyprint('Reference Pixel Correction only implemented for NIRISS.')
+            fancyprint('Skipping Reference Pixel Correction Step.')
+            return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
@@ -449,6 +657,9 @@ class DarkCurrentStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
     def run(self, save_results=True, force_redo=False, **kwargs):
         """Method to run the step.
 
@@ -466,6 +677,12 @@ class DarkCurrentStep:
         results : list(datamodel)
             Input data files processed through the step.
         """
+
+        # Only run for NIR observations.
+        if self.instrument == 'MIRI':
+            fancyprint('Dark subtraction is performed during linearity correction for MIRI.')
+            fancyprint('Skipping Dark Current Subtraction Step.')
+            return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
@@ -543,6 +760,9 @@ class OneOverFStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
         # Unpack centroids.
         if isinstance(centroids, str):
             fancyprint('Reading centroids file: {}...'.format(centroids))
@@ -550,24 +770,29 @@ class OneOverFStep:
         else:
             self.centroids = centroids
 
-        # Unpack timeseries.
-        if isinstance(soss_timeseries, str):
-            fancyprint('Reading timeseries file: {}...'.format(soss_timeseries))
-            self.timeseries = np.load(soss_timeseries)
-        elif isinstance(soss_timeseries, np.ndarray) or soss_timeseries is None:
-            self.timeseries = soss_timeseries
-        else:
-            raise ValueError('Invalid type for timeseries: {}'.format(type(soss_timeseries)))
+        # Unpack timeseries -- SOSS only.
+        self.timeseries = None
+        if self.instrument == 'NIRISS':
+            if isinstance(soss_timeseries, str):
+                fancyprint('Reading timeseries file: {}...'.format(soss_timeseries))
+                self.timeseries = np.load(soss_timeseries)
+            elif isinstance(soss_timeseries, np.ndarray) or soss_timeseries is None:
+                self.timeseries = soss_timeseries
+            else:
+                raise ValueError('Invalid type for timeseries: {}'.format(type(soss_timeseries)))
 
-        # Unpack timeseries for order 2.
-        if isinstance(soss_timeseries_o2, str):
-            fancyprint('Reading order 2 timeseries file: {}...'.format(soss_timeseries_o2))
-            self.timeseries_o2 = np.load(soss_timeseries_o2)
-        elif (isinstance(soss_timeseries_o2, np.ndarray) or
-              soss_timeseries_o2 is None):
-            self.timeseries_o2 = soss_timeseries_o2
-        else:
-            raise ValueError('Invalid type for timeseries_o2: {}'.format(type(soss_timeseries_o2)))
+        # Unpack timeseries for order 2 -- SOSS only.
+        self.timeseries_o2 = None
+        if self.instrument == 'NIRISS':
+            if isinstance(soss_timeseries_o2, str):
+                fancyprint('Reading order 2 timeseries file: {}...'.format(soss_timeseries_o2))
+                self.timeseries_o2 = np.load(soss_timeseries_o2)
+            elif (isinstance(soss_timeseries_o2, np.ndarray) or
+                  soss_timeseries_o2 is None):
+                self.timeseries_o2 = soss_timeseries_o2
+            else:
+                raise ValueError('Invalid type for timeseries_o2: {}'
+                                 .format(type(soss_timeseries_o2)))
 
         # Unpack pixel masks.
         if pixel_masks is not None:
@@ -589,18 +814,16 @@ class OneOverFStep:
         else:
             self.pixel_masks = pixel_masks
 
-        # Unpack background.
-        if isinstance(soss_background, str):
-            fancyprint('Reading background file: {}...'.format(soss_background))
-            self.background = np.load(soss_background)
-        elif (isinstance(soss_background, np.ndarray) or
-              soss_background is None):
-            self.background = soss_background
-        else:
-            raise ValueError('Invalid type for background: {}'.format(type(soss_background)))
-
-        # Get instrument.
-        self.instrument = utils.get_instrument_name(self.datafiles[0])
+        # Unpack background -- SOSS only.
+        self.background = None
+        if self.instrument == 'NIRISS':
+            if isinstance(soss_background, str):
+                fancyprint('Reading background file: {}...'.format(soss_background))
+                self.background = np.load(soss_background)
+            elif isinstance(soss_background, np.ndarray) or soss_background is None:
+                self.background = soss_background
+            else:
+                raise ValueError('Invalid type for background: {}'.format(type(soss_background)))
 
         # If NIRSpec, get Grating -- needed for frame time in this function
         if self.instrument == 'NIRSPEC':
@@ -654,6 +877,12 @@ class OneOverFStep:
         results : list(datamodel), list(str)
             Input data files processed through the step.
         """
+
+        # Only run for NIR observations.
+        if self.instrument == 'MIRI':
+            fancyprint('1/f noise subtraction not necessary for MIRI.')
+            fancyprint('Skipping 1/f Correction Step.')
+            return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
         if save_results is False:
@@ -889,7 +1118,8 @@ class OneOverFStep:
 
 
 class LinearityStep:
-    """Wrapper around default calwebb_detector1 Linearity Correction step.
+    """Wrapper around default calwebb_detector1 Linearity Correction step with some custom
+    modifications.
     """
 
     def __init__(self, input_data, output_dir):
@@ -914,7 +1144,8 @@ class LinearityStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, do_plot=False, show_plot=False,
+            miri_drop_groups=12, miri_subtract_dark=True, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -927,6 +1158,11 @@ class LinearityStep:
             If True, do step diagnostic plot.
         show_plot : bool
             If True, show the step diagnostic plot.
+        miri_drop_groups : int
+            Number of groups at the beginning of a MIRI exposure ramp to drop due to the RSCD
+            effect.
+        miri_subtract_dark : bool
+            If True, also perform the MIRI dark current subtraction after linearity correction.
         kwargs : dict
             Keyword arguments for calwebb_detector1.linearity_step.LinearityStep.
 
@@ -952,9 +1188,44 @@ class LinearityStep:
                 do_plot, show_plot = False, False
             # If no output files are detected, run the step.
             else:
+                # If it's a MIRI observations and we're going to subtract the dark, we don't need
+                # to save the output at this intermediate point.
+                if self.instrument == 'MIRI' and miri_subtract_dark is True:
+                    this_save = False
+                else:
+                    this_save = save_results
                 step = calwebb_detector1.linearity_step.LinearityStep()
-                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                res = step.call(segment, output_dir=self.output_dir, save_results=this_save,
                                 **kwargs)
+
+                # === MIRI-Specific Calibrations ===
+                # For MIRI observations, the dark current and linearity correction are intrinsically
+                # linked as the dark current subtraction helps remove the RSCD signal. But the
+                # linearity correction needs to be performed on the data before any bias or dark
+                # subtraction is performed.
+                if self.instrument == 'MIRI' and miri_subtract_dark is True:
+                    fancyprint('Subtracting the dark current signal.')
+                    step = calwebb_detector1.dark_current_step.DarkCurrentStep()
+                    res = step.call(res, output_dir=self.output_dir, save_results=save_results)
+
+                # MIRI observations are subject to the RSCD effect in the early groups (see e.g.,
+                # Morrison et al. (2023) PASP, 135, 075004).
+                # Set these groups to DO_NOT_USE until we can think of a better solution.
+                if self.instrument == 'MIRI' and miri_drop_groups is not None:
+                    ngroups = res.meta.exposure.ngroups
+                    if ngroups <= miri_drop_groups + 4:
+                        fancyprint('Exposure only has {0} groups, which is less than the '
+                                   'required amount to drop {1} groups. No additional groups will '
+                                   'be dropped.'.format(ngroups, miri_drop_groups),
+                                   msg_type='WARNING')
+                    else:
+                        fancyprint('Dropping first {} MIRI frame(s).'.format(miri_drop_groups))
+                        for g in range(1, miri_drop_groups+1):
+                            dnu = utils.get_dq_flag_metrics(res.groupdq[:, g], ['DO_NOT_USE'])
+                            ii = np.where(dnu != 1)
+                            res.groupdq[:, g][ii] += 1
+                        res.save(self.output_dir + res.meta.filename)
+
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -966,6 +1237,7 @@ class LinearityStep:
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
+
         # Do step plot if requested.
         if do_plot is True:
             if save_results is True:
@@ -1011,9 +1283,9 @@ class JumpStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, save_results=True, force_redo=False, flag_up_ramp=False,
-            rejection_threshold=15, flag_in_time=True, time_rejection_threshold=10, time_window=5,
-            do_plot=False, show_plot=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, flag_up_ramp=False, rejection_threshold=15,
+            flag_in_time=True, time_rejection_threshold=10, time_window=5, do_plot=False,
+            show_plot=False, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -1071,7 +1343,8 @@ class JumpStep:
                     step = calwebb_detector1.jump_step.JumpStep()
                     res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                     rejection_threshold=rejection_threshold,
-                                    maximum_cores='quarter', minimum_sigclip_groups=1e6, **kwargs)
+                                    maximum_cores='quarter', minimum_sigclip_groups=int(1e6),
+                                    **kwargs)
                 # Time domain jump step must be run for ngroup=2.
                 else:
                     res = segment
@@ -1413,15 +1686,24 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
 
     nints, ngroups, dimy, dimx = np.shape(cube)
 
-    # Mask the detector reset artifact which is picked up by this flagging.
-    # Artifact only affects first 256 integrations for SOSS and first 60 for NIRSpec
-    artifact = utils.mask_reset_artifact(datafile)
+    inst = utils.get_instrument_name(datafile)
+    if inst == 'MIRI':
+        # For MIRI, get list of dropped groups --- don't need to flag these ones.
+        miri_drop_groups = utils.get_miri_dropped_frames(dqcube)
+        artifact = np.zeros((nints, dimy, dimx)).astype(int)
+    else:
+        # Mask the detector reset artifact which is picked up by this flagging.
+        # Artifact only affects first 256 integrations for SOSS and first 60 for NIRSpec
+        artifact = utils.mask_reset_artifact(datafile)
+        miri_drop_groups = []
 
     # Jump detection algorithm based on Nikolov+ (2014). For each integration, create a difference
     # image using the median of surrounding integrations. Flag all pixels with deviations more
     # than X-sigma as comsic rays hits.
     count, interp = 0, 0
     for g in tqdm(range(ngroups)):
+        if g in miri_drop_groups:  # Ignore this group if it's dropped in MIRI.
+            continue
         # Find pixels which deviate more than the specified threshold.
         scale, cube_filt = utils.scatter_normalize_cube(cube[:, g], window=window)
         ii = ((scale >= thresh) & (cube[:, g] > np.nanpercentile(cube[:, g], 10)) & (artifact == 0))
@@ -1453,6 +1735,9 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
     fancyprint('and {} interpolated'.format(interp))
 
     if save_results is True:
+        if not isinstance(datafile, fits.hdu.hdulist.HDUList):
+            datafile.close()
+            datafile = fits.open(output_dir + filename)
         datafile[1].data = cube
         datafile[3].data = dqcube
         outfile = output_dir + fileroot + 'jump.fits'
@@ -2361,7 +2646,8 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                force_redo=False, hot_pixel_map=None, flag_up_ramp=False, rejection_threshold=15,
                flag_in_time=True, time_rejection_threshold=10, root_dir='./', output_tag='',
                skip_steps=None, do_plot=False, show_plot=False, soss_inner_mask_width=40,
-               soss_outer_mask_width=70, centroids=None, nirspec_mask_width=16, **kwargs):
+               soss_outer_mask_width=70, centroids=None, nirspec_mask_width=16, miri_drop_groups=12,
+               miri_subtract_dark=True, **kwargs):
     """Run the exoTEDRF Stage 1 pipeline: detector level processing, using a combination of
     official STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_detector1.html
@@ -2425,6 +2711,10 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         Path to file containing trace positions for each order.
     nirspec_mask_width : int
         Full-width (in pixels) around the target trace to mask for NIRSpec.
+    miri_drop_groups : int
+        Number of groups at the beginning of a MIRI exposure ramp to drop due to the RSCD effect.
+    miri_subtract_dark : bool
+        If True, also perform the MIRI dark current subtraction after linearity correction.
 
     Returns
     -------
@@ -2457,6 +2747,19 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         step = DQInitStep(results, output_dir=outdir, hot_pixel_map=hot_pixel_map)
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
+    # ===== EMI Correction Step =====
+    # Default DMS step.
+    if 'EmiCorrStep' not in skip_steps:
+        if mode.upper() == 'MIRI/LRS':
+            if 'EmiCorrStep' in kwargs.keys():
+                step_kwargs = kwargs['EmiCorrStep']
+            else:
+                step_kwargs = {}
+            step = EmiCorrStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+        else:
+            fancyprint('EmiCorrStep not supported for {}.'.format(mode), msg_type='WARNING')
+
     # ===== Saturation Detection Step =====
     # Default DMS step.
     if 'SaturationStep' not in skip_steps:
@@ -2467,69 +2770,95 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         step = SaturationStep(results, output_dir=outdir)
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
+    # ===== Reset Anomaly Correction Step =====
+    # Default DMS step.
+    if 'ResetStep' not in skip_steps:
+        if mode.upper() == 'MIRI/LRS':
+            if 'ResetStep' in kwargs.keys():
+                step_kwargs = kwargs['ResetStep']
+            else:
+                step_kwargs = {}
+            step = ResetStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+        else:
+            fancyprint('ResetStep not supported for {}.'.format(mode), msg_type='WARNING')
+
     # ===== Superbias Subtraction Step =====
     # Default/Custom DMS step.
     if 'SuperBiasStep' not in skip_steps:
-        if 'SuperBiasStep' in kwargs.keys():
-            step_kwargs = kwargs['SuperBiasStep']
+        if mode.upper() != 'MIRI/LRS':
+            if 'SuperBiasStep' in kwargs.keys():
+                step_kwargs = kwargs['SuperBiasStep']
+            else:
+                step_kwargs = {}
+            step = SuperBiasStep(results, output_dir=outdir, centroids=centroids,
+                                 method=superbias_method)
+            results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
+                               show_plot=show_plot, **step_kwargs)
         else:
-            step_kwargs = {}
-        step = SuperBiasStep(results, output_dir=outdir, centroids=centroids,
-                             method=superbias_method)
-        results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
-                           show_plot=show_plot, **step_kwargs)
+            fancyprint('SuperBiasStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Reference Pixel Correction Step =====
     # Default DMS step.
     if 'RefPixStep' not in skip_steps:
-        if 'RefPixStep' in kwargs.keys():
-            step_kwargs = kwargs['RefPixStep']
+        if mode.upper() == 'NIRISS/SOSS':
+            if 'RefPixStep' in kwargs.keys():
+                step_kwargs = kwargs['RefPixStep']
+            else:
+                step_kwargs = {}
+            step = RefPixStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
         else:
-            step_kwargs = {}
-        step = RefPixStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+            fancyprint('RefPixStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Dark Current Subtraction Step =====
     # Default DMS step.
-    if 'DarkCurrentStep' not in skip_steps:
-        if 'DarkCurrentStep' in kwargs.keys():
-            step_kwargs = kwargs['DarkCurrentStep']
-        else:
-            step_kwargs = {}
-        step = DarkCurrentStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
-
-    if 'OneOverFStep' not in skip_steps:
-        if mode == 'NIRISS/SOSS':
-            # ===== Background Subtraction Step =====
-            # Custom DMS step - imported from Stage2.
-            if 'BackgroundStep' in kwargs.keys():
-                step_kwargs = kwargs['BackgroundStep']
+    if mode.upper() != 'MIRI/LRS':
+        if 'DarkCurrentStep' not in skip_steps:
+            if 'DarkCurrentStep' in kwargs.keys():
+                step_kwargs = kwargs['DarkCurrentStep']
             else:
                 step_kwargs = {}
-            step = stage2.BackgroundStep(input_data=results, baseline_ints=baseline_ints,
-                                         background_model=soss_background_model, output_dir=outdir)
-            results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
-                               show_plot=show_plot, **step_kwargs)
-            results, soss_background_model = results
+            step = DarkCurrentStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
-        # ===== 1/f Noise Correction Step =====
-        # Custom DMS step.
-        if 'OneOverFStep' in kwargs.keys():
-            step_kwargs = kwargs['OneOverFStep']
-        else:
-            step_kwargs = {}
-        step = OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
-                            pixel_masks=pixel_masks, centroids=centroids,
-                            soss_background=soss_background_model, method=oof_method,
-                            soss_timeseries=soss_timeseries, soss_timeseries_o2=soss_timeseries_o2)
-        results = step.run(soss_inner_mask_width=soss_inner_mask_width,
-                           soss_outer_mask_width=soss_outer_mask_width, save_results=save_results,
-                           force_redo=force_redo, do_plot=do_plot, show_plot=show_plot,
-                           nirspec_mask_width=nirspec_mask_width, **step_kwargs)
+    if mode.upper() != 'MIRI/LRS':
+        if 'OneOverFStep' not in skip_steps:
+            if mode == 'NIRISS/SOSS':
+                # ===== Background Subtraction Step =====
+                # Custom DMS step - imported from Stage2.
+                if 'BackgroundStep' in kwargs.keys():
+                    step_kwargs = kwargs['BackgroundStep']
+                else:
+                    step_kwargs = {}
+                step = stage2.BackgroundStep(input_data=results, baseline_ints=baseline_ints,
+                                             background_model=soss_background_model,
+                                             output_dir=outdir)
+                results = step.run(save_results=save_results, force_redo=force_redo,
+                                   do_plot=do_plot, show_plot=show_plot, **step_kwargs)
+                results, soss_background_model = results
+
+            # ===== 1/f Noise Correction Step =====
+            # Custom DMS step.
+            if 'OneOverFStep' in kwargs.keys():
+                step_kwargs = kwargs['OneOverFStep']
+            else:
+                step_kwargs = {}
+            step = OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
+                                pixel_masks=pixel_masks, centroids=centroids,
+                                soss_background=soss_background_model, method=oof_method,
+                                soss_timeseries=soss_timeseries,
+                                soss_timeseries_o2=soss_timeseries_o2)
+            results = step.run(soss_inner_mask_width=soss_inner_mask_width,
+                               soss_outer_mask_width=soss_outer_mask_width,
+                               save_results=save_results, force_redo=force_redo, do_plot=do_plot,
+                               show_plot=show_plot, nirspec_mask_width=nirspec_mask_width,
+                               **step_kwargs)
+    else:
+        fancyprint('OneOverFStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Linearity Correction Step =====
-    # Default DMS step.
+    # Default/Custom DMS step.
     if 'LinearityStep' not in skip_steps:
         if 'LinearityStep' in kwargs.keys():
             step_kwargs = kwargs['LinearityStep']
@@ -2537,7 +2866,8 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = {}
         step = LinearityStep(results, output_dir=outdir)
         results = step.run(save_results=save_results, force_redo=force_redo, do_plot=do_plot,
-                           show_plot=show_plot, **step_kwargs)
+                           show_plot=show_plot, miri_drop_groups=miri_drop_groups,
+                           miri_subtract_dark=miri_subtract_dark, **step_kwargs)
 
     # ===== Jump Detection Step =====
     # Default/Custom DMS step.

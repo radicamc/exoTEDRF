@@ -17,11 +17,11 @@ import os
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import median_filter
+from scipy.optimize import least_squares
 import warnings
 import yaml
 
 import applesoss.edgetrigger_centroids as apl
-from jwst import datamodels
 
 
 def do_replacement(frame, badpix_map, dq=None, xbox_size=5, ybox_size=0):
@@ -224,6 +224,87 @@ def format_out_frames_2(out_frames, max_nint):
         raise ValueError('out_frames must have length 1 or 2.')
 
     return baseline_ints
+
+
+def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_filename='',
+                       allow_slope=False):
+    """Get the MIRI trace centroids via the edgetrigger method.
+
+    Parameters
+    ----------
+    deepframe : array-like[float]
+        Median stack.
+    ystart : int
+        Starting y-pixel position on the frame.
+    yend : int, None
+        Ending y-pixel position on the frame.
+    save_results : bool
+        If True, save results to file.
+    save_filename : str
+        Filename of save file.
+    allow_slope : bool
+        If True, fit a first order polynomial to trace positions, allowing for the trace to be
+        tilted relative to the vertical.
+
+    Returns
+    -------
+    cens : array-like[float]
+        X and Y centroids.
+    """
+
+    dimy, dimx = np.shape(deepframe)
+    if yend is None:
+        yend = dimy
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore')
+        # To calculate the centroids, regardless of the start and end positions specified, use the
+        # pixels where the trace is actually bright.
+        # Also need to flip the deep frame so that the trace is horizontal.
+        if allow_slope is True:
+            poly_order = 1
+        else:
+            poly_order = 0
+        try:
+            cens = apl.get_centroids_edgetrigger(deepframe[::-1].T[:, 26:250], mode='mean',
+                                                 poly_order=poly_order, halfwidth=2)
+        # This prevents a bug in the edgetrigger polyfit routine where if the centroids are all
+        # exactly along the same column they are all rejected by the sigma clipping. For some
+        # reason, increasing the polynomial order avoids this but doesn't change the resulting
+        # centroids.
+        except TypeError:
+            cens = apl.get_centroids_edgetrigger(deepframe[::-1].T[:, 26:250], mode='mean',
+                                                 poly_order=1, halfwidth=2)
+
+    # Unflip/transpose the X and Y coordinates.
+    x1, y1 = cens[1], dimy - (26+cens[0])
+    yy1 = np.linspace(ystart, yend-1, (yend-1) - ystart+1)
+    # If the requested start and end positions are wider than the extent assumed above, extrapolate.
+    # The trace is fit with a first-order polynomial, so extrapolation is fine.
+    if np.min(yy1) < (dimy-250) or np.max(yy1) > (dimy-26):
+        pp = np.polyfit(y1, x1, 1)
+        xx1 = np.polyval(pp, yy1)
+    # If not, interpolate.
+    else:
+        xx1 = np.interp(yy1, y1, x1)
+
+    if save_results is True:
+        centroids_dict = {'xpos': xx1, 'ypos': yy1}
+        df = pd.DataFrame(data=centroids_dict)
+        if save_filename[-1] != '_':
+            save_filename += '_'
+        outfile_name = save_filename + 'centroids.csv'
+        outfile = open(outfile_name, 'w')
+        outfile.write('# File Contents: Edgetrigger trace centroids\n')
+        outfile.write('# File Creation Date: {}\n'.format(
+            datetime.utcnow().replace(microsecond=0).isoformat()))
+        outfile.write('# File Author: MCR\n')
+        df.to_csv(outfile, index=False)
+        outfile.close()
+        fancyprint('Centroids saved to {}'.format(outfile_name))
+
+    cens = np.array([xx1, yy1])
+
+    return cens
 
 
 def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
@@ -553,6 +634,7 @@ def get_instrument_name(datafile):
         Name of instrument.
     """
 
+    from jwst import datamodels
     if isinstance(datafile, str):
         instrument = fits.getheader(datafile)['INSTRUME'].upper()
     elif isinstance(datafile, fits.hdu.hdulist.HDUList):
@@ -606,6 +688,34 @@ def get_interp_box(data, xbox_size, ybox_size, i, j):
     return box_properties
 
 
+def get_miri_dropped_frames(dq_map):
+    """
+
+    Parameters
+    ----------
+    dq_map : array-like(int)
+
+    Returns
+    -------
+    dropped_groups : ndarray(int)
+        List of dropped MIRI groups.
+    """
+
+    # Get readout pattern,
+    nint, ngroup, dimy, dimx = np.shape(dq_map)
+    npix = dimy * dimx
+    dropped_groups = []
+    # Loop over all groups and find ones which are entirely flagged as DO_NOT_USE.
+    for i in range(ngroup):
+        dnu = get_dq_flag_metrics(dq_map[0, i], ['DO_NOT_USE'])
+        # If entire frame is flagged, add to list.
+        if np.sum(dnu) == npix:
+            dropped_groups.append(i)
+    dropped_groups = np.array(dropped_groups)
+
+    return dropped_groups
+
+
 def get_nrs_detector_name(datafile):
     """Get name of detector.
 
@@ -620,6 +730,7 @@ def get_nrs_detector_name(datafile):
         Name of detector.
     """
 
+    from jwst import datamodels
     if isinstance(datafile, str):
         with fits.open(datafile) as file:
             detector = file[0].header['DETECTOR'].lower()
@@ -644,6 +755,7 @@ def get_nrs_grating(datafile):
         Name of grating.
     """
 
+    from jwst import datamodels
     if isinstance(datafile, str):
         grating = fits.getheader(datafile)['GRATING'].upper()
     elif isinstance(datafile, fits.hdu.hdulist.HDUList):
@@ -708,6 +820,7 @@ def get_soss_subarray(datafile):
         Name of subarray.
     """
 
+    from jwst import datamodels
     if isinstance(datafile, str):
         subarray = fits.getheader(datafile)['SUBARRAY'].upper()
     elif isinstance(datafile, fits.hdu.hdulist.HDUList):
@@ -1204,6 +1317,7 @@ def open_filetype(datafile):
         If the filetype passed is not str or jwst.datamodel.
     """
 
+    from jwst import datamodels
     if isinstance(datafile, str):
         data = datamodels.open(datafile)
     elif isinstance(datafile, (datamodels.CubeModel, datamodels.RampModel,
@@ -1245,6 +1359,53 @@ def parse_config(config_file):
             config[key] = None
 
     return config
+
+
+def robust_polyfit(x, y, order, maxiter=5, nstd=3.):
+    """Perform a robust polynomial fit.
+
+    Paremeters
+    ----------
+    x : array, list
+        Independent fitting variable.
+    y : array, list
+        Dependent fitting variable.
+    order : int
+        Polynomial order to fit.
+    maxiter : int
+        Number of iterations for outlier rejection.
+    nstd : float
+        Number of standard deviations to consider a value an outlier.
+
+    Returns
+    -------
+    res : array[float]
+        The best fitting polynomial parameters.
+    """
+
+    def _poly_res(p, x, y):
+        """Residuals from a polynomial.
+        """
+        return np.polyval(p, x) - y
+
+    ii = np.where(np.isfinite(y))
+    x, y = x[ii], y[ii]
+    mask = np.ones_like(x, dtype='bool')
+    for niter in range(maxiter):
+
+        # Fit the data and evaluate the best-fit model.
+        param = np.polyfit(x[mask], y[mask], order)
+        yfit = np.polyval(param, x)
+
+        # Compute residuals and mask ouliers.
+        res = y - yfit
+        stddev = np.std(res)
+        mask = np.abs(res) <= nstd*stddev
+
+    res = least_squares(_poly_res, param, loss='huber', f_scale=0.1,
+                        args=(x[mask], y[mask])).x
+
+    return res
 
 
 def save_extracted_spectra(filename, data, names, units, header_dict=None, header_comments=None,
@@ -1345,15 +1506,18 @@ def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir, ld_model_ty
     # Remove old LD file if one exists.
     if observing_mode == 'NIRISS/SOSS':
         filename = (target+'_order' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type))
-    else:
+    elif 'NIRSPEC' in observing_mode:
         filename = (target + '_NRS' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type))
+    else:
+        filename = (target + '_LRS_exotic-ld_{}.csv'.format(ld_model_type))
     if os.path.exists(outdir + filename):
         os.remove(outdir + filename)
     # Add header info.
     f = open(outdir + filename, 'a')
     f.write('# Target: {}\n'.format(target))
     f.write('# Instrument: {}\n'.format(observing_mode))
-    f.write('# SOSS Order/NRS Detector: {}\n'.format(order))
+    if observing_mode != 'MIRI/LRS':
+        f.write('# SOSS Order/NRS Detector: {}\n'.format(order))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
     f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0).isoformat()))
     f.write('# Stellar M/H: {}\n'.format(m_h))
@@ -1429,13 +1593,12 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
     flux_clipped = np.copy(flux)
     nints, nwaves = np.shape(flux)
     flux_filt = median_filter(flux, (window, 1))
-    ii = window//2
+    ii = window // 2
     flux_filt[:ii] = np.median(flux_filt[ii:(ii+window)], axis=0)
     flux_filt[-ii:] = np.median(flux_filt[-(ii+1+window):-(ii+1)], axis=0)
 
     # Check along the time axis for outlier pixels.
-    std_dev = np.median(np.abs(0.5 * (flux[0:-2] + flux[2:]) -
-                               flux[1:-1]), axis=0)
+    std_dev = np.median(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)
     std_dev = np.where(std_dev == 0, np.inf, std_dev)
     scale = np.abs(flux - flux_filt) / std_dev
     ii = np.where((scale > thresh))
@@ -1551,19 +1714,21 @@ def unpack_input_dir(indir, mode, filter_detector, filetag=''):
             continue
         # Keep files of the correct exposure with the correct tag.
         try:
-            if (header['INSTRUME'] == instrument.upper() and
-                    instrument == 'NIRISS'):
+            if header['INSTRUME'] == instrument.upper() and instrument == 'NIRISS':
                 if header['EXP_TYPE'].split('_')[1] == exposure_type:
                     if header['FILTER'] == filter_detector:
                         if filetag in file:
                             segments.append(file)
-            elif (header['INSTRUME'] == instrument.upper() and
-                  instrument == 'NIRSpec'):
+            elif header['INSTRUME'] == instrument.upper() and instrument == 'NIRSpec':
                 if header['EXP_TYPE'] == 'NRS_BRIGHTOBJ':
                     if header['GRATING'] == exposure_type:
                         if header['DETECTOR'] == filter_detector:
                             if filetag in file:
                                 segments.append(file)
+            elif header['INSTRUME'] == instrument.upper() and instrument == 'MIRI':
+                if header['EXP_TYPE'] == 'MIR_LRS-SLITLESS':
+                    if filetag in file:
+                        segments.append(file)
             else:
                 continue
         except KeyError:
