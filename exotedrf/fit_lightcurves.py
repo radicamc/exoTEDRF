@@ -130,7 +130,7 @@ def fit_lightcurves(config):
                 expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_order{0}.pdf'.format(
                     order, fit_suffix)
                 outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
-            elif 'NIRSPEC' in config['observing_mode']:
+            elif 'NIRSPEC' in config['observing_mode'].upper():
                 expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_{0}.pdf'.format(
                     config['detector'], fit_suffix)
                 outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
