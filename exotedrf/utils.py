@@ -1506,7 +1506,7 @@ def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir, ld_model_ty
     # Remove old LD file if one exists.
     if observing_mode == 'NIRISS/SOSS':
         filename = (target+'_order' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type))
-    elif 'NIRSPEC' in observing_mode:
+    elif 'NIRSPEC' in observing_mode.upper():
         filename = (target + '_NRS' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type))
     else:
         filename = (target + '_LRS_exotic-ld_{}.csv'.format(ld_model_type))

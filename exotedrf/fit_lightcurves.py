@@ -143,7 +143,7 @@ def fit_lightcurves(config):
         # === Set Up Priors and Fit Parameters ===
         if config['observing_mode'] == 'NIRISS/SOSS':
             fancyprint('Fitting order {} at {}.'.format(order, res_str))
-        elif 'NIRSPEC' in config['observing_mode']:
+        elif 'NIRSPEC' in config['observing_mode'].upper():
             fancyprint('Fitting detector {} at {}.'.format(config['detector'], res_str))
         else:
             fancyprint('Fitting light curves at {}.'.format(res_str))
