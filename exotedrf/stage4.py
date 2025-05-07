@@ -605,7 +605,8 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, 
 
 def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, filename, target,
                                extraction_type, resolution, observing_mode, fit_meta='',
-                               occultation_type='transit'):
+                               occultation_type='transit', asymmetric=False, dppm2=None,
+                               dppm2_err=None):
     """Write a transmission/emission spectrum to file.
 
     Parameters
@@ -636,10 +637,19 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, fi
         Fitting metadata.
     occultation_type : str
         Type of occultation; either 'transit' or 'eclipse'.
+    asymmetric : bool
+        If True, an asymmetric transit was fit.
+    dppm2 : array-like[float]
+        For asymmetric transits, transit depth in each bin for the second semi-circle.
+    dppm2_err : array-like[float]
+        For asymmetric transits, error on the transit depth in each bin for the second semi-circle.
     """
 
     # Pack the quantities into a dictionary.
     dd = {'wave': wave, 'wave_err': wave_err, 'dppm': dppm, 'dppm_err': dppm_err}
+    if asymmetric is True:
+        dd['dppm2'] = dppm2
+        dd['dppm2_err'] = dppm2_err
     if observing_mode == 'NIRISS/SOSS':
         dd['order'] = order
     # Save the dictionary as a csv.
@@ -666,6 +676,9 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, fi
     else:
         f.write('# Column dppm: (Fp/F*) (ppm)\n')
         f.write('# Column dppm_err: Error in (Fp/F*) (ppm)\n')
+    if asymmetric is True:
+        f.write('# Column dppm2: (Rp2/R*)^2 (ppm)\n')
+        f.write('# Column dppm2_err: Error in (Rp2/R*)^2 (ppm)\n')
     if observing_mode == 'NIRISS/SOSS':
         f.write('# Column order: SOSS diffraction order\n')
     f.write('#\n')

@@ -94,7 +94,8 @@ def fit_lightcurves(config):
                        'theta5_inst': r'$\theta_5$', 'GP_sigma_inst': r'$GP \sigma$',
                        'GP_rho_inst': r'$GP \rho$', 'GP_S0_inst': r'$GP S0$',
                        'GO_omega0_inst': r'$GP \Omega_0$', 'GP_Q_inst': r'$GP Q$', 'rho': r'$\rho$',
-                       'tsec_p1': r'$T_{sec}$', 'fp_p1_inst': r'$F_p/F_*$'}
+                       'tsec_p1': r'$T_{sec}$', 'fp_p1_inst': r'$F_p/F_*$',
+                       'rp2_p1_inst': r'$R_{p,2}/R_*$', 'phi_p1_inst': r'$\phi$'}
 
     # === Get Detrending Quantities ===
     # Get time axis
@@ -206,6 +207,12 @@ def fit_lightcurves(config):
             priors[param] = {}
             priors[param]['distribution'] = dist
             priors[param]['value'] = hyperp
+
+        # If a transit, will fit be asymmetric?
+        if 'transit' in config['lc_model_type'] and 'rp2_p1_inst' in priors.keys():
+            asymmetric = True
+        else:
+            asymmetric = False
 
         # For transit fits, calculate LD coefficients from stellar models.
         if 'transit' in config['lc_model_type'] and config['ld_fit_type'] != 'free':
@@ -374,6 +381,9 @@ def fit_lightcurves(config):
         models = np.ones((4, nints, nbins)) * np.nan
         residuals = np.ones((nints, nbins)) * np.nan
         order_results = {'dppm': [], 'dppm_err': [], 'wave': wave, 'wave_err': wave_err}
+        if asymmetric is True:
+            order_results['dppm2'] = []
+            order_results['dppm2_err'] = []
         for i, wavebin in enumerate(fit_results.keys()):
             # Make note if something went wrong with this bin.
             skip = False
@@ -384,6 +394,9 @@ def fit_lightcurves(config):
             if skip is True:
                 order_results['dppm'].append(np.nan)
                 order_results['dppm_err'].append(np.nan)
+                if asymmetric is True:
+                    order_results['dppm2'].append(np.nan)
+                    order_results['dppm2_err'].append(np.nan)
             # If not skipped, append median and 1-sigma bounds.
             else:
                 this_result = fit_results[wavebin].get_results_from_fit()
@@ -391,17 +404,28 @@ def fit_lightcurves(config):
                     md = this_result['rp_p1_inst']['median']
                     up = this_result['rp_p1_inst']['up_1sigma']
                     lw = this_result['rp_p1_inst']['low_1sigma']
-                    order_results['dppm'].append((md ** 2) * 1e6)
-                    err_low = (md ** 2 - (md - lw) ** 2) * 1e6
-                    err_up = ((up + md) ** 2 - md ** 2) * 1e6
+                    order_results['dppm'].append((md**2) * 1e6)
+                    err_low = (md**2 - (md - lw)**2) * 1e6
+                    err_up = ((up + md)**2 - md**2) * 1e6
+                    # For asymmetric fits.
+                    if asymmetric is True:
+                        md = this_result['rp2_p1_inst']['median']
+                        up = this_result['rp2_p1_inst']['up_1sigma']
+                        lw = this_result['rp2_p1_inst']['low_1sigma']
+                        order_results['dppm2'].append((md**2) * 1e6)
+                        err2_low = (md**2 - (md - lw)**2) * 1e6
+                        err2_up = ((up + md)**2 - md**2) * 1e6
                 else:
                     md = this_result['fp_p1_inst']['median']
                     up = this_result['fp_p1_inst']['up_1sigma']
                     lw = this_result['fp_p1_inst']['low_1sigma']
                     order_results['dppm'].append(md * 1e6)
-                    err_low = (md ** 2 - (md - lw) ** 2) * 1e6
-                    err_up = ((up + md) ** 2 - md ** 2) * 1e6
+                    err_low = (md**2 - (md - lw)**2) * 1e6
+                    err_up = ((up + md)**2 - md**2) * 1e6
                 order_results['dppm_err'].append(np.max([err_up, err_low]))
+                # For asymmetric fits.
+                if asymmetric is True:
+                    order_results['dppm2_err'].append(np.max([err2_up, err2_low]))
 
             # Summarize fits and make plots if necessary.
             if skip is False:
@@ -501,11 +525,14 @@ def fit_lightcurves(config):
     fancyprint('Writing spectrum to file.')
     for order in ['1', '2']:
         if 'order ' + order not in results_dict.keys():
-            order_results = {'dppm': [], 'dppm_err': [], 'wave': [], 'wave_err': []}
+            if asymmetric is True:
+                order_results = {'dppm': [], 'dppm_err': [],'dppm2': [], 'dppm2_err': [],
+                                 'wave': [], 'wave_err': []}
+            else:
+                order_results = {'dppm': [], 'dppm_err': [], 'wave': [], 'wave_err': []}
             results_dict['order ' + order] = order_results
 
-    # Concatenate transit depths, wavelengths, and associated errors from both
-    # orders.
+    # Concatenate transit depths, wavelengths, and associated errors from both orders.
     depths = np.concatenate([results_dict['order 2']['dppm'], results_dict['order 1']['dppm']])
     errors = np.concatenate([results_dict['order 2']['dppm_err'],
                              results_dict['order 1']['dppm_err']])
@@ -514,6 +541,13 @@ def fit_lightcurves(config):
                                   results_dict['order 1']['wave_err']])
     orders = np.concatenate([2 * np.ones_like(results_dict['order 2']['dppm']),
                              np.ones_like(results_dict['order 1']['dppm'])]).astype(int)
+    if asymmetric is True:
+        depths2 = np.concatenate([results_dict['order 2']['dppm2'],
+                                  results_dict['order 1']['dppm2']])
+        errors2 = np.concatenate([results_dict['order 2']['dppm2_err'],
+                                  results_dict['order 1']['dppm2_err']])
+    else:
+        depths2, errors2 = None, None
 
     # Get target/reduction metadata.
     infile_header = fits.getheader(config['infile'], 0)
@@ -560,7 +594,8 @@ def fit_lightcurves(config):
                                       extraction_type=extract_type, resolution=config['res'],
                                       fit_meta=fit_metadata,
                                       occultation_type=config['lc_model_type'],
-                                      observing_mode=config['observing_mode'])
+                                      observing_mode=config['observing_mode'],
+                                      asymmetric=asymmetric, dppm2=depths2, dppm2_err=errors2)
     fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir + filename))
 
     # === Covariance Matrix ===
