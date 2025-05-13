@@ -307,12 +307,17 @@ def specprofilestep(datafiles, empirical=True, output_dir='./'):
     for i, file in enumerate(datafiles):
         if isinstance(file, str):
             data = fits.getdata(file)
+            if i == 0:
+                cube = data
+            else:
+                cube = np.concatenate([cube, data])
         else:
             data = datamodels.open(file)
-        if i == 0:
-            cube = data.data
-        else:
-            cube = np.concatenate([cube, data.data])
+            if i == 0:
+                cube = data.data
+            else:
+                cube = np.concatenate([cube, data.data])
+            data.close()
     deepstack = utils.make_deepstack(cube)
 
     # Initialize and run the APPLESOSS module with the median stack.
