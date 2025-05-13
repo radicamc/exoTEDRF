@@ -307,13 +307,17 @@ def specprofilestep(datafiles, empirical=True, output_dir='./'):
     for i, file in enumerate(datafiles):
         if isinstance(file, str):
             data = fits.getdata(file)
+            if i == 0:
+                cube = data
+            else:
+                cube = np.concatenate([cube, data])
         else:
             data = datamodels.open(file)
-        if i == 0:
-            cube = data.data
-        else:
-            cube = np.concatenate([cube, data.data])
-        data.close()
+            if i == 0:
+                cube = data.data
+            else:
+                cube = np.concatenate([cube, data.data])
+            data.close()
     deepstack = utils.make_deepstack(cube)
 
     # Initialize and run the APPLESOSS module with the median stack.
@@ -379,7 +383,7 @@ def atoca_extract_soss(datafiles, specprofile, output_dir='./', save_results=Tru
             step = calwebb_spec2.extract_1d_step.Extract1dStep()
             try:
                 res = step.call(segment, output_dir=output_dir, save_results=save_results,
-                                soss_transform=[0, 0, 0], subtract_background=False,
+                                subtract_background=False,
                                 soss_bad_pix='model', soss_width=extract_width,
                                 soss_modelname=soss_modelname, override_specprofile=specprofile,
                                 soss_estimate=soss_estimate)
