@@ -1165,7 +1165,7 @@ def plot_average_covariance(matrices, labels=None, xspan=None):
     plt.show()
 
 
-def plot_quicklook_lightcurve(datafiles):
+def plot_quicklook_lightcurve(datafiles, clip=None):
     """Quick and dirty light curve plot, mostly for validation of
     observations.
     """
@@ -1197,7 +1197,9 @@ def plot_quicklook_lightcurve(datafiles):
     else:
         postage = cube[:, 20:60, 1500:1550]
     timeseries = np.nansum(postage, axis=(1, 2))
-    timeseries = sigmaclip(timeseries, low=2.0, high=2.0).clipped
+    # Sigma clip light curve.
+    if clip is not None:
+        timeseries = sigmaclip(timeseries, low=-1*clip, high=clip).clipped
 
     # Make plot.
     plt.figure(figsize=(6, 4))
