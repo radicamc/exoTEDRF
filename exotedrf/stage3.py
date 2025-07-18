@@ -932,9 +932,9 @@ def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path, orde
         spec[ei].data *= flux_scaling
         # Convert to erg/s/cm2/µm.
         spec[fi].data *= (1e-23 * (3e8 * 1e6) / wave**2)
-        spec[fi].header['UNITS'] = 'erg/s/cm2/µm'
+        spec[fi].header['UNITS'] = 'erg/s/cm2/um'
         spec[ei].data *= (1e-23 * (3e8 * 1e6) / wave**2)
-        spec[ei].header['UNITS'] = 'erg/s/cm2/µm'
+        spec[ei].header['UNITS'] = 'erg/s/cm2/um'
 
     newfile = spectrum_file[:-5] + '_FluxCalibrated.fits'
     fancyprint('Flux calibrated spectra saved to {}'.format(newfile))
