@@ -91,10 +91,8 @@ time_outlier_threshold : 10
 pca_components : 10
 # PCA components to remove during the TSO reconstruction (optional).
 remove_components : None
-# (SOSS only) If True, generate a smoothed estimate of the order 1 white light curve.
+# (SOSS only) If True, generate an estimate of the white light curve.
 generate_lc : True
-# (SOSS only) Timescale on which to smooth lightcurve estimate (optional).
-smoothing_scale : None
 # (SOSS only) If True, use an F277W filter exposure to create a mask of background order 0s.
 generate_order0_mask : False
 # (SOSS only) Path to a processed (superbias and background subtracted) F277W exposure data frame (optional). Only

@@ -155,7 +155,6 @@ def run_dms(config, input_files):
                                     soss_timeseries_o2=config['soss_timeseries_o2'],
                                     oof_method=config['oof_method'],
                                     output_tag=config['output_tag'],
-                                    smoothing_scale=config['smoothing_scale'],
                                     skip_steps=stage2_skip,
                                     generate_lc=config['generate_lc'],
                                     soss_inner_mask_width=config['soss_inner_mask_width'],
