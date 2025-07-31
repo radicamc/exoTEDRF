@@ -189,6 +189,7 @@ def run_dms(config, input_files):
                                     soss_specprofile=config['soss_specprofile'],
                                     centroids=this_centroid,
                                     extract_width=config['extract_width'],
+                                    extract_width_soss2=config['extract_width_soss2'],
                                     st_teff=config['st_teff'],
                                     st_logg=config['st_logg'],
                                     st_met=config['st_met'],

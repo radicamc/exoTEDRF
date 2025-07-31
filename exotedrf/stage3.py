@@ -136,15 +136,17 @@ class Extract1DStep:
                        'Switching to box extraction.', msg_type='WARNING')
             self.extract_method = 'box'
 
-    def run(self, extract_width=40, soss_specprofile=None, centroids=None, save_results=True,
-            force_redo=False, do_plot=False, show_plot=False, use_pastasoss=False,
-            soss_estimate=None):
+    def run(self, extract_width=40, extract_width_soss2=None, soss_specprofile=None, centroids=None,
+            save_results=True, force_redo=False, do_plot=False, show_plot=False,
+            use_pastasoss=False, soss_estimate=None):
         """Method to run the step.
 
         Parameters
         ----------
         extract_width : int
             Full width of extraction aperture to use.
+        extract_width_soss2 : int, None
+            Full width of extraction aperture to use for SOSS order 2.
         soss_specprofile : str, None
             Path to specprofile file.
         centroids : str, None
@@ -186,13 +188,16 @@ class Extract1DStep:
                 if soss_specprofile is None:
                     raise ValueError('specprofile reference file must be provided for ATOCA '
                                      'extraction.')
+                if extract_width == 'optimize':
+                    raise ValueError('Aperture optimization not possible with ATOCA extraction.')
+                if extract_width_soss2 is not None:
+                    fancyprint('Order 2 cannot use a different width for ATOCA extraction.',
+                               msg_type='WARNING')
 
                 results = atoca_extract_soss(self.datafiles, soss_specprofile,
-                                             output_dir=self.output_dir,
-                                             save_results=save_results,
-                                             extract_width=extract_width,
-                                             soss_estimate=soss_estimate,
-                                             fileroots=self.fileroots)
+                                             output_dir=self.output_dir, save_results=save_results,
+                                             extract_width=extract_width, fileroots=self.fileroots,
+                                             soss_estimate=soss_estimate)
 
             # Option 2: Simple aperture extraction - any instrument.
             elif self.extract_method == 'box':
@@ -203,8 +208,8 @@ class Extract1DStep:
                     centroids = pd.read_csv(centroids, comment='#')
                 if self.instrument == 'NIRISS':
                     results = box_extract_soss(self.datafiles, centroids, extract_width,
-                                               do_plot=do_plot, show_plot=show_plot,
-                                               save_results=save_results,
+                                               soss_width_o2=extract_width_soss2, do_plot=do_plot,
+                                               show_plot=show_plot, save_results=save_results,
                                                output_dir=self.output_dir)
                 elif self.instrument == 'NIRSPEC':
                     results = box_extract_nirspec(self.datafiles, centroids, extract_width,
@@ -647,8 +652,8 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
     return wave, flux, ferr, extract_width
 
 
-def box_extract_soss(datafiles, centroids, soss_width, do_plot=False, show_plot=False,
-                     save_results=True, output_dir='./'):
+def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_plot=False,
+                     show_plot=False, save_results=True, output_dir='./'):
     """Perform a simple box aperture extraction on SOSS orders 1 and 2.
 
     Parameters
@@ -658,7 +663,10 @@ def box_extract_soss(datafiles, centroids, soss_width, do_plot=False, show_plot=
     centroids : dict
         Dictionary of centroid positions for all SOSS orders.
     soss_width : int, str
-        Width of extraction box. Or 'optimize'.
+        Width of extraction box for order 1. Or 'optimize'.
+    soss_width_o2 : int, str, None
+        Width of extraction box for order 2. Or 'optimize'. If None, will use the same aperture as
+        order 1.
     do_plot : bool
         If True, do the step diagnostic plot.
     show_plot : bool
@@ -683,7 +691,7 @@ def box_extract_soss(datafiles, centroids, soss_width, do_plot=False, show_plot=
     ferr_o2 : array_like[float]
         2D flux errors for order 2.
     soss_width : int
-        Optimized aperture width.
+        Optimized aperture width for order 1.
     """
 
     datafiles = np.atleast_1d(datafiles)
@@ -709,39 +717,46 @@ def box_extract_soss(datafiles, centroids, soss_width, do_plot=False, show_plot=
     ii = np.where(np.isfinite(y2))
     x2, y2 = x1[ii], y2[ii]
 
-    # ===== Optimize Aperture Width =====
-    if soss_width == 'optimize':
-        fancyprint('Optimizing extraction width...')
-        # Extract order 1 with a variety of widths and find the one that minimizes the white
-        # light curve scatter.
-        scatter = []
-        for w in tqdm(range(10, 61)):
-            flux = do_box_extraction(cube, ecube, y1, width=w, progress=False)[0]
-            wlc = np.nansum(flux, axis=1)
-            s = np.median(np.abs(0.5*(wlc[0:-2] + wlc[2:]) - wlc[1:-1]))
-            scatter.append(s)
-        scatter = np.array(scatter)
-        # Find the width that minimizes the scatter.
-        ii = np.argmin(scatter)
-        soss_width = np.linspace(10, 60, 51)[ii]
-        fancyprint('Using width of {} pxiels.'.format(int(soss_width)))
-
-        # Do diagnostic plot if requested.
-        if do_plot is True:
-            if save_results is True:
-                outfile = output_dir + 'aperture_optimization.png'
-            else:
-                outfile = None
-            plotting.make_soss_width_plot(np.linspace(10, 60, 51), scatter, ii, outfile=outfile,
-                                          show_plot=show_plot)
-
-    # ===== Extraction ======
-    # Do the extraction.
     fancyprint('Performing simple aperture extraction.')
-    fancyprint('Extracting Order 1')
-    flux_o1, ferr_o1 = do_box_extraction(cube, ecube, y1, width=soss_width)
-    fancyprint('Extracting Order 2')
-    flux_o2, ferr_o2 = do_box_extraction(cube, ecube, y2, width=soss_width, extract_end=len(y2))
+    for order, width, y in zip([1, 2], [soss_width, soss_width_o2], [y1, y2]):
+        # Optimize aperture width.
+        if width == 'optimize':
+            fancyprint('Optimizing extraction width for order {}...'.format(order))
+            # Extract with different widths and find the one that minimizes the white light scatter.
+            scatter = []
+            for w in tqdm(range(10, 61)):
+                flux = do_box_extraction(cube, ecube, y, width=w, extract_end=len(y),
+                                         progress=False)[0]
+                wlc = np.nansum(flux, axis=1)
+                s = np.median(np.abs(0.5*(wlc[0:-2] + wlc[2:]) - wlc[1:-1]))
+                scatter.append(s)
+            scatter = np.array(scatter)
+            # Find the width that minimizes the scatter.
+            ii = np.argmin(scatter)
+            width = np.linspace(10, 60, 51)[ii]
+            # For order 1, save this value for possible later use.
+            if order == 1:
+                soss_width = width
+            fancyprint('Using width of {0} pxiels for order {1}.'.format(int(width), order))
+
+            # Do diagnostic plot if requested.
+            if do_plot is True:
+                if save_results is True:
+                    outfile = output_dir + 'aperture_optimization_order{}.png'.format(order)
+                else:
+                    outfile = None
+                plotting.make_soss_width_plot(np.linspace(10, 60, 51), scatter, ii, outfile=outfile,
+                                              show_plot=show_plot)
+
+        # Do the extraction.
+        fancyprint('Extracting Order {}'.format(order))
+        if order == 2:
+            # If None is passed for the order 2 extraction width, just use the same as order 1.
+            if width == None:
+                width = soss_width
+            flux_o2, ferr_o2 = do_box_extraction(cube, ecube, y, width=width, extract_end=len(y))
+        else:
+            flux_o1, ferr_o1 = do_box_extraction(cube, ecube, y, width=width)
 
     # Get default wavelength solution.
     step = calwebb_spec2.extract_1d_step.Extract1dStep()
@@ -1409,9 +1424,9 @@ def wave_and_flux_calibrations(pwcpos, obs_x_pixel, photom_path, spectrace_path,
 
 
 def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extract_method='box',
-               soss_specprofile=None, centroids=None, extract_width=40, st_teff=None, st_logg=None,
-               st_met=None, planet_letter='b', output_tag='', do_plot=False, show_plot=False,
-               **kwargs):
+               soss_specprofile=None, centroids=None, extract_width=40, extract_width_soss2=None,
+               st_teff=None, st_logg=None, st_met=None, planet_letter='b', output_tag='',
+               do_plot=False, show_plot=False, **kwargs):
     """Run the exoTEDRF Stage 3 pipeline: 1D spectral extraction, using a combination of the
     official STScI DMS and custom steps.
 
@@ -1431,8 +1446,10 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
         Specprofile reference file; only neceessary for ATOCA extractions.
     centroids : str, None
         Path to file containing trace positions for each order.
-    extract_width : int
+    extract_width : int, str
         Width around the trace centroids, in pixels, for the 1D extraction.
+    extract_width_soss2 : int, str, None
+        Width of extraction box for order 2. If None, will use the same aperture as order 1.
     st_teff : float, None
         Stellar effective temperature.
     st_logg : float, None
@@ -1486,8 +1503,9 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
         step_kwargs = {}
     step = Extract1DStep(results, extract_method=extract_method, st_teff=st_teff, st_logg=st_logg,
                          st_met=st_met, planet_letter=planet_letter,  output_dir=outdir)
-    spectra = step.run(extract_width=extract_width, soss_specprofile=soss_specprofile,
-                       centroids=centroids, save_results=save_results, force_redo=force_redo,
-                       do_plot=do_plot, show_plot=show_plot, **step_kwargs)
+    spectra = step.run(extract_width=extract_width, extract_width_soss2=extract_width_soss2,
+                       soss_specprofile=soss_specprofile, centroids=centroids,
+                       save_results=save_results, force_redo=force_redo, do_plot=do_plot,
+                       show_plot=show_plot, **step_kwargs)
 
     return spectra
