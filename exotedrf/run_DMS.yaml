@@ -54,11 +54,11 @@ nirspec_mask_width : 16
 # (MIRI only) For linearity correction, number of groups to drop at the start of an integration to mitigate the RSCD
 # effect.
 miri_drop_groups : 12
-# For jump detection; whether to flag outliers up-the-ramp (jwst default).
+# For jump detection; whether to flag outliers up-the-ramp (jwst default method).
 flag_up_ramp : False
 # For jump detection; sigma threshold for a pixel to be flagged as an outlier.
 jump_threshold : 15
-# For jump detection; whether to also flag outliers in the time domain.
+# For jump detection; whether to also flag outliers in the time domain (recommended method).
 flag_in_time : True
 # For time domain jump detection; sigma threshold for a pixel to be flagged as an outlier.
 time_jump_threshold : 10
@@ -91,10 +91,8 @@ time_outlier_threshold : 10
 pca_components : 10
 # PCA components to remove during the TSO reconstruction (optional).
 remove_components : None
-# (SOSS only) If True, generate a smoothed estimate of the order 1 white light curve.
+# (SOSS only) If True, generate an estimate of the white light curve.
 generate_lc : True
-# (SOSS only) Timescale on which to smooth lightcurve estimate (optional).
-smoothing_scale : None
 # (SOSS only) If True, use an F277W filter exposure to create a mask of background order 0s.
 generate_order0_mask : False
 # (SOSS only) Path to a processed (superbias and background subtracted) F277W exposure data frame (optional). Only
@@ -109,6 +107,8 @@ extract_method : 'box'
 # Box width to extract around the trace center. Passing 'optimize' will find and use the aperture width that minimizes
 # the white light curve scatter.
 extract_width : 30
+# (SOSS only) Box width to use for order 2. Passing None will use the same aperture width as for order 1 (optional).
+extract_width_soss2 : None
 # (SOSS only) Specprofile reference file for ATOCA (optional).
 soss_specprofile : None
 # Stellar effective temperature in K for wavelength calibration (optional).

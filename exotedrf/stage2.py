@@ -691,7 +691,7 @@ class PCAReconstructStep:
     """Wrapper around custom PCA Reconstruction Step.
     """
 
-    def __init__(self, input_data, baseline_ints, output_dir='./'):
+    def __init__(self, input_data, baseline_ints, generate_lc=False, output_dir='./'):
         """Step initializer.
 
         Parameters
@@ -700,6 +700,8 @@ class PCAReconstructStep:
             List of paths to input data or the input data itself.
         baseline_ints : array-like(int)
             Integration number(s) to use as ingress and/or egress.
+        generate_lc : bool
+            If True, produce and save an estimate of the white light curve.
         output_dir : str
             Path to directory to which to save outputs.
         """
@@ -708,6 +710,7 @@ class PCAReconstructStep:
         self.tag = 'pcareconstructstep.fits'
         self.output_dir = output_dir
         self.baseline_ints = baseline_ints
+        self.generate_lc = generate_lc
 
         # Unpack input data files.
         self.datafiles = utils.sort_datamodels(input_data)
@@ -786,7 +789,8 @@ class PCAReconstructStep:
                                             output_dir=self.output_dir, save_results=save_results,
                                             fileroot_noseg=self.fileroot_noseg,
                                             fileroots=self.fileroots, do_plot=do_plot,
-                                            show_plot=show_plot)
+                                            show_plot=show_plot, generate_lc=self.generate_lc,
+                                            baseline_ints=self.baseline_ints)
         else:
             results = self.datafiles
 
@@ -813,7 +817,7 @@ class TracingStep:
     """
 
     def __init__(self, input_data, deepframe, output_dir='./', generate_order0_mask=False,
-                 f277w=None, generate_lc=False, baseline_ints=None):
+                 f277w=None):
         """Step initializer.
 
         Parameters
@@ -829,21 +833,13 @@ class TracingStep:
             F277W exposure. For SOSS observations only.
         f277w : str, np.ndarray(float)
             F277W exposure deepstack or path to a file containing one.
-        generate_lc : bool
-            If True, generate an estimate of the order 1 white light curve. For SOSS observations
-            only.
-        baseline_ints : array-like(int), None
-            Integration number(s) to use as ingress and/or egress. Only necessary if generate_lc
-            is True.
         """
 
         # Set up easy attributes.
         self.output_dir = output_dir
-        self.baseline_ints = baseline_ints
 
         # Set toggles for functionalities.
         self.generate_order0_mask = generate_order0_mask
-        self.generate_lc = generate_lc
 
         # Unpack input data files.
         self.datafiles = utils.sort_datamodels(input_data)
@@ -877,13 +873,9 @@ class TracingStep:
                 fancyprint('generate_order0_mask is set to True, but mode is not NIRISS/SOSS. '
                            'Ignoring generate_order0_mask.', msg_type='WARNING')
                 self.generate_order0_mask = False
-            if generate_lc is True:
-                fancyprint('generate_lc is set to True, but mode is not NIRISS/SOSS. Ignoring '
-                           'generate_lc.', msg_type='WARNING')
-                self.generate_lc = False
 
-    def run(self, pixel_flags=None, save_results=True, force_redo=False, smoothing_scale=None,
-            do_plot=False, show_plot=False, allow_miri_slope=False):
+    def run(self, pixel_flags=None, save_results=True, force_redo=False, do_plot=False,
+            show_plot=False, allow_miri_slope=False):
         """Method to run the step.
 
         Parameters
@@ -895,9 +887,6 @@ class TracingStep:
             If True, save results.
         force_redo : bool
             If True, run step even if output files are detected.
-        smoothing_scale : int, None
-            Timescale on which to smooth light curve estimate. Only necessary if generate_lc is
-            True.
         do_plot : bool
             If True, do step diagnostic plot.
         show_plot : bool
@@ -925,10 +914,9 @@ class TracingStep:
         # If no output files are detected, run the step.
         else:
             centroids = tracingstep(datafiles=self.datafiles, deepframe=self.deepframe,
-                                    pixel_flags=pixel_flags, baseline_ints=self.baseline_ints,
+                                    pixel_flags=pixel_flags,
                                     generate_order0_mask=self.generate_order0_mask,
-                                    f277w=self.f277w, generate_lc=self.generate_lc,
-                                    smoothing_scale=smoothing_scale, output_dir=self.output_dir,
+                                    f277w=self.f277w, output_dir=self.output_dir,
                                     save_results=save_results, fileroot_noseg=self.fileroot_noseg,
                                     do_plot=do_plot, show_plot=show_plot,
                                     allow_miri_slope=allow_miri_slope)
@@ -1438,7 +1426,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
 
 def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, output_dir='./',
                           save_results=True, fileroot_noseg='', fileroots=None, do_plot=False,
-                          show_plot=False):
+                          show_plot=False, generate_lc=True, baseline_ints=None):
     """Perform a reconstruction of the TSO datacube using principle component analysis (PCA).
     This allows for the identification and removal of components related to detector-based noise
     (e.g., drifts in the position of the spectral trace).
@@ -1464,6 +1452,10 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
         If True, do the step diagnostic plot.
     show_plot : bool
         If True, show the step diagnostic plot instead of/in addition to saving it to file.
+    generate_lc : bool
+        If True, produce and save an estimate of the white light curve.
+    baseline_ints : array-like(int)
+        Integrations of ingress and egress. Only necessary if generate_lc=True.
 
     Returns
     -------
@@ -1509,6 +1501,18 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
     pcs, var, _ = soss_stability_pca(cube_clipped, n_components=pca_components, outfile=outfile,
                                      do_plot=do_plot, show_plot=show_plot)
 
+    # If a light curve estimate is to be saved for use in later steps, use the first component.
+    if generate_lc is True:
+        fancyprint('Generating a white light curve estimate from the PCA outputs.')
+        # Format the baseline frames.
+        assert baseline_ints is not None
+        baseline_ints = utils.format_out_frames(baseline_ints)
+        wlc = pcs[0] / np.nanmedian(pcs[0][baseline_ints])  # Assume wlc is first component.
+
+        outfile = output_dir + fileroot_noseg + 'lcestimate.npy'
+        fancyprint('White light curve estimate saved to {}'.format(outfile))
+        np.save(outfile, wlc)
+
     # If requested, reconstruct the data cube removing PCs associated with detector trends.
     if remove_components is not None:
         remove_components = np.atleast_1d(remove_components)
@@ -1517,7 +1521,7 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
 
         # Warn if the user wants to potentially remove the light curve.
         if 1 in remove_components:
-            fancyprint('Removing component #1 -- this is generally the light curve!',
+            fancyprint('Removing component #1 -- this is generally the white light curve!',
                        msg_type='WARNING')
 
         newcube = np.copy(cube)
@@ -1595,15 +1599,13 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
 
 
 def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mask=False,
-                f277w=None, generate_lc=True, baseline_ints=None, smoothing_scale=None,
-                output_dir='./', save_results=True, fileroot_noseg='', do_plot=False,
+                f277w=None, output_dir='./', save_results=True, fileroot_noseg='', do_plot=False,
                 show_plot=False, allow_miri_slope=False):
     """A multipurpose step to perform some initial analysis of the 2D dataframes and produce
-    products which can be useful in further reduction iterations. The three functionalities are
+    products which can be useful in further reduction iterations. The functionalities are
     detailed below:
     1. Locate the centroids of all three SOSS orders via the edgetrigger algorithm.
     2. (optional) Generate a mask of order 0 contaminants from background stars.
-    3. (optional) Create a smoothed estimate of the order 1 white light curve.
 
     Parameters
     ----------
@@ -1619,12 +1621,6 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
     f277w : ndarray(float), None
         F277W filter exposure which has been superbias and background corrected. Only necessary if
         generate_order0_mask is True.
-    generate_lc : bool
-        If True, also produce a smoothed order 1 white light curve.
-    baseline_ints : array-like(int)
-        Integrations of ingress and egress. Only necessary if generate_lc=True.
-    smoothing_scale : int, None
-        Timescale on which to smooth the lightcurve. Only necessary if generate_lc=True.
     output_dir : str
         Directory to which to save outputs.
     save_results : bool
@@ -1647,9 +1643,8 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
     fancyprint('Starting Tracing Step.')
 
     datafiles = np.atleast_1d(datafiles)
-    # If no deepframe is passed, construct one. Also generate a datacube for later white light
-    # curve or stability calculations.
-    if deepframe is None or generate_lc is True:
+    # If no deepframe is passed, construct one.
+    if deepframe is None:
         # Construct datacube from the data files.
         for i, file in enumerate(datafiles):
             if isinstance(file, str):
@@ -1709,12 +1704,11 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
         centroids = save_filename + 'centroids.csv'
 
     # If not saving outputs, skip optional parts.
-    if generate_lc is True or generate_order0_mask is True:
+    if generate_order0_mask is True:
         if save_results is False:
             fancyprint('Optional outputs requested but save_results=False. '
                        'Skipping optional outputs.', msg_type='WARNING')
             generate_order0_mask = False
-            generate_lc = False
 
     # ===== PART 2: Create order 0 background contamination mask =====
     # If requested, create a mask for all background order 0 contaminants.
@@ -1745,31 +1739,6 @@ def tracingstep(datafiles, deepframe=None, pixel_flags=None, generate_order0_mas
                 outfile = output_dir + fileroot_noseg + suffix
                 hdu.writeto(outfile, overwrite=True)
                 fancyprint('Order 0 mask saved to {}'.format(outfile))
-
-    # ===== PART 3: Calculate a smoothed light curve =====
-    # If requested, generate a smoothed estimate of the order 1 white light curve.
-    if generate_lc is True:
-        fancyprint('Generating a smoothed light curve')
-        # Format the baseline frames.
-        assert baseline_ints is not None
-        baseline_ints = utils.format_out_frames(baseline_ints)
-
-        # Use an area centered on the peak of the order 1 blaze to estimate the photometric light
-        # curve.
-        postage = cube[:, 20:60, 1500:1550]
-        timeseries = np.nansum(postage, axis=(1, 2))
-        # Normalize by the baseline flux level.
-        timeseries = timeseries / np.nanmedian(timeseries[baseline_ints])
-        # If not smoothing scale is provided, smooth the time series on a timescale of roughly 2%
-        # of the total length.
-        if smoothing_scale is None:
-            smoothing_scale = int(0.02 * np.shape(cube)[0])
-        smoothed_lc = median_filter(timeseries, smoothing_scale)
-
-        if save_results is True:
-            outfile = output_dir + fileroot_noseg + 'lcestimate.npy'
-            fancyprint('Smoothed light curve saved to {}'.format(outfile))
-            np.save(outfile, smoothed_lc)
 
     return centroids
 
@@ -1880,12 +1849,11 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_
 def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, save_results=True,
                force_redo=False, space_thresh=15, time_thresh=15,  remove_components=None,
                pca_components=10, soss_timeseries=None, soss_timeseries_o2=None,
-               oof_method='scale-achromatic', root_dir='./', output_tag='', smoothing_scale=None,
-               skip_steps=None, generate_lc=True, soss_inner_mask_width=40,
-               soss_outer_mask_width=70, nirspec_mask_width=16, pixel_masks=None,
-               generate_order0_mask=True, f277w=None, do_plot=False, show_plot=False,
-               centroids=None, miri_trace_width=20, miri_background_width=14,
-               miri_background_method='median', **kwargs):
+               oof_method='scale-achromatic', root_dir='./', output_tag='', skip_steps=None,
+               generate_lc=True, soss_inner_mask_width=40, soss_outer_mask_width=70,
+               nirspec_mask_width=16, pixel_masks=None, generate_order0_mask=True, f277w=None,
+               do_plot=False, show_plot=False, centroids=None, miri_trace_width=20,
+               miri_background_width=14, miri_background_method='median', **kwargs):
     """Run the exoTEDRF Stage 2 pipeline: spectroscopic processing, using a combination of official
     STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_spec2.html
@@ -1924,12 +1892,10 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         Directory from which all relative paths are defined.
     output_tag : str
         Name tag to append to pipeline outputs directory.
-    smoothing_scale : int, None
-        Timescale on which to smooth the lightcurve.
     skip_steps : list(str), None
         Step names to skip (if any).
     generate_lc : bool
-        If True, produce a smoothed order 1 white light curve.
+        If True, produce an estimate of the white light curve.
     soss_inner_mask_width : int
         Inner mask width, in pixels, around the trace centroids.
     soss_outer_mask_width : int
@@ -2096,7 +2062,8 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
             step_kwargs = kwargs['PCAReconstructStep']
         else:
             step_kwargs = {}
-        step = PCAReconstructStep(results, baseline_ints=baseline_ints, output_dir=outdir)
+        step = PCAReconstructStep(results, baseline_ints=baseline_ints, output_dir=outdir,
+                                  generate_lc=generate_lc)
         step_results = step.run(save_results=save_results, pca_components=pca_components,
                                 remove_components=remove_components, force_redo=force_redo,
                                 do_plot=do_plot, show_plot=show_plot, **step_kwargs)
@@ -2108,11 +2075,9 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
     # Custom DMS step.
     if 'TracingStep' not in skip_steps:
         step = TracingStep(results, deepframe=deepframe, output_dir=outdir,
-                           generate_order0_mask=generate_order0_mask, f277w=f277w,
-                           generate_lc=generate_lc, baseline_ints=baseline_ints)
-        centroids = step.run(pixel_flags=pixel_masks, smoothing_scale=smoothing_scale,
-                             save_results=save_results, do_plot=do_plot, show_plot=show_plot,
-                             force_redo=force_redo)
+                           generate_order0_mask=generate_order0_mask, f277w=f277w)
+        centroids = step.run(pixel_flags=pixel_masks, save_results=save_results, do_plot=do_plot,
+                             show_plot=show_plot, force_redo=force_redo)
     else:
         centroids = None
 
