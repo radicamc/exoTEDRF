@@ -196,6 +196,7 @@ def run_dms(config, input_files):
                                     planet_letter=config['planet_letter'],
                                     output_tag=config['output_tag'],
                                     do_plot=config['do_plots'],
+                                    deepframe=config['deepframe'],
                                     **config['stage3_kwargs'])
 
     return

@@ -102,15 +102,17 @@ f277w : None
 stage2_kwargs : {}
 
 # ===== Stage 3 Input Files & Parameters =====
-# Extraction method. For SOSS, options are 'box' or 'atoca'. For all other instruments, only 'box' is offered.
+# Extraction method. For SOSS, options are 'box' or 'atoca'. For all other instruments options are 'box' or 'optimal'.
 extract_method : 'box'
-# Box width to extract around the trace center. Passing 'optimize' will find and use the aperture width that minimizes
-# the white light curve scatter.
+# Full width to extract around the trace center. Passing None for optimal will extract the whole frame. Passing
+# 'optimize' will find and use the aperture width that minimizes the white light curve scatter for box.
 extract_width : 30
 # (SOSS only) Box width to use for order 2. Passing None will use the same aperture width as for order 1 (optional).
 extract_width_soss2 : None
 # (SOSS only) Specprofile reference file for ATOCA (optional).
 soss_specprofile : None
+# Median stack of the observations. Only necessary for optimal extraction.
+deepframe : None
 # Stellar effective temperature in K for wavelength calibration (optional).
 st_teff : None
 # Stellar log surface gravity for wavelength calibration (optional).

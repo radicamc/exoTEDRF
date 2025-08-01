@@ -13,6 +13,7 @@ import glob
 import numpy as np
 import pandas as pd
 import pastasoss
+from scipy.ndimage import median_filter
 from scipy.signal import butter, filtfilt, correlate
 import spectres
 from spectres.spectral_resampling import make_bins
@@ -100,7 +101,7 @@ class Extract1DStep:
         input_data : array-like(str), array-like(datamodel)
             List of paths to input data or the input data itself.
         extract_method : str
-            1D extraction method to use; either "box" or "atoca".
+            1D extraction method to use; either "box", "optimal", or "atoca".
         st_teff : float
             Stellar effective temperature.
         st_logg : float
@@ -135,10 +136,14 @@ class Extract1DStep:
             fancyprint('ATOCA extraction selected but observation does not use NIRISS/SOSS. '
                        'Switching to box extraction.', msg_type='WARNING')
             self.extract_method = 'box'
+        if self.instrument == 'NIRISS' and extract_method == 'optimal':
+            fancyprint('Optimal extraction not available for NIRISS/SOSS. '
+                       'Switching to box extraction.', msg_type='WARNING')
+            self.extract_method = 'box'
 
     def run(self, extract_width=40, extract_width_soss2=None, soss_specprofile=None, centroids=None,
-            save_results=True, force_redo=False, do_plot=False, show_plot=False,
-            use_pastasoss=False, soss_estimate=None):
+            save_results=True, force_redo=False, do_plot=False, show_plot=False, deepframe=None,
+            use_pastasoss=False, soss_estimate=None, opt_max_iter=25, opt_var_thresh=25):
         """Method to run the step.
 
         Parameters
@@ -159,10 +164,16 @@ class Extract1DStep:
             If True, do step diagnostic plot.
         show_plot : bool
             If True, show the step diagnostic plot.
+        deepframe : str, None
+            Path to file containing a median stack of the observation.
         use_pastasoss : bool
             If True, use pastasoss to esimate trace positions and wavelength solution.
         soss_estimate : str, None
             Path to file containing the soss_estimate for atoca extractions.
+        opt_max_iter : int
+            Maximum number of outlier rejection iterations to perform during optimal extraction.
+        opt_var_thresh : int
+            Variance threshold for a pixel to be flagged as an outlier during optimal exraction.
 
         Returns
         -------
@@ -201,11 +212,13 @@ class Extract1DStep:
 
             # Option 2: Simple aperture extraction - any instrument.
             elif self.extract_method == 'box':
+                # Need to make sure that we have the centroids.
                 if centroids is None:
                     raise ValueError('Centroids must be provided for box extraction.')
                 # If file path is passed, open it.
                 if isinstance(centroids, str):
                     centroids = pd.read_csv(centroids, comment='#')
+
                 if self.instrument == 'NIRISS':
                     results = box_extract_soss(self.datafiles, centroids, extract_width,
                                                soss_width_o2=extract_width_soss2, do_plot=do_plot,
@@ -225,6 +238,31 @@ class Extract1DStep:
                     # Get optimized width.
                     extract_width = int(results[-1])
                 results = results[:-1]
+
+            # Option 3: Optimal extraction - NIRSpec or MIRI.
+            elif self.extract_method == 'optimal':
+                # Need to make sure that we have the centroids and deepframe.
+                if centroids is None:
+                    raise ValueError('Centroids must be provided for optimal extraction.')
+                # If file path is passed, open it.
+                if isinstance(centroids, str):
+                    centroids = pd.read_csv(centroids, comment='#')
+                if deepframe is None:
+                    raise ValueError('Deepframe must be provided for optimal extraction.')
+                # If file path is passed, open it.
+                if isinstance(deepframe, str):
+                    deepframe = fits.getdata(deepframe)
+
+                if self.instrument == 'NIRSPEC':
+                    results = optimal_extract_nirspec(self.datafiles, deepframe, centroids,
+                                                      extract_width, max_iter=opt_max_iter,
+                                                      var_thresh=opt_var_thresh)
+                else:
+                    results = optimal_extract_miri(self.datafiles, deepframe, centroids,
+                                                   extract_width, max_iter=opt_max_iter,
+                                                   var_thresh=opt_var_thresh)
+
+                extract_width = 'N/A'
 
             # Raise exception otherwise.
             else:
@@ -468,7 +506,6 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
     """
 
     datafiles = np.atleast_1d(datafiles)
-    det = utils.get_nrs_detector_name(datafiles[0])
     # Get flux and errors to extract.
     for i, file in enumerate(datafiles):
         if isinstance(file, str):
@@ -524,14 +561,7 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
                                    extract_end=int(np.max(y1)))
 
     # Get default 2D wavelength solution.
-    with datamodels.open(datafiles[0]) as d:
-        wave2d = d.wavelength
-    # Get 1D wavelengths at the locations of the trace centroids.
-    wave1d = np.ones(cube.shape[1]) * np.nan
-    for x, y in zip(x1, y1):
-        wave1d[int(y)] = wave2d[int(y), int(x)]
-
-    wave = np.repeat(wave1d[np.newaxis, :], np.shape(cube)[0], axis=0)
+    wave = get_wave_miri(datafiles[0], centroids, cube.shape[0], cube.shape[1])
 
     return wave, flux, ferr, extract_width
 
@@ -640,14 +670,7 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
     flux, ferr = do_box_extraction(cube, ecube, y1, width=extract_width, extract_start=xstart)
 
     # Get default 2D wavelength solution.
-    with datamodels.open(datafiles[0]) as d:
-        wave2d = d.wavelength
-    # Get 1D wavelengths at the locations of the trace centroids.
-    wave1d = np.ones(cube.shape[2]) * np.nan
-    for x, y in zip(x1, y1):
-        wave1d[int(x)] = wave2d[int(y), int(x)]
-
-    wave = np.repeat(wave1d[np.newaxis, :], np.shape(cube)[0], axis=0)
+    wave = get_wave_nirspec(datafiles[0], centroids, cube.shape[0], cube.shape[2])
 
     return wave, flux, ferr, extract_width
 
@@ -752,18 +775,14 @@ def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_pl
         fancyprint('Extracting Order {}'.format(order))
         if order == 2:
             # If None is passed for the order 2 extraction width, just use the same as order 1.
-            if width == None:
+            if width is None:
                 width = soss_width
             flux_o2, ferr_o2 = do_box_extraction(cube, ecube, y, width=width, extract_end=len(y))
         else:
             flux_o1, ferr_o1 = do_box_extraction(cube, ecube, y, width=width)
 
     # Get default wavelength solution.
-    step = calwebb_spec2.extract_1d_step.Extract1dStep()
-    wavemap = step.get_reference_file(datafiles[0], 'wavemap')
-    # Remove 20 pixel padding that is there for some reason.
-    wave_o1 = np.mean(fits.getdata(wavemap, 1)[20:-20, 20:-20], axis=0)
-    wave_o2 = np.mean(fits.getdata(wavemap, 2)[20:-20, 20:-20], axis=0)
+    wave_o1, wave_o2 = get_wave_soss(datafiles[0])
 
     return wave_o1, flux_o1, ferr_o1, wave_o2, flux_o2, ferr_o2, soss_width
 
@@ -900,6 +919,178 @@ def do_ccf(wave, flux, mod_flux, oversample=5):
     shift_wave = -1*shift_steps*np.median(np.diff(new_wave))
 
     return shift_wave
+
+
+def do_optimal_extraction(cube, deepframe, ymin=0, ymax=None, xmin=0, xmax=None, max_iter=25,
+                          var_thresh=25):
+    """Optimally extract stellar spectra following the Horne 1986 algorithm.
+
+    Parameters
+    ----------
+    cube : ndarray(float)
+        Stack datacube for the observation.
+    deepframe : ndarray(float)
+        Median stack of the observation.
+    ymin : int, ndarray(int)
+        Minimum row number to extract.
+    ymax : int, ndarray(int), None
+        Maximum row number to extract.
+    xmin : int, ndarray(int)
+        Minimum column number to extract.
+    xmax : int, None
+        Maximum column number to extract.
+    max_iter : int
+        Maximum number of outlier rejection iterations to do.
+    var_thresh : int
+        Variance threshold for a pixel to be considered an outlier.
+
+    Returns
+    -------
+    f_opt : ndarray(float)
+        Optimally extracted flux.
+    var_opt : ndarray(float)
+        Variance in optimally extracted flux.
+    """
+
+    nint, dimy, dimx = np.shape(cube)
+    if ymax is None:
+        ymax = dimy
+    if xmax is None:
+        xmax = dimx
+
+    if isinstance(ymin, int):
+        ymin = np.ones(xmax - xmin).astype(int) * ymin
+    if isinstance(ymax, int):
+        ymax = np.ones(xmax - xmin).astype(int) * ymax
+
+    # Get initial flux estimate - Step 4.
+    flux = np.zeros((nint, dimx))
+    for x in range(xmin, xmax):
+        xx = x - xmin
+        flux[:, x] = np.nansum(cube[:, ymin[xx]:ymax[xx], x], axis=1)
+
+    # Get initial variance estimate - Step 4.
+    var_0 = np.nanstd(cube, axis=0)**2
+    var = np.ones_like(cube)
+    for i in range(cube.shape[0]):
+        var[i] = var_0
+
+    # Get normalized spatial profile - Step 5.
+    prof = get_spatial_prof_opt(deepframe, ymin=ymin, ymax=ymax, xmin=xmin, xmax=xmax)
+
+    # Revise variance estimate - Step 6.
+    # Assuming 0 for background flux and 1 for gain.
+    for x in range(xmin, xmax):
+        xx = x - xmin
+        var[:, ymin[xx]:ymax[xx], x] += (np.abs(flux[:, None, x] * prof[None, ymin[xx]:ymax[xx], x] + 0)) / 1
+
+    # Optimal extraction - Step 8.
+    f_opt, var_opt = extract_optimal(prof, cube, var, ymin=ymin, ymax=ymax, xmin=xmin, xmax=xmax)
+
+    # Loop steps 6 - 8, iteratively clipped outliers.
+    fancyprint('Doing iterative outlier clipping.')
+    num_clipped = []
+    for n_iter in tqdm(range(max_iter)):
+        # Break if maximum number of iterations.
+        if n_iter > max_iter:
+            fancyprint('Maximum number of iterations ({}) exceeded.'.format(max_iter))
+            break
+        # Find and clip outliers.
+        cube_filt, lls = median_filter(cube, (11, 1, 1)), []
+        for i in range(cube.shape[0]):
+            c, f = cube[i, :, xmin:xmax], f_opt[i, None, xmin:xmax]
+            v, p = var[i, :, xmin:xmax], prof[:, xmin:xmax]
+            ii = np.where(np.abs(c - f * p)**2 / v > var_thresh)
+            cube[i, :, xmin:xmax][ii] = cube_filt[i, :, xmin:xmax][ii]
+            lls.append(len(ii[0]))
+        npix = np.sum(lls)
+        num_clipped.append(npix)
+
+        # Revise variance estimate.
+        var_0 = np.nanstd(cube, axis=0)**2
+        var = np.ones_like(cube)
+        for i in range(cube.shape[0]):
+            var[i] = var_0
+        var[var == 0] = np.inf
+
+        # Do optimal extraction.
+        f_opt, var_opt = extract_optimal(prof, cube, var, ymin=ymin, ymax=ymax, xmin=xmin,
+                                         xmax=xmax)
+
+        # Break if we've hit a floor in the number of clipped pixels but haven't exceeded the
+        # maximum iteration count.
+        if n_iter != 0 and npix == num_clipped[n_iter - 1]:
+            fancyprint('Outlier floor reached.')
+            break
+        # Or break if there are no more outliers left.
+        if npix == 0:
+            fancyprint('All outliers masked.')
+            break
+
+    return f_opt, var_opt
+
+
+def extract_optimal(prof, data, var, ymin=0, ymax=None, xmin=0, xmax=None):
+    """Perform the optimal extraction following formula in Step 8 of Horne 1986.
+
+    Parameters
+    ----------
+    prof : ndarray(float)
+        Normalized 2D spatial profile.
+    data : ndarray(float)
+        Stacked datacube of the observations.
+    var : ndarray(float)
+        Variance of the data.
+    ymin : int, ndarray(int)
+        Minimum row number to extract.
+    ymax : int, ndarray(int), None
+        Maximum row number to extract.
+    xmin : int, ndarray(int)
+        Minimum column number to extract.
+    xmax : int, None
+        Maximum column number to extract.
+
+    Returns
+    -------
+    f_opt : ndarray(float)
+        Optimally extracted flux.
+    var_opt : ndarray(float)
+        Variance in optimally extracted flux.
+    """
+
+    nint, dimy, dimx = np.shape(data)
+    if ymax is None:
+        ymax = dimy
+    if xmax is None:
+        xmax = dimx
+    ymax = np.atleast_1d(ymax)
+    ymin = np.atleast_1d(ymin)
+
+    f_opt, var_opt = np.zeros((nint, dimx)), np.zeros((nint, dimx))
+
+    # If the y-bounds are constant.
+    if len(ymin) == 1:
+        assert len(ymax) == 1
+        ymin, ymax = ymin[0], ymax[0]
+        p = prof[None, ymin:ymax, xmin:xmax]
+        d = data[:, ymin:ymax, xmin:xmax]
+        v = var[:, ymin:ymax, xmin:xmax]
+        f_opt[:, xmin:xmax] = np.nansum(p * d / v, axis=1) / np.nansum(p ** 2 / v, axis=1)
+        var_opt[:, xmin:xmax] = np.nansum(p, axis=1) / np.nansum(p ** 2 / v, axis=1)
+    # For non-constant y-bounds.
+    else:
+        xdim_trim = prof[:, xmin:xmax].shape[1]
+        assert len(ymax) == xdim_trim
+        assert len(ymin) == xdim_trim
+        for x in range(xmin, xmax):
+            xx = x - xmin
+            p = prof[None, ymin[xx]:ymax[xx], x]
+            d = data[:, ymin[xx]:ymax[xx], x]
+            v = var[:, ymin[xx]:ymax[xx], x]
+            f_opt[:, x] = np.nansum(p * d / v, axis=1) / np.nansum(p ** 2 / v, axis=1)
+            var_opt[:, x] = np.nansum(p, axis=1) / np.nansum(p ** 2 / v, axis=1)
+
+    return f_opt, var_opt
 
 
 def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path, orders=[1, 2]):
@@ -1334,6 +1525,291 @@ def get_soss_estimate(atoca_spectra, output_dir):
     return estimate_filename
 
 
+def get_spatial_prof_opt(deepframe, ymin=0, ymax=None, xmin=0, xmax=None):
+    """Create a normalized spatial profile from a deep stack for optimal extraction.
+
+    Parameters
+    ----------
+    deepframe : ndarray(float)
+        Median stack of the observations.
+    ymin : int, ndarray(int)
+        Minimum y value to use for normalization.
+    ymax : int, ndarray(int), None
+        Maximum y value to use for normalization.
+    xmin : int, None
+        Minimum x value to consider.
+    xmax : int, None
+        Maximum x value to consider.
+
+    Returns
+    -------
+    prof : ndarray(float)
+        Column-normalized spatial profile.
+    """
+
+    if ymax is None:
+        ymax = np.shape(deepframe)[0]
+    if xmax is None:
+        xmax = np.shape(deepframe)[1]
+    ymax = np.atleast_1d(ymax)
+    ymin = np.atleast_1d(ymin)
+
+    deepframe[deepframe < 0] = 0  # Ensure positivity
+    deepframe[:, :5] = deepframe[:, 5][:, None]  # Interpolate edge columns
+    deepframe[:, -6:] = deepframe[:, -6][:, None]
+
+    # Do the profile normalization
+    # If the y-bounds are constant.
+    prof = np.zeros_like(deepframe)
+    if len(ymin) == 1:
+        assert len(ymax) == 1
+        ymin, ymax = ymin[0], ymax[0]
+        prof[:, xmin:xmax] = deepframe[:, xmin:xmax] / np.nansum(deepframe[ymin:ymax, xmin:xmax],
+                                                                 axis=0)
+    # For non-constant y-bounds.
+    else:
+        xdim = deepframe[:, xmin:xmax].shape[1]
+        assert len(ymax) == xdim
+        assert len(ymin) == xdim
+        for x in range(xmin, xmax):
+            xx = x - xmin
+            prof[:, x] = deepframe[:, x] / np.nansum(deepframe[ymin[xx]:ymax[xx], x], axis=0)
+
+    return prof
+
+
+def get_wave_miri(datafile, centroids, nint, nwave):
+    """Get the default MIRI wavelngth solution.
+
+    Parameters
+    ----------
+    datafile : str
+        Datafile from the observation.
+    centroids : dict
+        Centroids dictionary.
+    nint : int
+        Number of integrations in the observation.
+    nwave : int
+        Number of wavelength channels in the observation.
+
+    Returns
+    -------
+    wave : ndarray[float]
+        2D wavelength solution.
+    """
+
+    with datamodels.open(datafile) as d:
+        wave2d = d.wavelength
+    # Get 1D wavelengths at the locations of the trace centroids.
+    wave1d = np.ones(nwave) * np.nan
+    x1, y1 = centroids['xpos'].values, centroids['ypos'].values
+    for x, y in zip(x1, y1):
+        wave1d[int(y)] = wave2d[int(y), int(x)]
+
+    wave = np.repeat(wave1d[np.newaxis, :], nint, axis=0)
+
+    return wave
+
+
+def get_wave_nirspec(datafile, centroids, nint, nwave):
+    """Get the default NIRSpec wavelngth solution.
+
+    Parameters
+    ----------
+    datafile : str
+        Datafile from the observation.
+    centroids : dict
+        Centroids dictionary.
+    nint : int
+        Number of integrations in the observation.
+    nwave : int
+        Number of wavelength channels in the observation.
+
+    Returns
+    -------
+    wave : ndarray[float]
+        2D wavelength solution.
+    """
+
+    # Get default 2D wavelength solution.
+    with datamodels.open(datafile) as d:
+        wave2d = d.wavelength
+    # Get 1D wavelengths at the locations of the trace centroids.
+    wave1d = np.ones(nwave) * np.nan
+    x1, y1 = centroids['xpos'].values, centroids['ypos'].values
+    for x, y in zip(x1, y1):
+        wave1d[int(x)] = wave2d[int(y), int(x)]
+
+    wave = np.repeat(wave1d[np.newaxis, :], nint, axis=0)
+
+    return wave
+
+
+def get_wave_soss(datafile):
+    """Get the default NIRISS wavelngth solution.
+
+    Parameters
+    ----------
+    datafile : str
+        Datafile from the observation.
+
+    Returns
+    -------
+    wave_o1 : ndarray[float]
+        2D wavelength solution for order 1
+    wave_o2 : ndarray[float]
+        2D wavelength solution for order 2
+    """
+
+    step = calwebb_spec2.extract_1d_step.Extract1dStep()
+    wavemap = step.get_reference_file(datafile, 'wavemap')
+    # Remove 20 pixel padding that is there for some reason.
+    wave_o1 = np.mean(fits.getdata(wavemap, 1)[20:-20, 20:-20], axis=0)
+    wave_o2 = np.mean(fits.getdata(wavemap, 2)[20:-20, 20:-20], axis=0)
+
+    return wave_o1, wave_o2
+
+
+def optimal_extract_miri(datafiles, deepframe, centroids, extract_width=None, max_iter=25,
+                         var_thresh=25):
+    """Perform am optimal extraction on MIRI.
+
+    Parameters
+    ----------
+    datafiles : array-like[str], array-like[jwst.RampModel]
+        Input datamodels or paths to datamodels for each segment.
+    deepframe : array-like(float)
+        Median stack of the observation.
+    centroids : dict
+        Dictionary of centroid positions.
+    extract_width : int, None
+        Width of extraction box.
+    max_iter : int
+        Maximum number of outlier rejection iterations to perform during extraction.
+    var_thresh : int
+        Variance threshold for a pixel to be flagged as an outlier.
+
+
+    Returns
+    -------
+    wave : ndarray[float]
+        2D wavelength solution.
+    flux : ndarray[float]
+        2D extracted flux.
+    ferr: ndarray[float]
+        2D flux errors.
+    extract_width : int
+        Optimized aperture width.
+    """
+
+    datafiles = np.atleast_1d(datafiles)
+    # Get flux to extract.
+    for i, file in enumerate(datafiles):
+        if isinstance(file, str):
+            data = fits.getdata(file)
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+        if i == 0:
+            cube = data
+        else:
+            cube = np.concatenate([cube, data])
+
+    # Get centroid positions.
+    nint, dimy, dimx = np.shape(cube)
+    x1, y1 = centroids['xpos'].values, centroids['ypos'].values
+    # If an extraction width is provided, only extract over this region.
+    if extract_width is not None:
+        ymax = np.round(np.min([x1 + extract_width/2, np.ones_like(x1) * dimx], axis=0), 0).astype(int)
+        ymin = np.round(np.max([x1 - extract_width/2, np.zeros_like(x1)], axis=0), 0).astype(int)
+    # If not, extract the entire frame.
+    else:
+        ymin = 0
+        ymax = dimx
+
+    # ===== Extraction ======
+    # Do the extraction.
+    fancyprint('Performing optimal extraction.')
+    flux, ferr = do_optimal_extraction(cube.transpose(0, 2, 1), deepframe.transpose(1, 0), ymin,
+                                       ymax, xmin=int(np.min(y1)), xmax=int(np.max(y1)),
+                                       max_iter=max_iter, var_thresh=var_thresh)
+
+    # Get default 2D wavelength solution.
+    wave = get_wave_miri(datafiles[0], centroids, cube.shape[0], cube.shape[1])
+
+    return wave, flux, ferr, extract_width
+
+
+def optimal_extract_nirspec(datafiles, deepframe, centroids, extract_width=None, max_iter=25,
+                            var_thresh=25):
+    """Perform am optimal extraction on NIRSpec.
+
+    Parameters
+    ----------
+    datafiles : array-like[str], array-like[jwst.RampModel]
+        Input datamodels or paths to datamodels for each segment.
+    deepframe : array-like(float)
+        Median stack of the observation.
+    centroids : dict
+        Dictionary of centroid positions for all SOSS orders.
+    extract_width : int, None
+        Width of extraction box.
+    max_iter : int
+        Maximum number of outlier rejection iterations to perform during extraction.
+    var_thresh : int
+        Variance threshold for a pixel to be flagged as an outlier.
+
+    Returns
+    -------
+    wave : ndarray[float]
+        2D wavelength solution.
+    flux : ndarray[float]
+        2D extracted flux.
+    ferr: ndarray[float]
+        2D flux errors.
+    """
+
+    datafiles = np.atleast_1d(datafiles)
+    # Get flux to extract.
+    for i, file in enumerate(datafiles):
+        if isinstance(file, str):
+            data = fits.getdata(file)
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+        if i == 0:
+            cube = data
+        else:
+            cube = np.concatenate([cube, data])
+
+    # Get centroid positions.
+    nint, dimy, dimx = np.shape(cube)
+    x1, y1 = centroids['xpos'].values, centroids['ypos'].values
+    # If an extraction width is provided, only extract over this region.
+    if extract_width is not None:
+        ymax = np.round(np.min([y1 + extract_width/2, np.ones_like(y1) * dimy], axis=0), 0).astype(int)
+        ymin = np.round(np.max([y1 - extract_width/2, np.zeros_like(y1)], axis=0), 0).astype(int)
+    # If not, extract the entire frame.
+    else:
+        ymin = 0
+        ymax = dimy
+
+    # ===== Extraction ======
+    # Do the extraction.
+    fancyprint('Performing optimal extraction.')
+    det = utils.get_nrs_detector_name(datafiles[0])
+    subarray = utils.get_soss_subarray(datafiles[0])
+    grating = utils.get_nrs_grating(datafiles[0])
+    xstart = utils.get_nrs_trace_start(det, subarray, grating)
+    flux, ferr = do_optimal_extraction(cube, deepframe, ymin, ymax, xmin=xstart, max_iter=max_iter,
+                                       var_thresh=var_thresh)
+
+    # Get default 2D wavelength solution.
+    wave = get_wave_nirspec(datafiles[0], centroids, cube.shape[0], cube.shape[2])
+
+    return wave, flux, ferr
+
+
 def wave_and_flux_calibrations(pwcpos, obs_x_pixel, photom_path, spectrace_path, order=1):
     """This function wavelength and flux calibrates an input spectrum expressed in adu per sec
     sampled at a detector x position in pixels. This uses the DMS reference files  (assuming they
@@ -1426,7 +1902,8 @@ def wave_and_flux_calibrations(pwcpos, obs_x_pixel, photom_path, spectrace_path,
 def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extract_method='box',
                soss_specprofile=None, centroids=None, extract_width=40, extract_width_soss2=None,
                st_teff=None, st_logg=None, st_met=None, planet_letter='b', output_tag='',
-               do_plot=False, show_plot=False, **kwargs):
+               do_plot=False, show_plot=False, opt_max_iter=25, opt_var_thresh=25, deepframe=None,
+               **kwargs):
     """Run the exoTEDRF Stage 3 pipeline: 1D spectral extraction, using a combination of the
     official STScI DMS and custom steps.
 
@@ -1441,7 +1918,7 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
     force_redo : bool
         If True, redo steps even if outputs files are already present.
     extract_method : str
-        Either 'box' or 'atoca'. Runs the applicable 1D extraction routine.
+        Either 'box', 'optimal', or 'atoca'. Runs the applicable 1D extraction routine.
     soss_specprofile : str, None
         Specprofile reference file; only neceessary for ATOCA extractions.
     centroids : str, None
@@ -1465,6 +1942,12 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
     show_plot : bool
         Only necessary if do_plot is True. Show the diagnostic plots in addition to/instead of
         saving to file.
+    opt_max_iter : int
+        Maximum number of outlier rejection iterations to perform during optimal extraction.
+    opt_var_thresh : int
+        Variance threshold for a pixel to be flagged as an outlier during optimal exraction.
+    deepframe : str, None
+        Path to file containing a median stack of the observation.
 
     Returns
     -------
@@ -1506,6 +1989,7 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
     spectra = step.run(extract_width=extract_width, extract_width_soss2=extract_width_soss2,
                        soss_specprofile=soss_specprofile, centroids=centroids,
                        save_results=save_results, force_redo=force_redo, do_plot=do_plot,
-                       show_plot=show_plot, **step_kwargs)
+                       show_plot=show_plot, deepframe=deepframe, opt_max_iter=opt_max_iter,
+                       opt_var_thresh=opt_var_thresh, **step_kwargs)
 
     return spectra
