@@ -166,7 +166,7 @@ def fit_lightcurves(config):
             flux, err = flux[:, ii], err[:, ii]
             wave, wave_err = wave[ii], wave_err[ii]
         # For NRS1, only fit wavelengths larger than blue cutoff.
-        if config['detector'] == 'NRS1' and config['observing_mode'].upper() == 'NIRSPEC/G395H':
+        if config['detector'] == 'NRS1' and 'NIRSPEC' in config['observing_mode'].upper():
             if config['res'] != 'prebin':
                 ii = np.where(wave >= config['nrs1_blue'])[0]
                 flux, err = flux[:, ii], err[:, ii]
@@ -250,8 +250,8 @@ def fit_lightcurves(config):
                          'NIRSpec/G395M': 'JWST_NIRSpec_G395M',
                          'NIRSpec/G235H': 'JWST_NIRSpec_G235H',
                          'NIRSpec/G235M': 'JWST_NIRSpec_G235M',
-                         'NIRSpec/G140H': 'JWST_NIRSpec_G140H',
-                         'NIRSpec/G140M': 'JWST_NIRSpec_G140M',
+                         'NIRSpec/G140H': 'JWST_NIRSpec_G140H-f100',
+                         'NIRSpec/G140M': 'JWST_NIRSpec_G140M-f100',
                          'MIRI/LRS': 'JWST_MIRI_LRS'}
                 if config['observing_mode'] != 'NIRISS/SOSS':
                     thismode = config['observing_mode']
