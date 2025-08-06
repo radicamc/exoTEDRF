@@ -786,12 +786,12 @@ def get_nrs_trace_start(detector, subarray, grating):
     """
 
     if detector == 'nrs1':
-        if grating == 'G395H':
+        if grating in ['G395H', 'G235H', 'G140H']:
             if subarray == 'SUB1024B':
                 xstart = 0
             else:
                 xstart = 500  # Trace starts at pixel ~500 for G395M in SUB2048.
-        elif grating == 'G395M':
+        elif grating in ['G395M', 'G235M', 'G140M']:
             if subarray == 'SUB1024B':
                 xstart = 0
             else:
@@ -1236,7 +1236,7 @@ def mask_reset_artifact(datafile):
         max_reset_int = 256
     else:
         grating = get_nrs_grating(datafile)
-        if grating == 'G395H':
+        if grating in ['G395H', 'G235H', 'G140H']:
             if subarray not in ['SUB2048', 'SUB1024B']:
                 fancyprint('Reset artifact masking not tested for subarray {}. Proceed with '
                            'caution. '.format(subarray), msg_type='WARNING')
@@ -1246,7 +1246,7 @@ def mask_reset_artifact(datafile):
                 max_reset_int = 62
             else:
                 max_reset_int = 58
-        elif grating == 'G395M':
+        elif grating in ['G395M', 'G235M', 'G140M']:
             if subarray not in ['SUB2048', 'SUB1024B']:
                 fancyprint('Reset artifact masking not tested for subarray {}. Proceed with '
                            'caution. '.format(subarray), msg_type='WARNING')
