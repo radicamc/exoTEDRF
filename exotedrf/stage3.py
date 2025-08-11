@@ -1130,7 +1130,7 @@ def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path, orde
             fi, ei = 7, 8
 
         # Calculate the ADU/s to Jy flux calibration.
-        flux_scaling = wave_and_flux_calibrations(pwcpos=pwcpos, obs_x_pixel=np.arange(2048),
+        flux_scaling = wave_and_flux_calibrations(pwcpos=pwcpos, obs_x_pixel=np.arange(2048)[::-1],
                                                   photom_path=photom_path,
                                                   spectrace_path=spectrace_path, order=order)
         # Apply the flux calibration.
