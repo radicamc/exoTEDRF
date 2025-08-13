@@ -309,7 +309,7 @@ def calculate_residual_covariance(model_files):
 
 @ray.remote
 def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins, lc_model_type, ld_model,
-             model_function, debug=False):
+             model_function, debug=False, force_redo=False):
     """Functional wrapper around run_uporf to make it compatible for multiprocessing with ray.
     """
 
@@ -332,14 +332,14 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins, lc_model_typ
         linear_regressors = {'inst': data_dictionary['lm_parameters']}
 
     fit_results = run_uporf(priors, t, flux, output_dir, gp_regressors, linear_regressors,
-                            lc_model_type, ld_model, model_function, debug)
+                            lc_model_type, ld_model, model_function, debug, force_redo)
 
     return fit_results
 
 
 def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthreads=4,
                     observing_mode='NIRISS/SOSS', lc_model_type='transit', ld_model='quadratic',
-                    custom_lc_function=None, debug=False):
+                    custom_lc_function=None, debug=False, force_redo=False):
     """Wrapper about both the exoUPRF and ray libraries to parallelize exoUPRF's light curve
     fitting functionality.
 
@@ -367,6 +367,8 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
         Custom light curve function call, if being used.
     debug : bool
         If True, always break when encountering an error.
+    force_redo : bool
+        If True, overwrite any existing fit outputs.
 
 
     Returns
@@ -402,7 +404,7 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
                                         output_dir=outdir, bin_no=num_bins[i],
                                         num_bins=len(num_bins), lc_model_type=lc_model_type,
                                         ld_model=ld_model, model_function=custom_lc_function,
-                                        debug=debug))
+                                        debug=debug, force_redo=force_redo))
     # Run the fits.
     ray_results = ray.get(all_fits)
 
@@ -536,7 +538,7 @@ def read_ld_coefs(filename, wavebin_low, wavebin_up):
 
 
 def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, lc_model_type,
-              ld_model, model_function, debug=False):
+              ld_model, model_function, debug=False, force_redo=False):
     """Wrapper around the lightcurve fitting functionality of the exoUPRF package.
 
     Parameters
@@ -561,6 +563,8 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, 
         Function call for custom light curve model, if being used.
     debug : bool
         If True, always break when encountering an error.
+    force_redo : bool
+        If True, overwrite existing fit outputs.
 
     Returns
     -------
@@ -584,7 +588,7 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, 
 
         # Run the fit.
         try:
-            dataset.fit(output_file=out_folder, sampler='NestedSampling', force_redo=True)
+            dataset.fit(output_file=out_folder, sampler='NestedSampling', force_redo=force_redo)
             res = dataset
         except KeyboardInterrupt as err:
             raise err

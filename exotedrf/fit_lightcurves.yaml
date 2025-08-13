@@ -48,6 +48,8 @@ npix : None
 planet_letter : 'b'
 # If True, run light curve fitting in debugging mode (i.e., don't catch errors).
 debug : False
+# If True, will overwrite any existing fit outputs.
+force_redo : False
 
 # ====== Fit Priors + Parameters ======
 # Fitting priors in exoUPRF format.

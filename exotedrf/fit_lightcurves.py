@@ -371,7 +371,7 @@ def fit_lightcurves(config):
                                              lc_model_type=config['lc_model_type'],
                                              ld_model=config['ld_model_type'],
                                              custom_lc_function=custom_lc_function,
-                                             debug=config['debug'])
+                                             debug=config['debug'], force_redo=config['force_redo'])
 
         # === Summarize Fit Results ===
         # Loop over results for each wavebin, extract best-fitting parameters and make summary
