@@ -7,7 +7,7 @@ Created on 15 August 2025
 
 Custom JWST optimizer for exoTEDRF pipeline
 """
-print("RUN OPTIMIZER")
+
 # ======== STANDARD LIBRARY IMPORTS ========
 import os       # For file paths and environment variable handling
 import sys      # For exiting with error messages

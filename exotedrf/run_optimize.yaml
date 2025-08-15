@@ -113,7 +113,7 @@ stage3_kwargs : {}
 # Name tag for output file directory.
 output_tag : ''
 # Integrations of ingress and/or egress.
-baseline_ints : [150, -100]
+baseline_ints : [150]
 # File with trace centroids for box extraction and 1/f correction (optional).
 centroids : None
 # If True, make more diagnostic plots.
