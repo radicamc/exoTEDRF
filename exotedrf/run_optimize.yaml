@@ -1,0 +1,174 @@
+# ========================= BEGIN DMS CONFIG FILE =============================
+#
+# This is the configuration file for run_DMS.py.
+#
+# ===== Key Parameters ===== 
+# Path to CRDS cache.
+crds_cache_path : './crds_cache/'
+crds_context: 'jwst_1322.pmap'
+# Input data file directory.
+input_dir : 'DMS_uncal/'
+# Input file tag.
+input_filetag : 'uncal'
+# Instrument mode used; e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', 'MIRI/LRS'.
+observing_mode : 'NIRSpec/G395H'
+# Type of filter or detector used. For SOSS, either 'CLEAR' or 'F277W'. For NIRSpec, either 'NRS1' or 'NRS2'.
+filter_detector :  'NRS1'
+# Naming of the output files
+name_tag : 'HAT-P-18b_NRS'
+
+# ===== Stage 1 Input Files & Parameters =====
+# List of stage 1 steps to run or skip.
+DQInitStep : 'run'
+EmiCorrStep : 'skip'       # MIRI only
+SaturationStep : 'run'
+ResetStep : 'skip'         # MIRI only
+SuperBiasStep : 'run'      # SOSS/NIRSpec only
+RefPixStep : 'skip'         # SOSS only 
+DarkCurrentStep : 'run'   # SOSS/NIRSpec only
+OneOverFStep_grp : 'run'   # SOSS/NIRSpec only
+LinearityStep : 'run'
+JumpStep : 'run'
+RampFitStep : 'run'
+GainScaleStep : 'run'
+# Custom map of hot pixel locations (optional).
+hot_pixel_map : None
+# (NIRSpec only) Superbias calculation method. Options are 'crds', 'custom', or 'custom-rescale'.
+superbias_method : 'crds'
+# (SOSS only) Background model for NIRISS/SOSS. Default model available here:
+# https://jwst-docs.stsci.edu/jwst-near-infrared-imager-and-slitless-spectrograph/niriss-observing-strategies/niriss-soss-recommended-strategies
+soss_background_file : 'model_background256.npy'
+# 1/f correction method. For SOSS, options are 'scale-achromatic', 'scale-achromatic-window', 'scale-chromatic', or
+# 'solve'. For NIRSpec, options are 'median', or 'slope'.
+oof_method : 'scale-achromatic'
+# (SOSS only) For 1/f correction; estimate of 1D or 2D timeseries for order 1 (optional).
+soss_timeseries : None
+# (SOSS only) For 1/f correction; estimate of 2D timeseries for order 2. Only necessary if oof_method is
+# 'scale-chromatic'.
+soss_timeseries_o2 : None
+# For 1/f correction; outlier pixel maps (optional).
+outlier_maps : None
+
+# (MIRI only) For linearity correction, number of groups to drop at the start of an integration to mitigate the RSCD
+# effect.
+miri_drop_groups : 12
+# For jump detection; whether to flag outliers up-the-ramp (jwst default).
+flag_up_ramp : False
+# For jump detection; sigma threshold for a pixel to be flagged as an outlier.
+jump_threshold : 15
+# For jump detection; whether to also flag outliers in the time domain.
+flag_in_time : True
+
+# DMS Stage 1 kwargs. Format should be: {'step_name': {'kwd': value}}.
+stage1_kwargs : {}
+
+# ===== Stage 2 Input Files & Parameters =====
+# List of stage 2 steps to run or skip.
+AssignWCSStep : 'run'
+Extract2DStep : 'run'     # NIRSpec only
+SourceTypeStep: 'run'
+WaveCorrStep : 'run'      # NIRSpec only
+FlatFieldStep : 'skip'      # SOSS/MIRI only
+BackgroundStep : 'skip'     # SOSS/MIRI only
+OneOverFStep_int : 'skip'  # SOSS/NIRSpec only
+BadPixStep : 'run'
+PCAReconstructStep : 'run'
+TracingStep : 'run'
+
+# (MIRI only) Method to use for background subtraction; either 'median' or 'slope'.
+miri_background_method : 'median'
+# Number of principle components to extract. Only necessary if running PCAReconstructStep.
+pca_components : 10
+# PCA components to remove during the TSO reconstruction (optional).
+remove_components : None
+# (SOSS only) If True, generate a smoothed estimate of the order 1 white light curve.
+generate_lc : True
+# (SOSS only) Timescale on which to smooth lightcurve estimate (optional).
+smoothing_scale : None
+# (SOSS only) If True, use an F277W filter exposure to create a mask of background order 0s.
+generate_order0_mask : False
+# (SOSS only) Path to a processed (superbias and background subtracted) F277W exposure data frame (optional). Only
+# necessary if generate_order0_mask is True.
+f277w : None
+# DMS Stage 2 kwargs. Format should be: {'step_name': {'kwd': value}}.
+stage2_kwargs : {}
+
+# ===== Stage 3 Input Files & Parameters =====
+# Extraction method. For SOSS, options are 'box' or 'atoca'. For all other instruments, only 'box' is offered.
+extract_method : 'box'
+# (SOSS only) Specprofile reference file for ATOCA (optional).
+soss_specprofile : None
+# Stellar effective temperature in K for wavelength calibration (optional).
+st_teff : None
+# Stellar log surface gravity for wavelength calibration (optional).
+st_logg: None
+# Stellar metallicity as [Fe/H] for wavelength calibration (optional).
+st_met : None
+# Planet letter designation.
+planet_letter : 'b'
+# DMS Stage 3 kwargs. Format should be: {'step_name': {'kwd': value}}.
+stage3_kwargs : {}
+
+# ===== Other General Parameters =====
+# Name tag for output file directory.
+output_tag : ''
+# Integrations of ingress and/or egress.
+baseline_ints : [150, -100]
+# File with trace centroids for box extraction and 1/f correction (optional).
+centroids : None
+# If True, make more diagnostic plots.
+do_plots : False
+
+# ===== Optimize =====
+wave_range : null # Wave range in μm where the cost function should be evaluated.
+wave_range_plot : null  # Wave range to plot the scatter in μm.
+ylim_plot : null    # y-axis to plot the scatter in ppm.
+w1 : 0.0  # weigth of the white light to be considered in the cost function
+w2 : 1.0  # weigth of the spectral light to be considered in the cost function
+
+# All the following parameter are either a List [a,b,...] (if optimize = True) to sweep over, or an Integer c to set as Default.
+
+# ===== Stage 1 parameter to sweep =====
+# (SOSS only) For 1/f correction; width, in pixels, of inner trace mask.
+optimize_soss_inner_mask_width : False
+soss_inner_mask_width : 40 #[36,38,40,42,44]
+# (SOSS only) For 1/f correction; width, in pixels, of outer trace mask.
+optimize_soss_outer_mask_width : False
+soss_outer_mask_width : 70 #[66,68,70,72,74]
+# (NIRSpec only) For 1/f correction; width, in pixels, of trace mask. [10, 12, 14, 16, 18, 20, 22, 24]
+optimize_nirspec_mask_width : True
+nirspec_mask_width : [10, 12, 14, 16, 18, 20]
+# For time domain jump detection; sigma threshold for a pixel to be flagged as an outlier. [5,6,7,8,9,10]
+optimize_time_jump_threshold : True
+time_jump_threshold : [5,6,7,8,9,10]
+# time_window in JumpStep [3,5,7,9,11]
+optimize_time_window : True
+time_window : [3,5,7,9,11] 
+ 
+# ===== Stage 2 parameter to sweep =====
+# (MIRI only) For background subtraction; width (in pixels) to mask around the trace. [14,16,18,20]
+optimize_miri_trace_width : False
+miri_trace_width : 18 # [16,18,20]
+# (MIRI only) For background subtraction; width (in pixels) of the background region to use on either side of the trace.
+optimize_miri_background_width : False
+miri_background_width : 12 # [11,12,13]
+# For outlier detection; sigma threshold for a pixel to be flagged as an outlier, spatially. [5,6,7,8,9,10,11,12,13,14,15]
+optimize_space_outlier_threshold : True
+space_outlier_threshold : [5,6,7,8,9,10,11]
+# For outlier detection; sigma threshold for a pixel to be flagged as an outlier, temporally. [5,6,7,8,9,10,11,12,13,14,15]
+optimize_time_outlier_threshold : True
+time_outlier_threshold : [5,6,7,8,9,10,11]
+# Box size in BadPixStep [2,3,4,5,6,7,8]
+optimize_box_size : True 
+box_size : [3,4,5,6,7,8]
+# Window size in BadPixStep [3,5,7,9,11]
+optimize_window_size : True
+window_size :  [3,5,7,9,11]
+
+# ===== Stage 3 parameter to sweep =====
+# Box width to extract around the trace center. Passing 'optimize' will find and use the aperture width that minimizes
+# the white light curve scatter.[3,4,5,6,7,8,9,10] SOSS MIRI 
+optimize_extract_width : True
+extract_width : [4,5,6,7,8,9,10]
+
+# ========================= END DMS CONFIG FILE =============================
