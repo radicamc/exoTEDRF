@@ -1,0 +1,146 @@
+# Optimizer for exoTEDRF - Usage Guide
+
+## Description
+The optimizer automates parameter tuning for the `exoTEDRF` JWST pipeline using a coordinate-descent approach.  
+It iteratively tests different parameter values, rerunning only the necessary pipeline stages for efficiency.  
+Each trial is evaluated with a cost function that measures time-series stability, and the best configuration is selected.  
+Results, including cost trends and diagnostic plots, are saved for review.
+
+
+## Repository layout
+```arduino
+DMS_uncal                   # Folder containing your uncalibrated files 
+crds_cache                  # Local JWST CRDS cache for calibration reference 
+optimize.py
+run_optimize.yaml           # your config (example below)
+pipeline_outputs_directory/ # created automatically
+├─ Files/
+├─ Stage1/
+├─ Stage2/
+├─ Stage3/
+└─ Stage4/
+
+
+## How to run
+
+### 1) **Prepare inputs**
+- Put uncalibrated FITS in `DMS_uncal/`.
+- Ensure a local CRDS cache folder exists (e.g., `crds_cache/`). The script sets `CRDS_PATH` from `crds_cache_path` in the YAML.
+
+### 2) **Edit the config**
+- Open `run_optimize.yaml`.
+- Prepare the `run_optimize.yaml` according to the configuration guidelines in the **YAML configuration notes** section below.
+- Set `observing_mode`, `input_dir`, `name_tag`.
+- Choose which `optimize_*` flags are `True` (lists to sweep) vs `False` (single fixed value).
+- Optionally set `wave_range`, `w1`, `w2`.
+
+### 3) **Run from the project root**
+```python
+python3 exotedrf/optimize.py --config exotedrf/run_optimize.yaml
+```
+
+### 4) **Monitor progress**
+- Console prints iteration counts, trial values, and current cost.
+- Intermediate outputs land in `pipeline_outputs_directory/Files/` as the run proceeds.
+
+### 5) **Review results**
+- **Text logs:** `Files/Cost_<name>.txt`, `Files/Scatter_<name>.txt`
+- **Plots:** `Files/Cost_<name>.pdf` and `Files/Scatter_Plot_<name>.pdf`
+- **Diagnostics:** PNGs in `Files/` (updated during the run)
+- The final best parameter set is printed at the end and also saved in the table in `Files/Cost_<name>.pdf`
+- The final data is automatically processed using the best-found parameter configuration, so all output files are immediately ready for analysis without additional reruns.
+
+## YAML configuration notes
+
+### Step control (`run` / `skip`)
+For each pipeline step (Stage 1–3), the YAML entry determines if it runs:
+- `run` → execute this step.
+- `skip` → bypass this step.
+  
+**Example:**
+```yaml
+DQInitStep : 'run'    # perform step
+RefPixStep : 'skip'   # skip step
+```
+### Optimize section
+```yaml
+# ===== Optimize =====
+wave_range : null       # [lo, hi] in µm for cost evaluation; null → use instrument default
+wave_range_plot : null  # [lo, hi] in µm for plotting scatter; null → use instrument default
+ylim_plot : null        # [ymin, ymax] for scatter plot in ppm; null → auto
+w1 : 0.0                # weight for white-light term in cost
+w2 : 1.0                # weight for spectral term in cost
+```
+### Sweepable parameters
+
+**Format:**
+- `optimize_<param> : True` → sweep over provided list. 
+- `optimize_<param> : False` → fix to provided value.
+
+**Example:**
+```yaml
+# ===== Stage 1 parameters =====
+
+# Sweep over several values for inner mask width (SOSS only)
+optimize_soss_inner_mask_width : True
+soss_inner_mask_width : [36, 38, 40, 42, 44]
+
+# Keep outer mask width fixed (SOSS only)
+optimize_soss_outer_mask_width : False
+soss_outer_mask_width : 70
+```
+**List of all sweepable parameters:**
+- Stage 1:
+    - `soss_inner_mask_width` 
+    - `soss_outer_mask_width` 
+    - `nirspec_mask_width` 
+    - `time_jump_threshold` (valid for all Instruments)
+    - `time_window` (valid for all Instruments)
+- Stage 2:
+    - `miri_trace_width`
+    - `miri_background_width`
+    - `space_outlier_threshold` (valid for all Instruments)
+    - `time_outlier_threshold` (valid for all Instruments)
+    - `box_size` (valid for all Instruments)
+    - `window_size` (valid for all Instruments)
+- Stage 3:
+    - `extract_width` (valid for all Instruments)
+
+## Coordinate-descent logic
+For each parameter with `optimize_*: True`:
+
+1. Trial value inserted into config as a list of integers `[a,b,c,...]`.
+2. Fastest rerun path chosen (automatically)
+3. Cost computed and logged.
+4. Best value fixed, then next parameter.
+
+Outputs:
+- `Files/Cost_<name>.txt` (tab-delimited)
+- `Files/Scatter_<name>.txt` (per-trial spectral scatter rows)
+- `Files/Cost_<name>.pdf` (cost vs sweep with labels)
+- `Files/Scatter_Plot_<name>.pdf` (scatter in ppm vs. wavelength)
+- Diagnostics PNGs from best trials (generated continuously; user can monitor intermediate results during execution).
+
+
+
+## Cost function
+Combined metric:
+
+- **White-light term**: median |2nd finite difference| of the normalized white-light curve. (`ptp2_white`)
+- **Spectral term**: median across wavelength of per-channel |2nd finite difference|. (`ptp2_spec`)
+- **Optional parameters**:
+  - `baseline_ints`: `[int]`, `[int, -int]`, or `None`.
+    - Single integer `[N]`: use the first `N` integrations as the baseline.
+    - Two integers `[N1, -N2]`: use the first `N1` integrations and the last `N2` integrations as the baseline.
+    - `None`: defaults to `[100, -100]`.
+  - `wave_range`: `[float, float]` or `None`.
+    - Two values `[lo, hi]`: evaluate the cost function only within this wavelength range (µm).
+    - `None`: evaluate over the full recommended range for the instrument:
+      - **NIRSpec NRS1**: 2.9 µm to end of spectrum  
+      - **NIRSpec NRS2**: full coverage  
+      - **NIRISS/SOSS**: 0.6–2.8 µm  
+      - **MIRI**: 5 µm to 12 µm
+
+- **Final cost**: `cost = w1 * ptp2_white + w2 * ptp2_spec`. 
+
+Use `w1=0.0`, `w2=1.0` for pure spectral stability (recommended).
