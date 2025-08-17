@@ -11,9 +11,9 @@ input_dir : 'DMS_uncal/'
 # Input file tag.
 input_filetag : 'uncal'
 # Instrument mode used; e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', 'MIRI/LRS'.
-observing_mode : 'NIRSpec/G395H'
+observing_mode : 'NIRISS/SOSS'
 # Type of filter or detector used. For SOSS, either 'CLEAR' or 'F277W'. For NIRSpec, either 'NRS1' or 'NRS2'.
-filter_detector :  'NRS1'
+filter_detector :  'F277W'
 # Naming of the output files
 name_tag : 'HAT-P-18b_NRS'
 
@@ -24,7 +24,7 @@ EmiCorrStep : 'skip'       # MIRI only
 SaturationStep : 'run'
 ResetStep : 'skip'         # MIRI only
 SuperBiasStep : 'run'      # SOSS/NIRSpec only
-RefPixStep : 'skip'         # SOSS only 
+RefPixStep : 'run'         # SOSS only 
 DarkCurrentStep : 'run'   # SOSS/NIRSpec only
 OneOverFStep_grp : 'run'   # SOSS/NIRSpec only
 LinearityStep : 'run'
@@ -37,7 +37,7 @@ hot_pixel_map : None
 superbias_method : 'crds'
 # (SOSS only) Background model for NIRISS/SOSS. Default model available here:
 # https://jwst-docs.stsci.edu/jwst-near-infrared-imager-and-slitless-spectrograph/niriss-observing-strategies/niriss-soss-recommended-strategies
-soss_background_file : 'model_background256.npy'
+soss_background_file : 'F277W.npy'
 # 1/f correction method. For SOSS, options are 'scale-achromatic', 'scale-achromatic-window', 'scale-chromatic', or
 # 'solve'. For NIRSpec, options are 'median', or 'slope'.
 oof_method : 'scale-achromatic'
@@ -55,7 +55,7 @@ miri_drop_groups : 12
 # For jump detection; whether to flag outliers up-the-ramp (jwst default).
 flag_up_ramp : False
 # For jump detection; sigma threshold for a pixel to be flagged as an outlier.
-jump_threshold : 15
+jump_threshold : 15 
 # For jump detection; whether to also flag outliers in the time domain.
 flag_in_time : True
 
@@ -65,11 +65,11 @@ stage1_kwargs : {}
 # ===== Stage 2 Input Files & Parameters =====
 # List of stage 2 steps to run or skip.
 AssignWCSStep : 'run'
-Extract2DStep : 'run'     # NIRSpec only
+Extract2DStep : 'skip'     # NIRSpec only
 SourceTypeStep: 'run'
-WaveCorrStep : 'run'      # NIRSpec only
-FlatFieldStep : 'skip'      # SOSS/MIRI only
-BackgroundStep : 'skip'     # SOSS/MIRI only
+WaveCorrStep : 'skip'      # NIRSpec only
+FlatFieldStep : 'run'      # SOSS/MIRI only
+BackgroundStep : 'run'     # SOSS/MIRI only
 OneOverFStep_int : 'skip'  # SOSS/NIRSpec only
 BadPixStep : 'run'
 PCAReconstructStep : 'run'
@@ -130,14 +130,14 @@ w2 : 1.0  # weigth of the spectral light to be considered in the cost function
 
 # ===== Stage 1 parameter to sweep =====
 # (SOSS only) For 1/f correction; width, in pixels, of inner trace mask.
-optimize_soss_inner_mask_width : False
-soss_inner_mask_width : 40 #[36,38,40,42,44]
+optimize_soss_inner_mask_width : True
+soss_inner_mask_width : [36,38,40,42,44]
 # (SOSS only) For 1/f correction; width, in pixels, of outer trace mask.
-optimize_soss_outer_mask_width : False
-soss_outer_mask_width : 70 #[66,68,70,72,74]
+optimize_soss_outer_mask_width : True
+soss_outer_mask_width : [66,68,70,72,74]
 # (NIRSpec only) For 1/f correction; width, in pixels, of trace mask. [10, 12, 14, 16, 18, 20, 22, 24]
-optimize_nirspec_mask_width : True
-nirspec_mask_width : [10, 12, 14, 16, 18, 20]
+optimize_nirspec_mask_width : False
+nirspec_mask_width : 10 # [10, 12, 14, 16, 18, 20]
 # For time domain jump detection; sigma threshold for a pixel to be flagged as an outlier. [5,6,7,8,9,10]
 optimize_time_jump_threshold : True
 time_jump_threshold : [5,6,7,8,9,10]

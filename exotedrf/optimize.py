@@ -1752,7 +1752,7 @@ def main():
 
     # Stage 2 will use Stage-1 results already saved to disk
     stage2_skip = []
-
+ 
     # Define which Stage-2 steps to look for in filenames
     possible_steps_int6 = [
         'tracingstep','pcareconstructstep','badpixstep','oneoverfstep',
