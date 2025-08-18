@@ -10,7 +10,7 @@ input_dir : 'DMS_uncal/'
 # Input file tag.
 input_filetag : 'uncal'
 # Instrument mode used; e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', 'MIRI/LRS'.
-observing_mode : 'NIRSpec/G395H'
+observing_mode : 'NIRSpec/G395M'
 # Type of filter or detector used. For SOSS, either 'CLEAR' or 'F277W'. For NIRSpec, either 'NRS1' or 'NRS2'.
 filter_detector : 'NRS1'
 
