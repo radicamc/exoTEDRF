@@ -535,10 +535,10 @@ def diagnostic_plot(st3, name_str, baseline_ints, outdir=outdir_f):
     # --- Build stitched spectrum ---
     if 'niriss' in obs_early:
         # Load flux and wavelength for both spectral orders
-        flux_O1 = np.asarray(st3['Flux_O1'], float)
-        flux_O2 = np.asarray(st3['Flux_O2'], float)
-        wave_O1 = np.asarray(st3['Wave_O1'], float)
-        wave_O2 = np.asarray(st3['Wave_O2'], float)
+        flux_O1 = np.asarray(st3['Flux O1'], float)
+        flux_O2 = np.asarray(st3['Flux O2'], float)
+        wave_O1 = np.asarray(st3['Wave O1'], float)
+        wave_O2 = np.asarray(st3['Wave O2'], float)
 
         # Cutoff wavelength separating orders
         cutoff = 0.85  # µm
