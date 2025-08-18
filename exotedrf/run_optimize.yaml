@@ -11,22 +11,22 @@ input_dir : 'DMS_uncal/'
 # Input file tag.
 input_filetag : 'uncal'
 # Instrument mode used; e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', 'MIRI/LRS'.
-observing_mode : 'MIRI/LRS'
+observing_mode : 'NIRISS/SOSS'
 # Type of filter or detector used. For SOSS, either 'CLEAR' or 'F277W'. For NIRSpec, either 'NRS1' or 'NRS2'.
-filter_detector :  ''
+filter_detector :  'F277W'
 # Naming of the output files
-name_tag : 'HAT-P-18b_MIRI'
+name_tag : 'HAT-P-18b_SOSS'
 
 # ===== Stage 1 Input Files & Parameters =====
 # List of stage 1 steps to run or skip.
 DQInitStep : 'run'
-EmiCorrStep : 'run'       # MIRI only
+EmiCorrStep : 'skip'       # MIRI only
 SaturationStep : 'run'
-ResetStep : 'run'         # MIRI only
-SuperBiasStep : 'skip'      # SOSS/NIRSpec only
-RefPixStep : 'skip'         # SOSS only 
-DarkCurrentStep : 'skip'   # SOSS/NIRSpec only
-OneOverFStep_grp : 'skip'   # SOSS/NIRSpec only
+ResetStep : 'skip'         # MIRI only
+SuperBiasStep : 'run'      # SOSS/NIRSpec only
+RefPixStep : 'run'         # SOSS only 
+DarkCurrentStep : 'srunip'   # SOSS/NIRSpec only
+OneOverFStep_grp : 'run'   # SOSS/NIRSpec only
 LinearityStep : 'run'
 JumpStep : 'run'
 RampFitStep : 'run'
@@ -37,7 +37,7 @@ hot_pixel_map : None
 superbias_method : 'crds'
 # (SOSS only) Background model for NIRISS/SOSS. Default model available here:
 # https://jwst-docs.stsci.edu/jwst-near-infrared-imager-and-slitless-spectrograph/niriss-observing-strategies/niriss-soss-recommended-strategies
-soss_background_file : 'F277W.npy'
+soss_background_file : 'model_background256.npy'
 # 1/f correction method. For SOSS, options are 'scale-achromatic', 'scale-achromatic-window', 'scale-chromatic', or
 # 'solve'. For NIRSpec, options are 'median', or 'slope'.
 oof_method : 'scale-achromatic'
@@ -86,10 +86,10 @@ generate_lc : True
 # (SOSS only) Timescale on which to smooth lightcurve estimate (optional).
 smoothing_scale : None
 # (SOSS only) If True, use an F277W filter exposure to create a mask of background order 0s.
-generate_order0_mask : False
+generate_order0_mask : True
 # (SOSS only) Path to a processed (superbias and background subtracted) F277W exposure data frame (optional). Only
 # necessary if generate_order0_mask is True.
-f277w : None
+f277w : 'F277W.npy'
 # DMS Stage 2 kwargs. Format should be: {'step_name': {'kwd': value}}.
 stage2_kwargs : {}
 
@@ -113,7 +113,7 @@ stage3_kwargs : {}
 # Name tag for output file directory.
 output_tag : ''
 # Integrations of ingress and/or egress.
-baseline_ints : [150]
+baseline_ints : [100]
 # File with trace centroids for box extraction and 1/f correction (optional).
 centroids : None
 # If True, make more diagnostic plots.
@@ -130,11 +130,11 @@ w2 : 1.0  # weigth of the spectral light to be considered in the cost function
 
 # ===== Stage 1 parameter to sweep =====
 # (SOSS only) For 1/f correction; width, in pixels, of inner trace mask.
-optimize_soss_inner_mask_width : False
-soss_inner_mask_width : 40 #[36,38,40,42,44]
+optimize_soss_inner_mask_width : True
+soss_inner_mask_width : [36,38,40,42,44]
 # (SOSS only) For 1/f correction; width, in pixels, of outer trace mask.
-optimize_soss_outer_mask_width : False
-soss_outer_mask_width : 70 # [66,68,70,72,74]
+optimize_soss_outer_mask_width : True
+soss_outer_mask_width : [66,68,70,72,74]
 # (NIRSpec only) For 1/f correction; width, in pixels, of trace mask. [10, 12, 14, 16, 18, 20, 22, 24]
 optimize_nirspec_mask_width : False
 nirspec_mask_width : 10 # [10, 12, 14, 16, 18, 20]
@@ -147,11 +147,11 @@ time_window : [3,5,7,9,11]
  
 # ===== Stage 2 parameter to sweep =====
 # (MIRI only) For background subtraction; width (in pixels) to mask around the trace. [14,16,18,20]
-optimize_miri_trace_width : True
-miri_trace_width : [14,16,18,20,22]
+optimize_miri_trace_width : False
+miri_trace_width : 18 # [14,16,18,20,22]
 # (MIRI only) For background subtraction; width (in pixels) of the background region to use on either side of the trace.
-optimize_miri_background_width : True
-miri_background_width : [10,11,12,13,14]
+optimize_miri_background_width : False
+miri_background_width : 12 # [10,11,12,13,14]
 # For outlier detection; sigma threshold for a pixel to be flagged as an outlier, spatially. [5,6,7,8,9,10,11,12,13,14,15]
 optimize_space_outlier_threshold : True
 space_outlier_threshold : [5,6,7,8,9,10,11]
