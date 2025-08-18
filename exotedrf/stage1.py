@@ -8,6 +8,7 @@ Created on Thurs Jul 21 17:30 2022
 Custom JWST DMS pipeline steps for Stage 1 (detector level processing).
 """
 
+
 from astropy.io import fits
 import bottleneck as bn
 import copy
@@ -28,6 +29,10 @@ import exotedrf.stage2 as stage2
 from exotedrf import utils, plotting
 from exotedrf.utils import fancyprint
 
+
+def test_stage1_fork():
+    print('Hello World')
+    return
 
 class DQInitStep:
     """Wrapper around default calwebb_detector1 Data Quality Initialization step with additional
@@ -1284,7 +1289,7 @@ class JumpStep:
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, flag_up_ramp=False, rejection_threshold=15,
-            flag_in_time=True, time_rejection_threshold=10, time_window=5, do_plot=False,
+            flag_in_time=True, time_rejection_threshold=10, time_window=7, do_plot=False,
             show_plot=False, **kwargs):
         """Method to run the step.
 
@@ -2721,6 +2726,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     results : list[RampModel]
         Datafiles for each segment processed through Stage 1.
     """
+    print('start running Stage 1 from Fork')
 
     # ============== DMS Stage 1 ==============
     # Detector level processing.
@@ -2902,5 +2908,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = {}
         step = GainScaleStep(results, output_dir=outdir)
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+
+    print('finish running Stage 1 from Fork')
 
     return results
