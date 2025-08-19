@@ -41,7 +41,7 @@ include_corner : False
 ncores : 4
 # Spectral resolution at which to fit light curves.
 # Note: if using pre-binned light curves, specify 'prebin' here.
-res : 100
+res : 300
 # Alternatively, number of pixel columns to bin before light curve fitting
 npix : None
 # Planet identifier.
