@@ -2142,9 +2142,11 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
             if smoothing_scale is None:
                 # If no timescale provided, smooth the time series on a timescale of ~2%.
                 smoothing_scale = 0.02 * np.shape(cube)[0]
-            fancyprint('Smoothing self-calibrated timeseries on a scale of '
-                       '{} integrations.'.format(int(smoothing_scale)))
-            timeseries = median_filter(timeseries, int(smoothing_scale))
+            k = max(1, int(smoothing_scale))  # clamp to ≥1
+            fancyprint(f"Smoothing self-calibrated timeseries on a scale of {k} integrations.")
+            if k % 2 == 0:
+                k += 1
+            timeseries = median_filter(timeseries, k)
         else:
             raise ValueError('2D light curves must be provided to use chromatic method.')
 
