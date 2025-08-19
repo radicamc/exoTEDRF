@@ -12,7 +12,7 @@ input_filetag : 'uncal'
 # Instrument mode used; e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', 'MIRI/LRS'.
 observing_mode : 'NIRISS/SOSS'
 # Type of filter or detector used. For SOSS, either 'CLEAR' or 'F277W'. For NIRSpec, either 'NRS1' or 'NRS2'.
-filter_detector : 'F277W'
+filter_detector : 'CLEAR'
 
 # ===== Stage 1 Input Files & Parameters =====
 # List of stage 1 steps to run or skip.
