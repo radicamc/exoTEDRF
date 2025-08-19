@@ -130,20 +130,20 @@ w2 : 1.0  # weigth of the spectral light to be considered in the cost function
 
 # ===== Stage 1 parameter to sweep =====
 # (SOSS only) For 1/f correction; width, in pixels, of inner trace mask.
-optimize_soss_inner_mask_width : True
-soss_inner_mask_width : [36,38,40,42,44]
+optimize_soss_inner_mask_width : False
+soss_inner_mask_width : 42 # [36,38,40,42,44]
 # (SOSS only) For 1/f correction; width, in pixels, of outer trace mask.
-optimize_soss_outer_mask_width : True
-soss_outer_mask_width : [66,68,70,72,74]
+optimize_soss_outer_mask_width : False
+soss_outer_mask_width : 66 # [66,68,70,72,74]
 # (NIRSpec only) For 1/f correction; width, in pixels, of trace mask. [10, 12, 14, 16, 18, 20, 22, 24]
 optimize_nirspec_mask_width : False
 nirspec_mask_width : 10 # [10, 12, 14, 16, 18, 20]
 # For time domain jump detection; sigma threshold for a pixel to be flagged as an outlier. [5,6,7,8,9,10]
-optimize_time_jump_threshold : True
-time_jump_threshold : [5,6,7,8,9,10]
+optimize_time_jump_threshold : False
+time_jump_threshold : 6 # [5,6,7,8,9,10]
 # time_window in JumpStep [3,5,7,9,11]
-optimize_time_window : True
-time_window : [3,5,7,9,11] 
+optimize_time_window : False
+time_window : 7 # [3,5,7,9,11] 
  
 # ===== Stage 2 parameter to sweep =====
 # (MIRI only) For background subtraction; width (in pixels) to mask around the trace. [14,16,18,20]
@@ -153,22 +153,22 @@ miri_trace_width : 18 # [14,16,18,20,22]
 optimize_miri_background_width : False
 miri_background_width : 12 # [10,11,12,13,14]
 # For outlier detection; sigma threshold for a pixel to be flagged as an outlier, spatially. [5,6,7,8,9,10,11,12,13,14,15]
-optimize_space_outlier_threshold : True
-space_outlier_threshold : [5,6,7,8,9,10,11]
+optimize_space_outlier_threshold : False
+space_outlier_threshold : 5 #  [5,6,7,8,9,10,11]
 # For outlier detection; sigma threshold for a pixel to be flagged as an outlier, temporally. [5,6,7,8,9,10,11,12,13,14,15]
-optimize_time_outlier_threshold : True
-time_outlier_threshold : [5,6,7,8,9,10,11]
+optimize_time_outlier_threshold : False
+time_outlier_threshold : 7 # [5,6,7,8,9,10,11]
 # Box size in BadPixStep [2,3,4,5,6,7,8]
-optimize_box_size : True 
-box_size : [3,4,5,6,7,8]
+optimize_box_size : False 
+box_size : 8 # [3,4,5,6,7,8]
 # Window size in BadPixStep [3,5,7,9,11]
-optimize_window_size : True
-window_size :  [3,5,7,9,11]
+optimize_window_size : False
+window_size : 5 #  [3,5,7,9,11]
 
 # ===== Stage 3 parameter to sweep =====
 # Box width to extract around the trace center. Passing 'optimize' will find and use the aperture width that minimizes
-# the white light curve scatter. SOSS: [36,38,40,42,44] | NIRSpec, MIRI: [4,5,6,7,8,9,10]  
+# the white light curve scatter. SOSS: [36,38,40,42,44] | NIRSpec, MIRI: [24,26,28,30,32,34,36,38,40]  
 optimize_extract_width : True
-extract_width : [36,38,40,42,44] # [4,5,6,7,8,9,10] 
+extract_width : [24,26,28,30,32,34,36,38,40] # [4,5,6,7,8,9,10] 
 
 # ========================= END DMS CONFIG FILE =============================
