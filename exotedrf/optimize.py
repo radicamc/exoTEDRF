@@ -1431,6 +1431,7 @@ def main():
                     stage2_results, centroids = run_stage2(
                         filenames_int3,
                         mode=run_cfg['observing_mode'],
+                        soss_background_model=run_cfg['soss_background_file'],
                         baseline_ints=run_cfg['baseline_ints'],
                         save_results=True,
                         force_redo=True,
@@ -1516,6 +1517,7 @@ def main():
                     stage2_results, centroids = run_stage2(
                         filenames_int4,
                         mode=run_cfg['observing_mode'],
+                        soss_background_model=run_cfg['soss_background_file'],
                         baseline_ints=run_cfg['baseline_ints'],
                         save_results=True,
                         force_redo=True,
@@ -1603,6 +1605,7 @@ def main():
                     stage2_results, centroids = run_stage2(
                         filenames_int5,
                         mode=run_cfg['observing_mode'],
+                        soss_background_model=run_cfg['soss_background_file'],
                         baseline_ints=run_cfg['baseline_ints'],
                         save_results=True,
                         force_redo=True,
@@ -1773,6 +1776,7 @@ def main():
     stage2_results, centroids = run_stage2(
         filenames_int6,
         mode=final_cfg['observing_mode'],
+        soss_background_model=final_cfg['soss_background_file'],
         baseline_ints=final_cfg['baseline_ints'],
         save_results=True,
         force_redo=True,  

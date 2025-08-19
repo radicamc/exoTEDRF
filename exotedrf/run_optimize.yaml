@@ -167,8 +167,8 @@ window_size :  [3,5,7,9,11]
 
 # ===== Stage 3 parameter to sweep =====
 # Box width to extract around the trace center. Passing 'optimize' will find and use the aperture width that minimizes
-# the white light curve scatter.[3,4,5,6,7,8,9,10] SOSS MIRI 
+# the white light curve scatter. SOSS: [36,38,40,42,44] | NIRSpec, MIRI: [4,5,6,7,8,9,10]  
 optimize_extract_width : True
-extract_width : [4,5,6,7,8,9,10]
+extract_width : [36,38,40,42,44] # [4,5,6,7,8,9,10] 
 
 # ========================= END DMS CONFIG FILE =============================
