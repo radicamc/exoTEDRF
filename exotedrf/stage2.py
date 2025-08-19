@@ -610,7 +610,7 @@ class BadPixStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, space_thresh=15, time_thresh=10, box_size=7, window_size=7, save_results=True,
+    def run(self, space_thresh=15, time_thresh=10, box_size=8, window_size=5, save_results=True,
             force_redo=False, do_plot=False, show_plot=False):
         """Method to run the step.
 
@@ -1183,7 +1183,7 @@ def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', 
     return result, model_scaled
 
 
-def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=7, window_size=7,
+def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=8, window_size=5,
                output_dir='./', save_results=True, fileroot=None, do_plot=False, show_plot=False,
                to_flag=None):
     """Identify and correct outlier pixels remaining in the dataset, using both a spatial and
