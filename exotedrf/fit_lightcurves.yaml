@@ -3,8 +3,8 @@
 # This is the configuration file for fit_lightcurves.py.
 #
 # ====== Fit Metadata ======
-# Name tag for output file directory.
-output_tag : 'Firsttest'
+# Name tag for output file directory. 
+output_tag : 'HAT_NIRSpec_Full'
 # File containing light curves to fit.
 infile : 'pipeline_outputs_directory_HAT_NIRSpec_Full/Stage3/HAT-P-18_nrs1_box_spectra_fullres.fits'
 # Instrument mode used, e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', etc.
