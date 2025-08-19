@@ -44,7 +44,7 @@ soss_timeseries : None
 # 'scale-chromatic'.
 soss_timeseries_o2 : None
 # For 1/f correction; outlier pixel maps (optional).
-outlier_maps : None
+outlier_maps : ['pipeline_outputs_directory/Stage2/jw01366001001_04101_00001-seg001_nis_pixelflags.fits','pipeline_outputs_directory/Stage2/jw01366001001_04101_00001-seg002_nis_pixelflags.fits','pipeline_outputs_directory/Stage2/jw01366001001_04101_00001-seg003_nis_pixelflags.fits','pipeline_outputs_directory/Stage2/jw01366001001_04101_00001-seg004_nis_pixelflags.fits' ]
 # (SOSS only) For 1/f correction; width, in pixels, of inner trace mask.
 soss_inner_mask_width : 42
 # (SOSS only) For 1/f correction; width, in pixels, of outer trace mask.
