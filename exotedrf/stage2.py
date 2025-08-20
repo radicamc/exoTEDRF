@@ -677,15 +677,17 @@ class BadPixStep:
             results.append(res)
 
         if save_results is True:
-            # Save hot pixel mask.
+            # Ensure mask exists even if nothing was flagged
+            if 'to_flag' not in locals():
+                to_flag = np.zeros_like(segment.data, dtype=bool)
+
+            # Save hot pixel mask
             outfile = self.output_dir + self.fileroot_noseg + 'hot_pixels.npy'
             np.save(outfile, to_flag)
-            fancyprint('Hot pixel map saved to file: {}.'.format(outfile))
+            fancyprint(f'Hot pixel map saved to file: {outfile}')
 
         fancyprint('Step BadPixStep done.')
-
         return results
-
 
 class PCAReconstructStep:
     """Wrapper around custom PCA Reconstruction Step.
