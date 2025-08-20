@@ -38,7 +38,7 @@ do_plots : True
 # If True, also make corner plot for each bin.
 include_corner : False
 # Number of cores for multiprocessing.
-ncores : 4
+ncores : 1
 # Spectral resolution at which to fit light curves.
 # Note: if using pre-binned light curves, specify 'prebin' here.
 res : 50
@@ -47,7 +47,7 @@ npix : None
 # Planet identifier.
 planet_letter : 'b'
 # If True, run light curve fitting in debugging mode (i.e., don't catch errors).
-debug : False
+debug : True
 # If True, will overwrite any existing fit outputs.
 force_redo : True
 
