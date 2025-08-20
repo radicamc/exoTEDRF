@@ -97,7 +97,7 @@ generate_lc : False
 generate_order0_mask : False
 # (SOSS only) Path to a processed (superbias and background subtracted) F277W exposure data frame (optional). Only
 # necessary if generate_order0_mask is True.
-f277w : ''
+f277w : None
 # DMS Stage 2 kwargs. Format should be: {'step_name': {'kwd': value}}.
 stage2_kwargs : {}
 
@@ -132,7 +132,7 @@ run_stages : [1, 2, 3]
 # Save results of each intermediate step to file.
 save_results : True
 # Force redo of steps which have already been completed.
-force_redo : True
+force_redo : False
 # Integrations of ingress and/or egress.
 baseline_ints : [100, -100]
 # File with trace centroids for box extraction and 1/f correction (optional).
