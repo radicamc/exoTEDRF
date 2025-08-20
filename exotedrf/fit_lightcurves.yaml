@@ -4,7 +4,7 @@
 #
 # ====== Fit Metadata ======
 # Name tag for output file directory. 
-output_tag : 'HAT_SOSS_Full'
+output_tag : 'HAT_SOSS_FULL'
 # File containing light curves to fit.
 infile : 'pipeline_outputs_directory_HAT_SOSS_FULL/Stage3/HAT-P-18_box_spectra_fullres.fits'
 # Instrument mode used, e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', etc.
