@@ -94,10 +94,10 @@ remove_components : None
 # (SOSS only) If True, generate an estimate of the white light curve.
 generate_lc : False
 # (SOSS only) If True, use an F277W filter exposure to create a mask of background order 0s.
-generate_order0_mask : True
+generate_order0_mask : False
 # (SOSS only) Path to a processed (superbias and background subtracted) F277W exposure data frame (optional). Only
 # necessary if generate_order0_mask is True.
-f277w : 'F277W.npy'
+f277w : ''
 # DMS Stage 2 kwargs. Format should be: {'step_name': {'kwd': value}}.
 stage2_kwargs : {}
 
