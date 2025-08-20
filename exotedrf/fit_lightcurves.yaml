@@ -63,18 +63,18 @@ params : ['per_p1', 't0_p1', 'rp_p1_SOSS', 'inc_p1',
 dists : ['fixed', 'fixed', 'uniform', 'fixed',
          'uniform', 'uniform', 'fixed', 'fixed', 'fixed',
          'loguniform',
-         'uniform','uniform',  'fixed', 'fixed', 'fixed'] #slope uniform, amlitude pos dur fixed
+         'uniform','uniform', 'uniform', 'fixed', 'fixed'] #slope uniform, amlitude pos dur fixed
 
 values : [5.50802941, 59743.353401981076, [0.01, 0.9], 88.620116586957,
           [-1., 1.], [-1., 1.], 0.0, 90., 16.505820670591,
           [0.000001, 0.1],
-          [-0.001, 0.001],[-1,1],0.000879731007,59743.357979321176,0.004650413617]
+          [-0.001, 0.001],[-1,1],[1e-6, 1.0],59743.357979321176,0.004650413617]
 
 # === Detrending Paramaters ===
 # Path to file containing linear detrending parameters.
-lm_file : None
+lm_file : '/data/pascal/exoTEDRF_fork/exoUPRF/regressors.csv'
 # Key names for detrending parametrers.
-lm_parameters : []
+lm_parameters : ['t']
 # Path to file containing GP training parameters.
 gp_file : None
 # Key name for GP training parametrer.
