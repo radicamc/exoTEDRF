@@ -4,13 +4,13 @@
 #
 # ====== Fit Metadata ======
 # Name tag for output file directory. 
-output_tag : 'HAT_NIRSpec_Full'
+output_tag : 'HAT_SOSS_Full'
 # File containing light curves to fit.
-infile : 'pipeline_outputs_directory_HAT_NIRSpec_Full/Stage3/HAT-P-18_nrs1_box_spectra_fullres.fits'
+infile : 'pipeline_outputs_directory_HAT_SOSS_FULL/Stage3/HAT-P-18_box_spectra_fullres.fits'
 # Instrument mode used, e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', etc.
-observing_mode : 'NIRSpec/G395M'
+observing_mode : 'NIRISS/SOSS'
 # (NIRSpec only) Detector used.
-detector : 'NRS1'
+detector : ''
 # (NIRSpec only) blue wavelength cutoff for NRS1.
 # Note: ignore if using pre-binned data.
 nrs1_blue : 2.8
@@ -41,7 +41,7 @@ include_corner : False
 ncores : 4
 # Spectral resolution at which to fit light curves.
 # Note: if using pre-binned light curves, specify 'prebin' here.
-res : 300
+res : 50
 # Alternatively, number of pixel columns to bin before light curve fitting
 npix : None
 # Planet identifier.
@@ -49,24 +49,26 @@ planet_letter : 'b'
 # If True, run light curve fitting in debugging mode (i.e., don't catch errors).
 debug : False
 # If True, will overwrite any existing fit outputs.
-force_redo : False
+force_redo : True
 
 # ====== Fit Priors + Parameters ======
 # Fitting priors in exoUPRF format.
 # For eclipse fits, must not pass u1_inst and u2_inst, and must pass tsec_p1 and fp_p1_inst.
 # Note: just use 'inst' for instrument-specific parameters.
-params : ['per_p1', 't0_p1', 'rp_p1_inst', 'inc_p1',
-          'u1_inst', 'u2_inst', 'ecc_p1', 'w_p1', 'a_p1',
-          'sigma_inst',
-          'zero_inst']
+params : ['per_p1', 't0_p1', 'rp_p1_SOSS', 'inc_p1',
+          'u1_SOSS', 'u2_SOSS', 'ecc_p1', 'w_p1', 'a_p1',
+          'sigma_SOSS',
+          'zero_SOSS','theta1_SOSS', 'spot-amp_SOSS', 'spot-pos_SOSS', 'spot-dur_SOSS'] #3
+
 dists : ['fixed', 'fixed', 'uniform', 'fixed',
          'uniform', 'uniform', 'fixed', 'fixed', 'fixed',
          'loguniform',
-         'uniform']
-values : [5.50802941, 60795.386931369801, [0.01, 0.9], 88.702521530232,
-          [-1., 1.], [-1., 1.], 0.0, 90., 16.628358925823,
+         'uniform','uniform',  'fixed', 'fixed', 'fixed'] #slope uniform, amlitude pos dur fixed
+
+values : [5.50802941, 59743.353401981076, [0.01, 0.9], 88.620116586957,
+          [-1., 1.], [-1., 1.], 0.0, 90., 16.505820670591,
           [0.000001, 0.1],
-          [-0.001, 0.001]]
+          [-0.001, 0.001],[-1,1],0.000879731007,59743.357979321176,0.004650413617]
 
 # === Detrending Paramaters ===
 # Path to file containing linear detrending parameters.
