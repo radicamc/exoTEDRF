@@ -10,20 +10,20 @@ input_dir : 'DMS_uncal/'
 # Input file tag.
 input_filetag : 'uncal'
 # Instrument mode used; e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', 'MIRI/LRS'.
-observing_mode : 'NIRISS/SOSS'
+observing_mode : 'MIRI/LRS'
 # Type of filter or detector used. For SOSS, either 'CLEAR' or 'F277W'. For NIRSpec, either 'NRS1' or 'NRS2'.
-filter_detector : 'CLEAR'
+filter_detector : ''
 
 # ===== Stage 1 Input Files & Parameters =====
 # List of stage 1 steps to run or skip.
 DQInitStep : 'run'
-EmiCorrStep : 'skip'       # MIRI only
+EmiCorrStep : 'run'       # MIRI only
 SaturationStep : 'run'
-ResetStep : 'skip'         # MIRI only
-SuperBiasStep : 'run'      # SOSS/NIRSpec only
-RefPixStep : 'run'         # SOSS only
-DarkCurrentStep : 'run'   # SOSS/NIRSpec only
-OneOverFStep_grp : 'run'   # SOSS/NIRSpec only
+ResetStep : 'run'         # MIRI only
+SuperBiasStep : 'skip'      # SOSS/NIRSpec only
+RefPixStep : 'skip'         # SOSS only
+DarkCurrentStep : 'skip'   # SOSS/NIRSpec only
+OneOverFStep_grp : 'skip'   # SOSS/NIRSpec only
 LinearityStep : 'run'
 JumpStep : 'run'
 RampFitStep : 'run'
@@ -44,7 +44,7 @@ soss_timeseries : None
 # 'scale-chromatic'.
 soss_timeseries_o2 : None
 # For 1/f correction; outlier pixel maps (optional).
-outlier_maps : ['pipeline_outputs_directory/Stage1/jw02734001001_04101_00001-seg001_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw02734001001_04101_00001-seg002_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw02734001001_04101_00001-seg003_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw02734001001_04101_00001-seg004_nis_pixelflags.fits' ]
+outlier_maps : None # ['pipeline_outputs_directory/Stage1/jw02734001001_04101_00001-seg001_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw02734001001_04101_00001-seg002_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw02734001001_04101_00001-seg003_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw02734001001_04101_00001-seg004_nis_pixelflags.fits' ]
 # (SOSS only) For 1/f correction; width, in pixels, of inner trace mask.
 soss_inner_mask_width : 42
 # (SOSS only) For 1/f correction; width, in pixels, of outer trace mask.
@@ -61,7 +61,7 @@ jump_threshold : 15
 # For jump detection; whether to also flag outliers in the time domain (recommended method).
 flag_in_time : True
 # For time domain jump detection; sigma threshold for a pixel to be flagged as an outlier.
-time_jump_threshold : 6
+time_jump_threshold : 7
 # DMS Stage 1 kwargs. Format should be: {'step_name': {'kwd': value}}.
 stage1_kwargs : {}
 
@@ -78,15 +78,15 @@ BadPixStep : 'run'
 PCAReconstructStep : 'run'
 TracingStep : 'run'
 # (MIRI only) For background subtraction; width (in pixels) to mask around the trace.
-miri_trace_width : 20
+miri_trace_width : 22
 # (MIRI only) For background subtraction; width (in pixels) of the background region to use on either side of the trace.
-miri_background_width : 14
+miri_background_width : 10
 # (MIRI only) Method to use for background subtraction; either 'median' or 'slope'.
 miri_background_method : 'median'
 # For outlier detection; sigma threshold for a pixel to be flagged as an outlier, spatially.
 space_outlier_threshold : 5
 # For outlier detection; sigma threshold for a pixel to be flagged as an outlier, temporally.
-time_outlier_threshold : 7
+time_outlier_threshold : 5
 # Number of principle components to extract. Only necessary if running PCAReconstructStep.
 pca_components : 10
 # PCA components to remove during the TSO reconstruction (optional).
@@ -106,7 +106,7 @@ stage2_kwargs : {}
 extract_method : 'box'
 # Full width to extract around the trace center. Passing None for optimal will extract the whole frame. Passing
 # 'optimize' will find and use the aperture width that minimizes the white light curve scatter for box.
-extract_width : 30
+extract_width : 5
 # (SOSS only) Box width to use for order 2. Passing None will use the same aperture width as for order 1 (optional).
 extract_width_soss2 : None
 # (SOSS only) Specprofile reference file for ATOCA (optional).

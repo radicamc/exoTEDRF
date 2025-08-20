@@ -1289,7 +1289,7 @@ class JumpStep:
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, flag_up_ramp=False, rejection_threshold=15,
-            flag_in_time=True, time_rejection_threshold=10, time_window=7, do_plot=False,
+            flag_in_time=True, time_rejection_threshold=10, time_window=5, do_plot=False,
             show_plot=False, **kwargs):
         """Method to run the step.
 
