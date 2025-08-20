@@ -44,7 +44,7 @@ soss_timeseries : None
 # 'scale-chromatic'.
 soss_timeseries_o2 : None
 # For 1/f correction; outlier pixel maps (optional).
-outlier_maps : None # ['pipeline_outputs_directory/Stage1/jw01366001001_04101_00001-seg001_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw01366001001_04101_00001-seg002_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw01366001001_04101_00001-seg003_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw01366001001_04101_00001-seg004_nis_pixelflags.fits' ]
+outlier_maps : ['pipeline_outputs_directory/Stage1/jw01366001001_04101_00001-seg001_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw01366001001_04101_00001-seg002_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw01366001001_04101_00001-seg003_nis_pixelflags.fits','pipeline_outputs_directory/Stage1/jw01366001001_04101_00001-seg004_nis_pixelflags.fits' ]
 # (SOSS only) For 1/f correction; width, in pixels, of inner trace mask.
 soss_inner_mask_width : 42
 # (SOSS only) For 1/f correction; width, in pixels, of outer trace mask.
@@ -132,7 +132,7 @@ run_stages : [1, 2, 3]
 # Save results of each intermediate step to file.
 save_results : True
 # Force redo of steps which have already been completed.
-force_redo : False
+force_redo : True
 # Integrations of ingress and/or egress.
 baseline_ints : [100, -100]
 # File with trace centroids for box extraction and 1/f correction (optional).
