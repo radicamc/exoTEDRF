@@ -128,11 +128,11 @@ stage3_kwargs : {}
 # Name tag for output file directory.
 output_tag : ''
 # Pipeline stages to run.
-run_stages : [1, 2, 3]
+run_stages : [2, 3]
 # Save results of each intermediate step to file.
 save_results : True
 # Force redo of steps which have already been completed.
-force_redo : False
+force_redo : True
 # Integrations of ingress and/or egress.
 baseline_ints : [100, -100]
 # File with trace centroids for box extraction and 1/f correction (optional).
