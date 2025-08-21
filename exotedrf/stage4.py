@@ -103,7 +103,10 @@ def bin_at_pixel(wave, flux, error, npix):
     derrout : np.ndarray[float]
         Error on binned depth.
     """
-
+    if wave.ndim == 1:
+        wave = np.broadcast_to(wave, flux.shape)
+    if error.ndim == 1:
+        error = np.broadcast_to(error, flux.shape)
     # Calculate number of bins given wavelength grid and npix value.
     nint, nwave = np.shape(flux)
     # If the number of pixels does not bin evenly, trim from beginning and end.
