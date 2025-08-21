@@ -4,13 +4,13 @@
 #
 # ====== Fit Metadata ======
 # Name tag for output file directory. 
-output_tag : 'HAT_NIRSpec_Full'
+output_tag : 'HAT_MIRI_FULL'
 # File containing light curves to fit.
-infile : 'pipeline_outputs_directory_HAT_NIRSpec_Full/Stage3/HAT-P-18_nrs1_box_spectra_fullres.fits'
+infile : 'pipeline_outputs_directory_HAT_MIRI_FULL/Stage3/HAT-P-18_box_spectra_fullres.fits'
 # Instrument mode used, e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', etc.
-observing_mode : 'NIRSpec/G395M'
+observing_mode : 'MIRI/LRS'
 # (NIRSpec only) Detector used.
-detector : 'NRS1'
+detector : ''
 # (NIRSpec only) blue wavelength cutoff for NRS1.
 # Note: ignore if using pre-binned data.
 nrs1_blue : 2.8
@@ -25,7 +25,7 @@ orders : [1, 2]
 # Suffix to apply to fit output files.
 fit_suffix : ''
 # Integrations of ingress and egress.
-baseline_ints : [100, -100]
+baseline_ints : [50, -50]
 # Type of light curve model: 'transit' or 'eclipse'.
 # Other exoUPRF models can also be supported, see the exoUPRF documentation for more info.
 lc_model_type : 'transit'
@@ -58,19 +58,19 @@ force_redo : True
 params : ['per_p1', 't0_p1', 'rp_p1_inst', 'inc_p1',
           'u1_inst', 'u2_inst', 'ecc_p1', 'w_p1', 'a_p1',
           'sigma_inst',
-          'zero_inst','theta1_inst']
+          'zero_inst','theta1_inst','ramp-amp_inst','ramp-tmsc_inst']
 dists : ['fixed', 'fixed', 'uniform', 'fixed',
          'uniform', 'uniform', 'fixed', 'fixed', 'fixed',
          'loguniform',
-         'uniform','uniform']
-values : [5.50802941, 60795.386931369801, [0.01, 0.9], 88.702521530232,
-          [-1., 1.], [-1., 1.], 0.0, 90., 16.628358925823,
+         'uniform','uniform','uniform','fixed']
+values : [5.50802941, 60861.483248915218, [0.01, 0.9], 91.331473372851,
+          [-1., 1.], [-1., 1.], 0.0, 90., 16.574433683381,
           [0.000001, 0.1],
-          [-0.001, 0.001],[-1,1]]
+          [-0.001, 0.001],[-1,1],[-0.01,0.01],-2.716490761243]
 
 # === Detrending Paramaters ===
 # Path to file containing linear detrending parameters.
-lm_file : '/regressors_nirspec.csv'
+lm_file : 'regressors_miri.csv'
 # Key names for detrending parametrers.
 lm_parameters : ['t']
 # Path to file containing GP training parameters.
