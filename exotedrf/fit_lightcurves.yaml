@@ -4,11 +4,11 @@
 #
 # ====== Fit Metadata ======
 # Name tag for output file directory. 
-output_tag : 'HAT_MIRI_FULL'
+output_tag : 'HAT_SOSS_FULL'
 # File containing light curves to fit.
-infile : 'pipeline_outputs_directory_HAT_MIRI_FULL/Stage3/HAT-P-18_box_spectra_fullres.fits'
+infile : 'pipeline_outputs_directory_HAT_SOSS_FULL/Stage3/HAT-P-18_box_spectra_fullres.fits'
 # Instrument mode used, e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', etc.
-observing_mode : 'MIRI/LRS'
+observing_mode : 'NIRISS/SOSS'
 # (NIRSpec only) Detector used.
 detector : ''
 # (NIRSpec only) blue wavelength cutoff for NRS1.
@@ -25,10 +25,10 @@ orders : [1, 2]
 # Suffix to apply to fit output files.
 fit_suffix : ''
 # Integrations of ingress and egress.
-baseline_ints : [50, -50]
+baseline_ints : [100, -100]
 # Type of light curve model: 'transit' or 'eclipse'.
 # Other exoUPRF models can also be supported, see the exoUPRF documentation for more info.
-lc_model_type : 'transit' 
+lc_model_type : 'transit'
 # String of function call for a custom light curve model, if not a simple transit or eclipe.
 # Note: if using a custom light curve model, either 'custom-transit' or 'custom-eclipse' must be passed to
 # lc_model_type.
@@ -41,16 +41,16 @@ include_corner : False
 ncores : 4
 # Spectral resolution at which to fit light curves.
 # Note: if using pre-binned light curves, specify 'prebin' here.
-res : None
+res : 50 
 # Alternatively, number of pixel columns to bin before light curve fitting
-npix : 20
+npix : None
 # Planet identifier.
 planet_letter : 'b'
 # If True, run light curve fitting in debugging mode (i.e., don't catch errors).
 debug : False
 # If True, will overwrite any existing fit outputs.
 force_redo : True
- 
+
 # ====== Fit Priors + Parameters ======
 # Fitting priors in exoUPRF format.
 # For eclipse fits, must not pass u1_inst and u2_inst, and must pass tsec_p1 and fp_p1_inst.
@@ -58,19 +58,21 @@ force_redo : True
 params : ['per_p1', 't0_p1', 'rp_p1_inst', 'inc_p1',
           'u1_inst', 'u2_inst', 'ecc_p1', 'w_p1', 'a_p1',
           'sigma_inst',
-          'zero_inst','theta1_inst','ramp-amp_inst','ramp-tmsc_inst']
+          'zero_inst','theta1_inst', 'spot-amp_inst', 'spot-pos_inst', 'spot-dur_inst'] #3
+
 dists : ['fixed', 'fixed', 'uniform', 'fixed',
          'uniform', 'uniform', 'fixed', 'fixed', 'fixed',
          'loguniform',
-         'uniform','uniform','uniform','fixed']
-values : [5.50802941, 60861.483248915218, [0.01, 0.9], 91.331473372851,
-          [-1., 1.], [-1., 1.], 0.0, 90., 16.574433683381,
+         'uniform','uniform', 'uniform', 'fixed', 'fixed'] #slope uniform, amlitude pos dur fixed
+
+values : [5.50802941, 59743.353401981076, [0.01, 0.9], 88.620116586957,
+          [-1., 1.], [-1., 1.], 0.0, 90., 16.505820670591,
           [0.000001, 0.1],
-          [-0.001, 0.001],[-1,1],[-0.01,0.01],-2.716490761243]
+          [-0.001, 0.001],[-1,1],[0.000001, 1.0],59743.357979321176,0.004650413617]
 
 # === Detrending Paramaters ===
 # Path to file containing linear detrending parameters.
-lm_file : 'regressors_miri.csv'
+lm_file : '/data/pascal/exoTEDRF_fork/exoUPRF/regressors.csv'
 # Key names for detrending parametrers.
 lm_parameters : ['t']
 # Path to file containing GP training parameters.
@@ -100,3 +102,4 @@ stellar_model_type : 'stagger'
 ldcoef_file1 : None
 ldcoef_file2 : None
 # ======================= END LIGHT CURVE FIT CONFIG FILE ===========================
+Run at 2025-08-20 20:32.
