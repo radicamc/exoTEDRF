@@ -8,7 +8,6 @@ Created on Thurs Jul 21 17:30 2022
 Custom JWST DMS pipeline steps for Stage 1 (detector level processing).
 """
 
-
 from astropy.io import fits
 import bottleneck as bn
 import copy
@@ -29,10 +28,6 @@ import exotedrf.stage2 as stage2
 from exotedrf import utils, plotting
 from exotedrf.utils import fancyprint
 
-
-def test_stage1_fork():
-    print('Hello World')
-    return
 
 class DQInitStep:
     """Wrapper around default calwebb_detector1 Data Quality Initialization step with additional
@@ -2142,11 +2137,11 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
             if smoothing_scale is None:
                 # If no timescale provided, smooth the time series on a timescale of ~2%.
                 smoothing_scale = 0.02 * np.shape(cube)[0]
-            k = max(1, int(smoothing_scale))  # clamp to ≥1
-            fancyprint(f"Smoothing self-calibrated timeseries on a scale of {k} integrations.")
-            if k % 2 == 0:
-                k += 1
-            timeseries = median_filter(timeseries, k)
+                if smoothing_scale < 1:  # Make sure it doesn't go to zero.
+                    smoothing_scale = 1
+            fancyprint('Smoothing self-calibrated timeseries on a scale of '
+                       '{} integrations.'.format(int(smoothing_scale)))
+            timeseries = median_filter(timeseries, int(smoothing_scale))
         else:
             raise ValueError('2D light curves must be provided to use chromatic method.')
 
@@ -2728,7 +2723,6 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     results : list[RampModel]
         Datafiles for each segment processed through Stage 1.
     """
-    print('start running Stage 1 from Fork')
 
     # ============== DMS Stage 1 ==============
     # Detector level processing.
@@ -2910,7 +2904,5 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step_kwargs = {}
         step = GainScaleStep(results, output_dir=outdir)
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
-
-    print('finish running Stage 1 from Fork')
 
     return results
