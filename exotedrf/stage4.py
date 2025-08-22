@@ -113,7 +113,7 @@ def bin_at_pixel(wave, flux, error, npix):
         cut_e = -1*(cut - cut_s)
         flux = flux[:, cut_s:cut_e]
         error = error[:, cut_s:cut_e]
-        wave = wave[:, cut_s:cut_e]
+        wave = wave[cut_s:cut_e]
         nint, nwave = np.shape(flux)
     nbin = int(nwave / npix)
 
@@ -121,7 +121,7 @@ def bin_at_pixel(wave, flux, error, npix):
     flux_bin = np.nansum(np.reshape(flux, (nint, nbin, npix)), axis=2)
     err_bin = np.sqrt(np.nansum(np.reshape(error, (nint, nbin, npix))**2, axis=2))
     # Calculate mean wavelength per bin.
-    wave_bin = np.nanmean(np.reshape(wave, (nbin, npix)), axis=1)
+    wave_bin = np.nanmean(np.reshape(wave, (nbin, npix)))
     wave_err = make_bins(wave_bin)[1] / 2
 
     return wave_bin, wave_err, flux_bin, err_bin

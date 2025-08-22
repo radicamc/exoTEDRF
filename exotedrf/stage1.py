@@ -2137,6 +2137,8 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
             if smoothing_scale is None:
                 # If no timescale provided, smooth the time series on a timescale of ~2%.
                 smoothing_scale = 0.02 * np.shape(cube)[0]
+                if smoothing_scale < 1:  # Make sure it doesn't go to zero.
+                    smoothing_scale = 1
             fancyprint('Smoothing self-calibrated timeseries on a scale of '
                        '{} integrations.'.format(int(smoothing_scale)))
             timeseries = median_filter(timeseries, int(smoothing_scale))
