@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on 15 August 2025
+Created on Fri Aug 15 00:00 2025
 
 @author: PSD
 
-Custom JWST optimizer for exoTEDRF pipeline
+Script to run the exoTEDRF pipeline optimizer.
 """
 
 # ======== STANDARD LIBRARY IMPORTS ========
@@ -833,10 +833,9 @@ def get_stage_skips(cfg, steps, always_skip=None, special_one_over_f=False):
         # If the config marks this step to 'skip'
         if cfg.get(step, 'run') == 'skip':
             # Special handling for OneOverFStep variants
-            if special_one_over_f and step.startswith('OneOverFStep'):
-                skips.add('OneOverFStep')
-            else:
-                skips.add(step)
+            if step.startswith('OneOverFStep'):
+                step = 'OneOverFStep'
+            skips.add(step)
 
     # Return as a list (order not guaranteed since set used)
     return list(skips)
