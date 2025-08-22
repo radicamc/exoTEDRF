@@ -323,7 +323,7 @@ class WaveCorrStep:
                 fancyprint('Skipping Wavelength Correction Step.')
                 res = expected_file
             # If no output files are detected, run the step.
-            else: 
+            else:
                 step = calwebb_spec2.wavecorr_step.WavecorrStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 **kwargs)
@@ -550,14 +550,8 @@ class FlatFieldStep:
             # If no output files are detected, run the step.
             else:
                 step = calwebb_spec2.flat_field_step.FlatFieldStep()
-                from jwst import datamodels
-                import numpy as np
-
-                m = datamodels.open(segment)
-                if m.data.dtype.kind != "f":
-                    m.data = m.data.astype(np.float32)
-                res = step.call(m, output_dir=self.output_dir, save_results=save_results, **kwargs)
-
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
 
                 # From jwst v1.12.5-1.16.0, again STScI made a change to set DO_NOT_USE pixels to
                 # NaNs when applying the flat field. Cosmetically interpolate these. Just as with
@@ -683,17 +677,15 @@ class BadPixStep:
             results.append(res)
 
         if save_results is True:
-            # Ensure mask exists even if nothing was flagged
-            if 'to_flag' not in locals():
-                to_flag = np.zeros_like(segment.data, dtype=bool)
-
-            # Save hot pixel mask
+            # Save hot pixel mask.
             outfile = self.output_dir + self.fileroot_noseg + 'hot_pixels.npy'
             np.save(outfile, to_flag)
-            fancyprint(f'Hot pixel map saved to file: {outfile}')
+            fancyprint('Hot pixel map saved to file: {}.'.format(outfile))
 
         fancyprint('Step BadPixStep done.')
+
         return results
+
 
 class PCAReconstructStep:
     """Wrapper around custom PCA Reconstruction Step.
