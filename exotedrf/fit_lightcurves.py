@@ -214,6 +214,13 @@ def fit_lightcurves(config):
         else:
             asymmetric = False
 
+        # Are parametric systematics models going to be used?
+        use_parametric = False
+        for param in config['params']:
+            if param[:4] in ['ramp', 'spot', 'curv']:
+                use_parametric = True
+                break
+
         # For transit fits, calculate LD coefficients from stellar models.
         if 'transit' in config['lc_model_type'] and config['ld_fit_type'] != 'free':
             calculate = True
@@ -378,7 +385,7 @@ def fit_lightcurves(config):
         # plots.
         fancyprint('Summarizing fit results.')
         data = np.ones((nints, nbins)) * np.nan
-        models = np.ones((4, nints, nbins)) * np.nan
+        models = np.ones((5, nints, nbins)) * np.nan
         residuals = np.ones((nints, nbins)) * np.nan
         order_results = {'dppm': [], 'dppm_err': [], 'wave': wave, 'wave_err': wave_err}
         if asymmetric is True:
@@ -461,7 +468,7 @@ def fit_lightcurves(config):
                 transit_model = result.flux['inst']
                 systematics = None
                 gp_model, lm_model = None, None
-                if config['lm_file'] is not None or config['gp_file'] is not None:
+                if config['lm_file'] is not None or config['gp_file'] is not None or use_parametric is True:
                     systematics = np.zeros_like(transit_model)
                     if config['lm_file'] is not None:
                         lm_model = result.flux_decomposed['inst']['lm']['total']
@@ -469,6 +476,9 @@ def fit_lightcurves(config):
                     if config['gp_file'] is not None:
                         gp_model = result.flux_decomposed['inst']['gp']['total']
                         systematics += gp_model
+                    if use_parametric is True:
+                        parametric_model = result.flux_decomposed['inst']['parametric']['total']
+                        systematics += parametric_model
 
                 if config['do_plots'] is True:
                     make_lightcurve_plot(t=(t - t0) * 24, data=norm_flux[:, i], model=transit_model,
@@ -494,7 +504,9 @@ def fit_lightcurves(config):
                     models[1, :, i] = systematics
                 if gp_model is not None:
                     models[2, :, i] = gp_model
-                models[3, :, i] = norm_flux[:, i]
+                if use_parametric is True:
+                    models[3, :, i] = parametric_model
+                models[4, :, i] = norm_flux[:, i]
                 residuals[:, i] = norm_flux[:, i] - transit_model
 
         results_dict['order {}'.format(order)] = order_results
