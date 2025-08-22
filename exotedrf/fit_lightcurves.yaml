@@ -3,14 +3,14 @@
 # This is the configuration file for fit_lightcurves.py.
 #
 # ====== Fit Metadata ======
-# Name tag for output file directory. 
-output_tag : 'HAT_SOSS_FULL'
+# Name tag for output file directory.
+output_tag : ''
 # File containing light curves to fit.
-infile : 'pipeline_outputs_directory_HAT_SOSS_FULL/Stage3/HAT-P-18_box_spectra_fullres.fits'
+infile : ''
 # Instrument mode used, e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', etc.
 observing_mode : 'NIRISS/SOSS'
 # (NIRSpec only) Detector used.
-detector : ''
+detector : 'NRS1'
 # (NIRSpec only) blue wavelength cutoff for NRS1.
 # Note: ignore if using pre-binned data.
 nrs1_blue : 2.8
@@ -25,7 +25,7 @@ orders : [1, 2]
 # Suffix to apply to fit output files.
 fit_suffix : ''
 # Integrations of ingress and egress.
-baseline_ints : [100, -100]
+baseline_ints : [50, -50]
 # Type of light curve model: 'transit' or 'eclipse'.
 # Other exoUPRF models can also be supported, see the exoUPRF documentation for more info.
 lc_model_type : 'transit'
@@ -41,7 +41,7 @@ include_corner : False
 ncores : 4
 # Spectral resolution at which to fit light curves.
 # Note: if using pre-binned light curves, specify 'prebin' here.
-res : 50 
+res : 'pixel'
 # Alternatively, number of pixel columns to bin before light curve fitting
 npix : None
 # Planet identifier.
@@ -49,7 +49,7 @@ planet_letter : 'b'
 # If True, run light curve fitting in debugging mode (i.e., don't catch errors).
 debug : False
 # If True, will overwrite any existing fit outputs.
-force_redo : True
+force_redo : False
 
 # ====== Fit Priors + Parameters ======
 # Fitting priors in exoUPRF format.
@@ -58,23 +58,21 @@ force_redo : True
 params : ['per_p1', 't0_p1', 'rp_p1_inst', 'inc_p1',
           'u1_inst', 'u2_inst', 'ecc_p1', 'w_p1', 'a_p1',
           'sigma_inst',
-          'zero_inst','theta1_inst', 'spot-amp_inst', 'spot-pos_inst', 'spot-dur_inst'] #3
-
+          'zero_inst']
 dists : ['fixed', 'fixed', 'uniform', 'fixed',
          'uniform', 'uniform', 'fixed', 'fixed', 'fixed',
          'loguniform',
-         'uniform','uniform', 'uniform', 'fixed', 'fixed'] #slope uniform, amlitude pos dur fixed
-
-values : [5.50802941, 59743.353401981076, [0.01, 0.9], 88.620116586957,
-          [-1., 1.], [-1., 1.], 0.0, 90., 16.505820670591,
+         'uniform']
+values : [3.42525650, 2459751.821681146, [0.01, 0.9], 0.748,
+          [0., 1.], [0., 1.], 0.0, 90., 8.82,
           [0.000001, 0.1],
-          [-0.001, 0.001],[-1,1],[0.000001, 1.0],59743.357979321176,0.004650413617]
+          [-0.001, 0.001]]
 
 # === Detrending Paramaters ===
 # Path to file containing linear detrending parameters.
-lm_file : '/data/pascal/exoTEDRF_fork/exoUPRF/regressors.csv'
+lm_file : None
 # Key names for detrending parametrers.
-lm_parameters : ['t']
+lm_parameters : []
 # Path to file containing GP training parameters.
 gp_file : None
 # Key name for GP training parametrer.
@@ -102,4 +100,3 @@ stellar_model_type : 'stagger'
 ldcoef_file1 : None
 ldcoef_file2 : None
 # ======================= END LIGHT CURVE FIT CONFIG FILE ===========================
-Run at 2025-08-20 20:32.
