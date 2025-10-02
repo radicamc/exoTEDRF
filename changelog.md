@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [2.3.2] -- 2025-10-02
+#### Added
+- Update install requirements to fix incompatibilities with numpy and crds.
+
 ### [2.3.1] -- 2025-05-13
 #### Added
 - Updates for ATOCA SOSS extraction.
