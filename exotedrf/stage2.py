@@ -580,6 +580,84 @@ class FlatFieldStep:
         return results
 
 
+class PhotomStep:
+    """Wrapper around default calwebb_spec2 Photometric Calibration step.
+    """
+
+    def __init__(self, input_data, output_dir='./'):
+        """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        output_dir : str
+            Path to directory to which to save outputs.
+        """
+
+        # Set up easy attributes.
+        self.tag = 'photomstep.fits'
+        self.output_dir = output_dir
+
+        # Unpack input data files.
+        self.datafiles = utils.sort_datamodels(input_data)
+        self.fileroots = utils.get_filename_root(self.datafiles)
+
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
+    def run(self, save_results=True, force_redo=False, **kwargs):
+        """Method to run the step.
+
+        Parameters
+        ----------
+        save_results : bool
+            If True, save results.
+        force_redo : bool
+            If True, run step even if output files are detected.
+        kwargs : dict
+            Keyword arguments for calwebb_spec2.photom_step.PhotomStep.
+
+        Returns
+        -------
+        results : list(datamodel)
+            Input data files processed through the step.
+        """
+
+        # Only run this step for NIRSpec when flux calibrating.
+        if self.instrument != 'NIRSPEC':
+            raise NotImplementedError('PhotomStep only implemented for NIRSpec.')
+
+        # If the instrument is NIRSpec, then proceed with the step.
+        results = []
+        all_files = glob.glob(self.output_dir + '*')
+        for i, segment in enumerate(self.datafiles):
+            # If an output file for this segment already exists, skip the step.
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            if expected_file in all_files and force_redo is False:
+                fancyprint('File {} already exists.'.format(expected_file))
+                fancyprint('Skipping Photometric Calibration Step.')
+                res = expected_file
+            # If no output files are detected, run the step.
+            else:
+                step = calwebb_spec2.photom_step.PhotomStep()
+                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
+                                **kwargs)
+                # Verify that filename is correct.
+                if save_results is True:
+                    current_name = self.output_dir + res.meta.filename
+                    if expected_file != current_name:
+                        res.close()
+                        os.rename(current_name, expected_file)
+                        thisfile = fits.open(expected_file)
+                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
+                        thisfile.writeto(expected_file, overwrite=True)
+                    res = expected_file
+            results.append(res)
+
+        return results
+
+
 class BadPixStep:
     """Wrapper around custom Bad Pixel Correction Step.
     """
