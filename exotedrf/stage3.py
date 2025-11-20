@@ -1093,6 +1093,32 @@ def extract_optimal(prof, data, var, ymin=0, ymax=None, xmin=0, xmax=None):
     return f_opt, var_opt
 
 
+def flux_calibrate(spectrum_file):
+    """Perform the flux calibration (to erg/s/cm^2/µm) for extracted NIRSpec or MIRI spectra.
+
+    Parameters
+    ----------
+    spectrum_file : str
+        Path to extracted stellar spectra.
+    """
+
+    fancyprint('Starting flux calibration.')
+
+    # Get the extracted spectra and erorrs.
+    spec = fits.open(spectrum_file)
+    # Convert to erg/s/cm2/µm.
+    spec[3].data = utils.convert_flux_units(spec[1].data, spec[3].data)
+    spec[4].data = utils.convert_flux_units(spec[1].data, spec[4].data)
+    spec[3].header['UNITS'] = 'erg/s/cm2/um'
+    spec[4].header['UNITS'] = 'erg/s/cm2/um'
+
+    newfile = spectrum_file[:-5] + '_FluxCalibrated.fits'
+    fancyprint('Flux calibrated spectra saved to {}'.format(newfile))
+    spec.writeto(newfile, overwrite=True)
+
+    return None
+
+
 def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path, orders=[1, 2]):
     """Perform the flux calibration (to erg/s/cm^2/µm) for extracted SOSS spectra. Note that the
     spectra must have been extracted with a box width of 0 pixels, and also that the rev2 photom
@@ -1137,9 +1163,9 @@ def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path, orde
         spec[fi].data *= flux_scaling
         spec[ei].data *= flux_scaling
         # Convert to erg/s/cm2/µm.
-        spec[fi].data *= (1e-23 * (3e8 * 1e6) / wave**2)
+        spec[fi].data = utils.convert_flux_units(wave, spec[fi].data*1e6)  # Convert Jy to MJy
         spec[fi].header['UNITS'] = 'erg/s/cm2/um'
-        spec[ei].data *= (1e-23 * (3e8 * 1e6) / wave**2)
+        spec[ei].data = utils.convert_flux_units(wave, spec[ei].data*1e6)  # Convert Jy to MJy
         spec[ei].header['UNITS'] = 'erg/s/cm2/um'
 
     newfile = spectrum_file[:-5] + '_FluxCalibrated.fits'
