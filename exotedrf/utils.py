@@ -24,6 +24,32 @@ import yaml
 import applesoss.edgetrigger_centroids as apl
 
 
+def convert_flux_units(wave, flux):
+    """ Convert extracted flux from units of MJy (output by the pipeline by default) to
+    erg/s/cm^2/µm. Flux should still be scaled by (Rstar/Dist)**2 to correct for flux at Earth
+    effect.
+
+    Parameters
+    ----------
+    wave : array-like(float)
+        Wavelength array in µm
+    flux : array-like(float)
+        Flux array in MJy. Should be the same size as wave.
+
+    Returns
+    -------
+    flux_converted : ndarray(float)
+        Flux array converted to erg/s/cm^2/µm.
+    """
+
+    # Make sure things are numpy arrays.
+    wave, flux = np.array(wave), np.array(flux)
+    # Do the unit conversion.
+    flux_converted = flux * 1e6 * (1e-23 * (3e8 * 1e6) / wave**2)
+
+    return flux_converted
+
+
 def do_replacement(frame, badpix_map, dq=None, xbox_size=5, ybox_size=0):
     """Replace flagged pixels with the median of a surrounding box.
 
