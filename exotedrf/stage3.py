@@ -1163,9 +1163,9 @@ def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path, orde
         spec[fi].data *= flux_scaling
         spec[ei].data *= flux_scaling
         # Convert to erg/s/cm2/µm.
-        spec[fi].data = utils.convert_flux_units(wave, spec[fi].data*1e6)  # Convert Jy to MJy
+        spec[fi].data = utils.convert_flux_units(wave, spec[fi].data/1e6)  # Convert Jy to MJy
         spec[fi].header['UNITS'] = 'erg/s/cm2/um'
-        spec[ei].data = utils.convert_flux_units(wave, spec[ei].data*1e6)  # Convert Jy to MJy
+        spec[ei].data = utils.convert_flux_units(wave, spec[ei].data/1e6)  # Convert Jy to MJy
         spec[ei].header['UNITS'] = 'erg/s/cm2/um'
 
     newfile = spectrum_file[:-5] + '_FluxCalibrated.fits'
