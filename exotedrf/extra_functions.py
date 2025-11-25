@@ -112,7 +112,6 @@ def download_ref_file(filename, origin, destination):
 
     # Construct file location and destination.
     url = f'{origin}/{filename}'
-    outdir = destination
 
     # If file already exists, don't need to re-download.
     if os.path.exists(destination + filename):
@@ -124,8 +123,9 @@ def download_ref_file(filename, origin, destination):
     if response.status_code == 200:
         with open(filename, 'wb') as f:
             f.write(response.content)
-            shutil.move(f'./{filename}', outdir)
-            fancyprint(f'Downloaded {filename} and saved to {outdir}')
+            if destination != './':
+                shutil.move(f'./{filename}', destination)
+            fancyprint(f'Downloaded {filename} and saved to {destination}')
 
     else:
         raise ValueError(f'Failed to download: {response.status_code}')

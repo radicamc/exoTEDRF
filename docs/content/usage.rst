@@ -100,6 +100,19 @@ the step, which will not have a major impact on the final data quality. As menti
 (e.g., see Figures C1 & C2 in `Radica et al. 2023 <https://ui.adsabs.harvard.edu/abs/2023MNRAS.524..835R/abstract>`_).
 
 
+Flux Calibration
+----------------
+
+In many cases, it might be useful to flux calibrate extracted stellar spectra so that they can be directly compared to stellar models in "real" units (i.e., erg/s/cm^2/µm).
+The following will walk you through how to accomplish this. Note that NIRISS (as per usual) has a different process than the general one to be followed for the other instruments.
+
+.. toctree::
+   :maxdepth: 2
+
+   notebooks/flux_calibrate_niriss
+   notebooks/flux_calibrate_nirspec
+
+
 Scripting
 ---------
 
