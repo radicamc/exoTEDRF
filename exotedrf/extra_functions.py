@@ -13,6 +13,7 @@ from astroquery.mast import Observations
 from itertools import groupby
 import numpy as np
 import os
+import requests
 from scipy.signal import medfilt
 import shutil
 
@@ -88,6 +89,48 @@ def download_observations(proposal_id, instrument_name=None, objectname=None, fi
     shutil.rmtree('mastDownload/')
 
     return
+
+
+def download_ref_file(filename, origin, destination):
+    """Download reference files (from crds or elsewhere).
+
+    Parameters
+    ----------
+    filename : str
+        Name of the file to download.
+    origin : str
+        Url at which the file is located.
+    destination : str
+        Path to directory to which to save the downloaded file.
+    """
+
+    # Append slashes if necessary.
+    if origin[-1] != '/':
+        origin += '/'
+    if destination[-1] != '/':
+        destination += '/'
+
+    # Construct file location and destination.
+    url = f'{origin}/{filename}'
+    outdir = destination
+
+    # If file already exists, don't need to re-download.
+    if os.path.exists(destination + filename):
+        fancyprint(f'file {destination + filename} already exists', msg_type='WARNING')
+        return None
+
+    # Download file and move to desired location.
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(filename, 'wb') as f:
+            f.write(response.content)
+            shutil.move(f'./{filename}', outdir)
+            fancyprint(f'Downloaded {filename} and saved to {outdir}')
+
+    else:
+        raise ValueError(f'Failed to download: {response.status_code}')
+
+    return None
 
 
 def get_throughput_from_photom_file(photom_path):
