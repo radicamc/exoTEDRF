@@ -24,6 +24,34 @@ import yaml
 import applesoss.edgetrigger_centroids as apl
 
 
+def collapse_f277w_exposure(data, outdir='./'):
+    """Do rough 1/f noise removal and collapse an F277W exposure cube to make the final calibrated
+    data product.
+
+    Parameters
+    ----------
+    data : jwst.datamodel
+        F277W exposure datamodel after ramp fitting.
+    outdir : str
+        Directory to which to save outputs.
+    """
+
+    if outdir[-1] != '/':
+        outdir += '/'
+
+    # Subtract median of each column to ~remove 1/f and background.
+    mm = np.nanmedian(data.data, axis=1)
+    rr = data.data - mm[:, None, :]
+    # Collapse exposure over integration axis.
+    f277w = np.nanmedian(rr, axis=0)
+
+    # Save F277W frame.
+    np.save(outdir + 'F277W.npy', f277w)
+    fancyprint('Saved to {}'.format(outdir + 'F277W.npy'))
+
+    return None
+
+
 def convert_flux_units(wave, flux):
     """ Convert extracted flux from units of MJy (output by the pipeline by default) to
     erg/s/cm^2/µm. Flux should still be scaled by (Rstar/Dist)**2 to correct for flux at Earth

@@ -2642,6 +2642,44 @@ def subtract_custom_superbias(datafile, superbias, method='constant', centroids=
     return result, scale_factors
 
 
+def reduce_f277w_exposure(filename, outdir='./'):
+    """Do the quick calibration (effectively the main Stage 1 steps) necessary to calibrate an
+    F277W exposure to the level necessary to identify background contaminants in the TracingStep.
+
+    Parameters
+    ----------
+    filename : str
+        Path to uncalibrated F277W exposure.
+    outdir : str
+        Directory to which to save calibrated F277W file.
+    """
+
+    step = DQInitStep(filename, output_dir=outdir)
+    results = step.run(save_results=False, force_redo=True)
+
+    step = SaturationStep(results, output_dir=outdir)
+    results = step.run(save_results=False, force_redo=True)
+
+    step = SuperBiasStep(results, output_dir=outdir)
+    results = step.run(save_results=False, force_redo=True)
+
+    step = RefPixStep(results, output_dir=outdir)
+    results = step.run(save_results=False, force_redo=True)
+
+    step = LinearityStep(results, output_dir=outdir)
+    results = step.run(save_results=False, force_redo=True)
+
+    step = JumpStep(results, output_dir=outdir)
+    results = step.run(save_results=False, force_redo=True, flag_in_time=True)
+
+    step = RampFitStep(results, output_dir=outdir)
+    results = step.run(save_results=False, force_redo=True)
+
+    utils.collapse_f277w_exposure(results[0], outdir=outdir)
+
+    return None
+
+
 def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                oof_method='scale-achromatic', superbias_method='crds',
                soss_timeseries=None, soss_timeseries_o2=None, save_results=True, pixel_masks=None,
