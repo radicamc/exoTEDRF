@@ -18,7 +18,6 @@ filter_detector : 'CLEAR'
 # List of stage 1 steps to run or skip.
 DQInitStep : 'run'
 EmiCorrStep : 'skip'       # MIRI only
-SaturationStep : 'run'
 ResetStep : 'skip'         # MIRI only
 SuperBiasStep : 'run'      # SOSS/NIRSpec only
 RefPixStep : 'run'         # SOSS only
@@ -30,6 +29,8 @@ RampFitStep : 'run'
 GainScaleStep : 'run'
 # Custom map of hot pixel locations (optional).
 hot_pixel_map : None
+# Saturation threshold in ADU (optional).
+saturation_threshold : None
 # (NIRSpec only) Superbias calculation method. Options are 'crds', 'custom', or 'custom-rescale'.
 superbias_method : 'crds'
 # (SOSS only) Background model for NIRISS/SOSS. Default model available here:

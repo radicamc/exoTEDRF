@@ -30,8 +30,8 @@ from exotedrf.utils import fancyprint
 
 
 class DQInitStep:
-    """Wrapper around default calwebb_detector1 Data Quality Initialization step with additional
-    hot pixel flagging.
+    """Wrapper around default calwebb_detector1 Data Quality Initialization step with some custom
+    modifications.
     """
 
     def __init__(self, input_data, output_dir, hot_pixel_map=None):
@@ -55,8 +55,12 @@ class DQInitStep:
         self.datafiles = utils.sort_datamodels(input_data)
         self.fileroots = utils.get_filename_root(self.datafiles)
 
-        # Get instrument.
+        # Get instrument and detector (if NRS).
         self.instrument = utils.get_instrument_name(self.datafiles[0])
+        if self.instrument == 'NIRSPEC':
+            self.detector = utils.get_nrs_detector_name(self.datafiles[0])
+        else:
+            self.detector = None
 
         # Unpack deepframe.
         if isinstance(hot_pixel_map, str):
@@ -69,7 +73,8 @@ class DQInitStep:
             raise ValueError('Invalid type for hot_pixel_map: {}'.format(type(hot_pixel_map)))
 
     def run(self, save_results=True, force_redo=False, flag_first_miri_frame=True,
-            flag_last_miri_frame=True, **kwargs):
+            flag_last_miri_frame=True, saturation_threshold=None, flag_neighbours=1,
+            do_plot=False, show_plot=False, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -79,9 +84,17 @@ class DQInitStep:
         force_redo : bool
             If True, run step even if output files are detected.
         flag_first_miri_frame : bool
-            if True, set the first MIRI group to DO_NOT_USE.
+            If True, set the first MIRI group to DO_NOT_USE.
         flag_last_miri_frame : bool
-            if True, set the last MIRI group to DO_NOT_USE.
+            If True, set the last MIRI group to DO_NOT_USE.
+        saturation_threshold : float
+            Threshold (in DN) for a pixel to be considered saturated.
+        flag_neighbours : int
+            Size of box, in pixels, to flag around a saturated pixel to mitigate charge spillage.
+        do_plot : bool
+            If True, do step diagnostic plot.
+        show_plot : bool
+            If True, show the step diagnostic plot.
         kwargs : dict
             Keyword arguments for calwebb_detector1.dq_init_step.DQInitStep.
 
@@ -109,8 +122,8 @@ class DQInitStep:
                 step = calwebb_detector1.dq_init_step.DQInitStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 **kwargs)
-                # Additional calibrations
-                add_cal = False
+
+                # ==== Additional Calibrations ====
                 # For MIRI, set first and last group to DO_NOT_USE.
                 if self.instrument == 'MIRI':
                     if flag_first_miri_frame is True:
@@ -118,20 +131,24 @@ class DQInitStep:
                         dnu = utils.get_dq_flag_metrics(res.groupdq[:, 0], ['DO_NOT_USE'])
                         ii = np.where(dnu != 1)
                         res.groupdq[:, 0][ii] += 1
-                        add_cal = True
                     if flag_last_miri_frame is True:
                         fancyprint('Flagging last MIRI frame.')
                         dnu = utils.get_dq_flag_metrics(res.groupdq[:, -1], ['DO_NOT_USE'])
                         ii = np.where(dnu != 1)
                         res.groupdq[:, -1][ii] += 1
-                        add_cal = True
+
                 # Flag additional hot pixels not in the default map.
                 if self.hotpix is not None:
                     res = flag_hot_pixels(res, hot_pix=self.hotpix)[0]
-                    add_cal = True
-                # Overwite the previous edition if additional calibrations have been performed.
-                if add_cal is True:
-                    res.save(expected_file)
+
+                # Locate and flag saturated pixels.
+                res, sat_pix = flag_saturated_pixels(res, self.instrument,
+                                                     saturation_threshold=saturation_threshold,
+                                                     nrs_detector=self.detector,
+                                                     flag_neighbours=flag_neighbours)
+                # Overwite the previous edition of the file.
+                res.save(expected_file)
+
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -143,6 +160,13 @@ class DQInitStep:
                         thisfile.writeto(expected_file, overwrite=True)
                     res = expected_file
             results.append(res)
+
+        # Do step plot if requested.
+        if do_plot is True:
+            plot_file = self.output_dir + self.tag.replace('.fits', '.png')
+            if self.instrument == 'NIRSPEC':
+                plot_file = plot_file.replace('.png', '_{}.png'.format(self.detector))
+            plotting.plot_saturated_pixels(sat_pix[-1, -1], outfile=plot_file, show_plot=show_plot)
 
         return results
 
@@ -216,81 +240,6 @@ class EmiCorrStep:
                 step = calwebb_detector1.emicorr_step.EmiCorrStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 skip=False, **kwargs)
-                # Verify that filename is correct.
-                if save_results is True:
-                    current_name = self.output_dir + res.meta.filename
-                    if expected_file != current_name:
-                        res.close()
-                        os.rename(current_name, expected_file)
-                        thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
-                        thisfile.writeto(expected_file, overwrite=True)
-                    res = expected_file
-            results.append(res)
-
-        return results
-
-
-class SaturationStep:
-    """Wrapper around default calwebb_detector1 Saturation Detection step.
-    """
-
-    def __init__(self, input_data, output_dir):
-        """Step initializer.
-
-        Parameters
-        ----------
-        input_data : array-like(str), array-like(datamodel)
-            List of paths to input data or the input data itself.
-        output_dir : str
-            Path to directory to which to save outputs.
-        """
-
-        # Set up easy attributes.
-        self.tag = 'saturationstep.fits'
-        self.output_dir = output_dir
-
-        # Unpack input data files.
-        self.datafiles = utils.sort_datamodels(input_data)
-        self.fileroots = utils.get_filename_root(self.datafiles)
-
-    def run(self, save_results=True, force_redo=False, **kwargs):
-        """Method to run the step.
-
-        Parameters
-        ----------
-        save_results : bool
-            If True, save results.
-        force_redo : bool
-            If True, run step even if output files are detected.
-        kwargs : dict
-            Keyword arguments for
-            calwebb_detector1.saturation_step.SaturationStep.
-
-        Returns
-        -------
-        results : list(datamodel)
-            Input data files processed through the step.
-        """
-
-        # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
-
-        results = []
-        all_files = glob.glob(self.output_dir + '*')
-        for i, segment in enumerate(self.datafiles):
-            # If an output file for this segment already exists, skip the step.
-            expected_file = self.output_dir + self.fileroots[i] + self.tag
-            if expected_file in all_files and force_redo is False:
-                fancyprint('File {} already exists.'.format(expected_file))
-                fancyprint('Skipping Saturation Detection Step.')
-                res = expected_file
-            # If no output files are detected, run the step.
-            else:
-                step = calwebb_detector1.saturation_step.SaturationStep()
-                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
-                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -1634,6 +1583,140 @@ def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15, hot_pix=None
     return result, hot_pix
 
 
+def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15, hot_pix=None):
+    """Identify and flag additional hot pixels in a SOSS TSO which are not already in the default
+    pipeline flags.
+
+    Parameters
+    ----------
+    result : jwst.datamodel
+        Input datamodel.
+    deepframe : array-like(float), None
+        Deep stack of the time series.
+    box_size : int
+        Size of box around each pixel to consider.
+    thresh : int
+        Sigma threshold above which a pixel will be flagged.
+    hot_pix : array-like(bool), None
+        Map of pixels to flag.
+
+    Returns
+    -------
+    result : jwst.datamodel
+        Input datamodel with newly flagged pixels added to pixeldq extension.
+    hot_pix : np.ndarray(bool)
+        Map of new flagged pixels.
+    """
+
+    fancyprint('Identifying additional unflagged hot pixels...')
+
+    # Get location of all pixels already flagged as warm or hot.
+    hot = utils.get_dq_flag_metrics(result.pixeldq, ['HOT', 'WARM'])
+
+    if hot_pix is not None:
+        hot_pix = hot_pix
+        fancyprint('Using provided hot pixel map...')
+        result.pixeldq[hot_pix] += 2048
+
+    else:
+        assert deepframe is not None
+
+        dimy, dimx = np.shape(deepframe)
+        all_med = np.nanmedian(deepframe)
+        hot_pix = np.zeros_like(deepframe).astype(bool)
+        for i in tqdm(range(4, dimx - 4)):
+            for j in range(dimy):
+                box_size_i = box_size
+                box_prop = utils.get_interp_box(deepframe, box_size_i, i, j, dimx)
+                # Ensure that the median and std dev extracted are good. If not, increase the box
+                # size until they are.
+                while np.any(np.isnan(box_prop)):
+                    box_size_i += 1
+                    box_prop = utils.get_interp_box(deepframe, box_size_i, i, j, dimx)
+                med, std = box_prop[0], box_prop[1]
+
+                # If central pixel is too deviant...
+                if np.abs(deepframe[j, i] - med) >= (thresh * std):
+                    # And reasonably bright (don't want to flag noise)...
+                    if deepframe[j, i] > all_med:
+                        # And not already flagged...
+                        if hot[j, i] == 0:
+                            # Flag it.
+                            result.pixeldq[j, i] += 2048
+                            hot_pix[j, i] = True
+
+        count = int(np.sum(hot_pix))
+        fancyprint('{} additional hot pixels identified.'.format(count))
+
+    return result, hot_pix
+
+
+def flag_saturated_pixels(datafile, instrument, saturation_threshold=None, nrs_detector=None,
+                          flag_neighbours=1):
+    """Flag pixels above a user-defined threshold as saturated.
+
+    Parameters
+    ----------
+    datafile : jwst.datamodel
+        Datamodel for a given observation segment.
+    instrument : str
+        JWST instrument identifier.
+    saturation_threshold : int, float, None
+        Threshold in ADU to consider a pixel saturated.
+    nrs_detector : str
+        NIRSpec detector identifier.
+    flag_neighbours : int
+        Size of box, in pixels, to flag around a saturated pixel to mitigate charge spillage.
+
+    Returns
+    -------
+    datafile : jwst.datamodel
+        Input datamodel with saturation flags applied.
+    inds : np.ndarray(float)
+        Locations of saturated pixels.
+    """
+
+    # Set default saturation thresholds if none are provided.
+    # Sourced from the revelant saturation reference files.
+    if saturation_threshold is None:
+        if instrument == 'NIRISS':
+            saturation_threshold = 62070
+        elif instrument == 'NIRSPEC':
+            if nrs_detector == 'NRS1':
+                saturation_threshold = 61537
+            else:
+                saturation_threshold = 60000
+        else:
+            saturation_threshold = 56600
+
+    fancyprint(
+        'Identifying saturated pixels using a threshold of {} DN.'.format(saturation_threshold))
+
+    # Locate saturated pixels.
+    inds = datafile.data >= saturation_threshold
+    nints, ngroups, ydim, xdim = np.shape(datafile.data)
+
+    fancyprint('{} saturated pixels identified.'.format(np.sum(inds)))
+
+    # For saturated pixels, also flag neighbouring pixels to mitigate charge spillage.
+    fancyprint('Expanding flagged region by {} pixel(s).'.format(flag_neighbours))
+    ii = np.where(inds)
+    for pix in range(len(ii[0])):
+        i, g, y, x = ii[0][pix], ii[1][pix], ii[2][pix], ii[3][pix]
+        inds[i, g, (y - flag_neighbours):(y + flag_neighbours + 1),
+             (x - flag_neighbours):(x + flag_neighbours + 1)] = True
+
+    # Add the saturation DQ flag.
+    datafile.groupdq += 2 * inds.astype(np.uint8)
+
+    # Also check if any pixels hit the ADU floor (i.e., <0 counts).
+    adu_floor = datafile.data < 0
+    datafile.groupdq += 64 * adu_floor.astype(np.uint8)  # Add the ADU floor DQ flag
+    fancyprint('{} ADU floor pixels identified.'.format(np.sum(adu_floor)))
+
+    return datafile, inds
+
+
 def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=True,
                      output_dir=None):
     """Jump detection step in the temporal domain. This algorithm is based off of Nikolov+ (2014)
@@ -2657,9 +2740,6 @@ def reduce_f277w_exposure(filename, outdir='./'):
     step = DQInitStep(filename, output_dir=outdir)
     results = step.run(save_results=False, force_redo=True)
 
-    step = SaturationStep(results, output_dir=outdir)
-    results = step.run(save_results=False, force_redo=True)
-
     step = SuperBiasStep(results, output_dir=outdir)
     results = step.run(save_results=False, force_redo=True)
 
@@ -2687,7 +2767,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                flag_in_time=True, time_rejection_threshold=10, root_dir='./', output_tag='',
                skip_steps=None, do_plot=False, show_plot=False, soss_inner_mask_width=40,
                soss_outer_mask_width=70, centroids=None, nirspec_mask_width=16, miri_drop_groups=12,
-               miri_subtract_dark=True, **kwargs):
+               miri_subtract_dark=True, saturation_threshold=None, flag_neighbours=1, **kwargs):
     """Run the exoTEDRF Stage 1 pipeline: detector level processing, using a combination of
     official STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_detector1.html
@@ -2755,6 +2835,10 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         Number of groups at the beginning of a MIRI exposure ramp to drop due to the RSCD effect.
     miri_subtract_dark : bool
         If True, also perform the MIRI dark current subtraction after linearity correction.
+    saturation_threshold : float
+        Threshold (in DN) for a pixel to be considered saturated.
+    flag_neighbours : int
+        Size of box, in pixels, to flag around a saturated pixel to mitigate charge spillage.
 
     Returns
     -------
@@ -2785,7 +2869,10 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         else:
             step_kwargs = {}
         step = DQInitStep(results, output_dir=outdir, hot_pixel_map=hot_pixel_map)
-        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
+        results = step.run(save_results=save_results, force_redo=force_redo,
+                           saturation_threshold=saturation_threshold,
+                           flag_neighbours=flag_neighbours, do_plot=do_plot, show_plot=show_plot,
+                           **step_kwargs)
 
     # ===== EMI Correction Step =====
     # Default DMS step.
@@ -2799,16 +2886,6 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
         else:
             fancyprint('EmiCorrStep not supported for {}.'.format(mode), msg_type='WARNING')
-
-    # ===== Saturation Detection Step =====
-    # Default DMS step.
-    if 'SaturationStep' not in skip_steps:
-        if 'SaturationStep' in kwargs.keys():
-            step_kwargs = kwargs['SaturationStep']
-        else:
-            step_kwargs = {}
-        step = SaturationStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
     # ===== Reset Anomaly Correction Step =====
     # Default DMS step.

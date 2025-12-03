@@ -1210,6 +1210,21 @@ def plot_quicklook_lightcurve(datafiles, clip=None):
     plt.show()
 
 
+def plot_saturated_pixels(pix_indices, outfile=None, show_plot=True):
+    """Plot a map of saturated pixel locations.
+    """
+
+    plt.imshow(pix_indices, aspect='auto', origin='lower', vmin=0, vmax=1)
+
+    if outfile is not None:
+        plt.savefig(outfile, bbox_inches='tight')
+        fancyprint('Plot saved to {}'.format(outfile))
+    if show_plot is False:
+        plt.close()
+    else:
+        plt.show()
+
+
 def nine_panel_plot(data, text=None, outfile=None, show_plot=True, **kwargs):
     """Basic setup for nine panel plotting.
     """
