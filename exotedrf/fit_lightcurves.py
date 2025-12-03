@@ -307,7 +307,7 @@ def fit_lightcurves(config):
             # For prior: set prior width to 0.2 around the model value - based on findings of
             # Patel & Espinoza 2022.
             if 'transit' in config['lc_model_type'] and config['ld_fit_type'] != 'free':
-                if config['ld_model_type'] == 'quadratic-kipping':
+                if config['ld_model_type'] in ['quadratic-kipping', 'power2']:
                     low_lim = 0.0
                 else:
                     low_lim = -1.0

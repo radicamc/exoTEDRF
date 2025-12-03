@@ -438,7 +438,7 @@ def gen_ld_coefs(wavebin_low, wavebin_up, m_h, logg, teff, ld_data_path, mode, l
         ExoTiC-LD instrument mode identifier.
     ld_model_type : str
         Limb darkening model identifier. One of 'linear', 'quadratic', 'quadratic-kipping',
-        'square-root', or 'nonlinear'.
+        'square-root', 'power2', or 'nonlinear'.
     stellar_model_type : str
         Identifier for type of stellar model to use. See
         https://exotic-ld.readthedocs.io/en/latest/views/supported_stellar_grids.html
@@ -457,6 +457,7 @@ def gen_ld_coefs(wavebin_low, wavebin_up, m_h, logg, teff, ld_data_path, mode, l
              'quadratic': sld.compute_quadratic_ld_coeffs,
              'quadratic-kipping': sld.compute_kipping_ld_coeffs,
              'squareroot': sld.compute_squareroot_ld_coeffs,
+             'power2': sld.compute_power2_ld_coeffs,
              'nonlinear': sld.compute_4_parameter_non_linear_ld_coeffs}
 
     # Compute the LD coefficients over the given wavelength bins.
