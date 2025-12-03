@@ -88,9 +88,9 @@ def run_dms(config, input_files):
     # ===== Run Stage 1 =====
     if 1 in config['run_stages']:
         # Determine which steps to run and which to skip.
-        steps = ['DQInitStep', 'EmiCorrStep', 'SaturationStep', 'ResetStep', 'SuperBiasStep',
-                 'RefPixStep', 'DarkCurrentStep', 'OneOverFStep_grp', 'LinearityStep', 'JumpStep',
-                 'RampFitStep', 'GainScaleStep']
+        steps = ['DQInitStep', 'EmiCorrStep', 'ResetStep', 'SuperBiasStep', 'RefPixStep',
+                 'DarkCurrentStep', 'OneOverFStep_grp', 'LinearityStep', 'JumpStep', 'RampFitStep',
+                 'GainScaleStep']
         stage1_skip = []
         for step in steps:
             if config[step] == 'skip':
@@ -123,6 +123,7 @@ def run_dms(config, input_files):
                                     centroids=config['centroids'],
                                     hot_pixel_map=config['hot_pixel_map'],
                                     miri_drop_groups=config['miri_drop_groups'],
+                                    saturation_threshold=config['saturation_threshold'],
                                     **config['stage1_kwargs'])
     else:
         stage1_results = input_files
