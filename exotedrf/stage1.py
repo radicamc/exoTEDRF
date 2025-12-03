@@ -2740,9 +2740,6 @@ def reduce_f277w_exposure(filename, outdir='./'):
     step = DQInitStep(filename, output_dir=outdir)
     results = step.run(save_results=False, force_redo=True)
 
-    step = SaturationStep(results, output_dir=outdir)
-    results = step.run(save_results=False, force_redo=True)
-
     step = SuperBiasStep(results, output_dir=outdir)
     results = step.run(save_results=False, force_redo=True)
 
