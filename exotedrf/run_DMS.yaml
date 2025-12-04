@@ -39,6 +39,9 @@ soss_background_file : 'model_background256.npy'
 # 1/f correction method. For SOSS, options are 'scale-achromatic', 'scale-achromatic-window', 'scale-chromatic', or
 # 'solve'. For NIRSpec, options are 'median', or 'slope'.
 oof_method : 'scale-achromatic'
+# (SOSS only) Path to a processed (superbias and background subtracted) F277W exposure data frame for masking of
+# background contaminants (optional).
+f277w : None
 # (SOSS only) For 1/f correction; estimate of 1D or 2D timeseries for order 1 (optional).
 soss_timeseries : None
 # (SOSS only) For 1/f correction; estimate of 2D timeseries for order 2. Only necessary if oof_method is
@@ -94,11 +97,6 @@ pca_components : 10
 remove_components : None
 # (SOSS only) If True, generate an estimate of the white light curve.
 generate_lc : True
-# (SOSS only) If True, use an F277W filter exposure to create a mask of background order 0s.
-generate_order0_mask : False
-# (SOSS only) Path to a processed (superbias and background subtracted) F277W exposure data frame (optional). Only
-# necessary if generate_order0_mask is True.
-f277w : None
 # DMS Stage 2 kwargs. Format should be: {'step_name': {'kwd': value}}.
 stage2_kwargs : {}
 

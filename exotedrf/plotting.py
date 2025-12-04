@@ -908,6 +908,31 @@ def make_oneoverf_psd(results, old_results, deepstack, old_deepstack, timeseries
         plt.show()
 
 
+def make_order0_mask_plot(mask, f277w, outfile=None, show_plot=False):
+    """Plot an f277W exposure and the corresponding contaminant mask.
+    """
+
+    plt.figure(figsize=(7, 7), facecolor='white')
+    gs = GridSpec(2, 1, hspace=0.025)
+
+    ax1 = plt.subplot(gs[0])
+    ax2 = plt.subplot(gs[1])
+
+    ax1.imshow(mask, aspect='auto', origin='lower', vmin=0, vmax=1)
+    ax1.xaxis.set_major_formatter(plt.NullFormatter())
+    ax2.imshow(f277w, aspect='auto', origin='lower', vmin=-1, vmax=1)
+    ax1.text(20, 240, 'Contaminant Mask', c='white', fontsize=10, weight='bold')
+    ax2.text(20, 240, 'F277W Exposure', c='white', fontsize=10, weight='bold')
+
+    if outfile is not None:
+        plt.savefig(outfile, bbox_inches='tight')
+        fancyprint('Plot saved to {}'.format(outfile))
+    if show_plot is False:
+        plt.close()
+    else:
+        plt.show()
+
+
 def make_pca_plot(pcs, var, projections, show_plot=False, outfile=None):
     """Plot of PCA results and reprojections.
     """

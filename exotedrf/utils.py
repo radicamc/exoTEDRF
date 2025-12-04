@@ -1269,7 +1269,10 @@ def make_soss_tracemask(xpix, ypix, mask_width, dimy, dimx, invert=False):
 
 
 def mask_reset_artifact(datafile):
-    """ Routine to mask the detector reset artifact.
+    """ Routine to mask the detector reset artifact. Observations (with NIRISS and NIRSpec at
+    least) have a line of bright pixels that move down the detector one row at a time each
+    integration. IDK why exactly, its a "detector reset artifact" according to Loïc. It needs to
+    be masked.
 
     Parameters
     ----------
@@ -1285,7 +1288,9 @@ def mask_reset_artifact(datafile):
     # Load in the datafile.
     instrument = get_instrument_name(datafile)
     subarray = get_soss_subarray(datafile)
+
     # Set maximum integration where reset artifact impacts the data frames for masking purposes.
+    # These are all empirically derived from various applicable observations.
     if instrument == 'NIRISS':
         max_reset_int = 256
     else:
@@ -1310,21 +1315,20 @@ def mask_reset_artifact(datafile):
                 fancyprint('Reset artifact masking not tested for subarray {}. Proceed with '
                            'caution. '.format(subarray), msg_type='WARNING')
             max_reset_int = 68
+
+    # Get start and end integrations of segment in question for reset artifact masking.
     if isinstance(datafile, str):
         datafile = fits.open(datafile)
         cube = datafile[1].data
-        # Get start and end integrations for reset artifact masking.
         int_start = datafile[0].header['INTSTART']
         int_end = np.min([datafile[0].header['INTEND'], max_reset_int])
     elif isinstance(datafile, fits.hdu.hdulist.HDUList):
         cube = datafile[1].data
-        # Get start and end integrations for reset artifact masking.
         int_start = datafile[0].header['INTSTART']
         int_end = np.min([datafile[0].header['INTEND'], max_reset_int])
     else:
         datafile = open_filetype(datafile)
         cube = datafile.data
-        # Get start and end integrations for reset artifact masking.
         int_start = datafile.meta.exposure.integration_start
         int_end = np.min([datafile.meta.exposure.integration_end, max_reset_int])
 

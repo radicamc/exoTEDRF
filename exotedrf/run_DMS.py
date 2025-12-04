@@ -124,7 +124,7 @@ def run_dms(config, input_files):
                                     hot_pixel_map=config['hot_pixel_map'],
                                     miri_drop_groups=config['miri_drop_groups'],
                                     saturation_threshold=config['saturation_threshold'],
-                                    **config['stage1_kwargs'])
+                                    f277w=config['f277w'], **config['stage1_kwargs'])
     else:
         stage1_results = input_files
 
@@ -162,7 +162,6 @@ def run_dms(config, input_files):
                                     soss_outer_mask_width=config['soss_outer_mask_width'],
                                     nirspec_mask_width=config['nirspec_mask_width'],
                                     pixel_masks=config['outlier_maps'],
-                                    generate_order0_mask=config['generate_order0_mask'],
                                     f277w=config['f277w'],
                                     do_plot=config['do_plots'],
                                     centroids=config['centroids'],
