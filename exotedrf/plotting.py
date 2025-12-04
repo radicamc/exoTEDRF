@@ -161,7 +161,7 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=Tru
 
 
 def make_centroiding_plot(deepframe, centroids, instrument, outfile=None, show_plot=True,
-                          miri_scale=False):
+                          miri_scale=False, extract_width=None, extract_width_soss2=None):
     """Make plot showing results of centroiding.
     """
 
@@ -177,9 +177,26 @@ def make_centroiding_plot(deepframe, centroids, instrument, outfile=None, show_p
 
     if instrument == 'NIRISS':
         for order in range(len(centroids)):
-            plt.plot(centroids[order][0], centroids[order][1], ls='--', c='red')
+            if extract_width is not None:
+                if order == 2 and extract_width_soss2 is not None:
+                    plt.plot(centroids[order][0], centroids[order][1]+extract_width_soss2/2,
+                             ls='--', c='red')
+                    plt.plot(centroids[order][0], centroids[order][1]-extract_width_soss2/2,
+                             ls='--', c='red')
+                else:
+                    plt.plot(centroids[order][0], centroids[order][1]+extract_width/2, ls='--',
+                             c='red')
+                    plt.plot(centroids[order][0], centroids[order][1]-extract_width/2, ls='--',
+                             c='red')
+            else:
+                plt.plot(centroids[order][0], centroids[order][1], ls='--', c='red')
+
     else:
-        plt.plot(centroids[0], centroids[1], ls='--', c='red')
+        if extract_width is not None:
+            plt.plot(centroids[0], centroids[1]+extract_width/2, ls='--', c='red')
+            plt.plot(centroids[0], centroids[1]-extract_width/2, ls='--', c='red')
+        else:
+            plt.plot(centroids[0], centroids[1], ls='--', c='red')
 
     plt.ylim(0, dimy - 1)
     plt.xlim(0, dimx - 1)

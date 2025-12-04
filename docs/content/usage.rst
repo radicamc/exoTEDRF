@@ -73,6 +73,7 @@ The four methods below are essentially different ideologies for accomplishing th
 :sup:`[4]`: Light curve estimates passed as ``soss_timeseres`` and ``soss_timeseries_o2`` in run_DMS.yaml or the ``OneOverFstep``
 
 Additionally, in all cases, the 1/f correction can be done either at the group-level (that is, before fitting the ramp) or at the integration-level (that is, after fitting the ramp).
+However, it is recommended to always perform 1/f correction at the group-level (e.g., `Carter et al. (2025) <https://ui.adsabs.harvard.edu/abs/2025jwst.rept.8975C/abstract>`_, `Radica et al. (2026) <https://ui.adsabs.harvard.edu/abs/2025jwst.rept.8975C/abstract>`_).
 
 
 A Note on PCA Reconstruction

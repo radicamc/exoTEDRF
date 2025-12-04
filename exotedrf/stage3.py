@@ -143,7 +143,8 @@ class Extract1DStep:
 
     def run(self, extract_width=40, extract_width_soss2=None, soss_specprofile=None, centroids=None,
             save_results=True, force_redo=False, do_plot=False, show_plot=False, deepframe=None,
-            use_pastasoss=False, soss_estimate=None, opt_max_iter=25, opt_var_thresh=25):
+            use_pastasoss=False, soss_estimate=None, opt_max_iter=25, opt_var_thresh=25,
+            allow_miri_slope=False):
         """Method to run the step.
 
         Parameters
@@ -165,7 +166,7 @@ class Extract1DStep:
         show_plot : bool
             If True, show the step diagnostic plot.
         deepframe : str, None
-            Path to file containing a median stack of the observation.
+            Path to file containing a median stack of the observations.
         use_pastasoss : bool
             If True, use pastasoss to esimate trace positions and wavelength solution.
         soss_estimate : str, None
@@ -174,6 +175,9 @@ class Extract1DStep:
             Maximum number of outlier rejection iterations to perform during optimal extraction.
         opt_var_thresh : int
             Variance threshold for a pixel to be flagged as an outlier during optimal exraction.
+        allow_miri_slope : bool
+            If True, allow the MIRI centroids to be sloped.
+
 
         Returns
         -------
@@ -212,9 +216,23 @@ class Extract1DStep:
 
             # Option 2: Simple aperture extraction - any instrument.
             elif self.extract_method == 'box':
-                # Need to make sure that we have the centroids.
+                # We need a deepframe here.
+                if deepframe is None:
+                    raise ValueError('Deepframe must be provided for box extraction.')
+                # If file path is passed, open it.
+                if isinstance(deepframe, str):
+                    deepframe = fits.getdata(deepframe)
+
+                # Need to make sure that we have the centroids. Passed centroids always take
+                # precedence.
                 if centroids is None:
-                    raise ValueError('Centroids must be provided for box extraction.')
+                    centroids = trace_spectrum(self.datafiles, deepframe=deepframe,
+                                               output_dir=self.output_dir,
+                                               save_results=save_results,
+                                               fileroot_noseg=self.fileroot_noseg,
+                                               allow_miri_slope=allow_miri_slope,
+                                               extract_width=extract_width,
+                                               extract_width_soss2=extract_width_soss2)
                 # If file path is passed, open it.
                 if isinstance(centroids, str):
                     centroids = pd.read_csv(centroids, comment='#')
@@ -241,17 +259,26 @@ class Extract1DStep:
 
             # Option 3: Optimal extraction - NIRSpec or MIRI.
             elif self.extract_method == 'optimal':
-                # Need to make sure that we have the centroids and deepframe.
-                if centroids is None:
-                    raise ValueError('Centroids must be provided for optimal extraction.')
-                # If file path is passed, open it.
-                if isinstance(centroids, str):
-                    centroids = pd.read_csv(centroids, comment='#')
+                # We need a deepframe here.
                 if deepframe is None:
                     raise ValueError('Deepframe must be provided for optimal extraction.')
                 # If file path is passed, open it.
                 if isinstance(deepframe, str):
                     deepframe = fits.getdata(deepframe)
+
+                # Need to make sure that we have the centroids. Passed centroids always take
+                # precedence.
+                if centroids is None:
+                    centroids = trace_spectrum(self.datafiles, deepframe=deepframe,
+                                               output_dir=self.output_dir,
+                                               save_results=save_results,
+                                               fileroot_noseg=self.fileroot_noseg,
+                                               allow_miri_slope=allow_miri_slope,
+                                               extract_width=extract_width,
+                                               extract_width_soss2=extract_width_soss2)
+                # If file path is passed, open it.
+                if isinstance(centroids, str):
+                    centroids = pd.read_csv(centroids, comment='#')
 
                 if self.instrument == 'NIRSPEC':
                     results = optimal_extract_nirspec(self.datafiles, deepframe, centroids,
@@ -1834,6 +1861,95 @@ def optimal_extract_nirspec(datafiles, deepframe, centroids, extract_width=None,
     wave = get_wave_nirspec(datafiles[0], centroids, cube.shape[0], cube.shape[2])
 
     return wave, flux, ferr
+
+
+def trace_spectrum(datafiles, deepframe, output_dir='./', save_results=True, fileroot_noseg='',
+                   do_plot=False, show_plot=False, allow_miri_slope=False, extract_width=None,
+                   extract_width_soss2=None):
+    """Trace the 2D spectrum on the detector.
+
+    Parameters
+    ----------
+    datafiles : array-like(RampModel), array-like(str)
+        Datamodels for each segment of the TSO.
+    deepframe : ndarray(float)
+        Deep stack for the TSO. Should be 2D (dimy, dimx).
+    output_dir : str
+        Directory to which to save outputs.
+    save_results : bool
+        If Tre, save results to file.
+    fileroot_noseg : str
+        Root file name with no segment information.
+    do_plot : bool
+        If True, do the step diagnostic plot.
+    show_plot : bool
+        If True, show the step diagnostic plot instead of/in addition to saving it to file.
+    allow_miri_slope : bool
+        If True, allow the MIRI centroids to be sloped.
+    extract_width : int, None
+        Extraction full width.
+    extract_width_soss2 : int, None
+        Extraction full width for SOSS order 2.
+
+    Returns
+    -------
+    centroids : np.ndarray(float), str
+        Trace centroids for all orders, or path to centroids file.
+    """
+
+    fancyprint('Starting Tracing Step.')
+
+    datafiles = np.atleast_1d(datafiles)
+
+    # Get centroids for orders one to three
+    fancyprint('Finding trace centroids.')
+    instrument = utils.get_instrument_name(datafiles[0])
+    if instrument == 'NIRISS':
+        subarray = utils.get_soss_subarray(datafiles[0])
+        # Get the most up to date trace table file.
+        step = calwebb_spec2.extract_1d_step.Extract1dStep()
+        tracetable = step.get_reference_file(datafiles[0], 'spectrace')
+        # Get centroids via the edgetrigger method.
+        save_filename = output_dir + fileroot_noseg
+        centroids = utils.get_centroids_soss(deepframe, tracetable, subarray,
+                                             save_results=save_results, save_filename=save_filename)
+    elif instrument == 'NIRSPEC':
+        # Get centroids via the edgetrigger method.
+        save_filename = output_dir + fileroot_noseg
+        det = utils.get_nrs_detector_name(datafiles[0])
+        subarray = utils.get_soss_subarray(datafiles[0])
+        grating = utils.get_nrs_grating(datafiles[0])
+        xstart = utils.get_nrs_trace_start(det, subarray, grating)
+        centroids = utils.get_centroids_nirspec(deepframe, xstart=xstart, save_results=save_results,
+                                                save_filename=save_filename)
+    else:
+        # Get centroids via the edgetrigger method.
+        save_filename = output_dir + fileroot_noseg
+        centroids = utils.get_centroids_miri(deepframe, ystart=50, save_results=save_results,
+                                             save_filename=save_filename,
+                                             allow_slope=allow_miri_slope)
+
+    # Do diagnostic plot if requested.
+    if do_plot is True:
+        if save_results is True:
+            if instrument == 'NIRSPEC':
+                outfile = output_dir + 'centroiding_{}.png'.format(det)
+            else:
+                outfile = output_dir + 'centroiding.png'
+        else:
+            outfile = None
+        miri_scale = False
+        if instrument == 'MIRI':
+            miri_scale = True
+        plotting.make_centroiding_plot(deepframe, centroids, instrument, show_plot=show_plot,
+                                       outfile=outfile, miri_scale=miri_scale,
+                                       extract_width=extract_width,
+                                       extract_width_soss2=extract_width_soss2)
+
+    if save_results is True:
+        centroids = save_filename + 'centroids.csv'
+
+    return centroids
 
 
 def wave_and_flux_calibrations(pwcpos, obs_x_pixel, photom_path, spectrace_path, order=1):

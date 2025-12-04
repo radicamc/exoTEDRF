@@ -80,7 +80,6 @@ BackgroundStep : 'run'     # SOSS/MIRI only
 OneOverFStep_int : 'skip'  # SOSS/NIRSpec only
 BadPixStep : 'run'
 PCAReconstructStep : 'run'
-TracingStep : 'run'
 # (MIRI only) For background subtraction; width (in pixels) to mask around the trace.
 miri_trace_width : 20
 # (MIRI only) For background subtraction; width (in pixels) of the background region to use on either side of the trace.
@@ -110,7 +109,11 @@ extract_width : 30
 extract_width_soss2 : None
 # (SOSS only) Specprofile reference file for ATOCA (optional).
 soss_specprofile : None
-# Median stack of the observations. Only necessary for optimal extraction.
+# File with trace centroids for box and optimal extraction (optional).
+# This will be calculated during spectral extraction. Anything passed here will take precedence.
+centroids : None
+# Median stack of the observations. Necessary for box and optimal extractions (optional).
+# This will be calculated in Stage 2 during the PCAReconstructStep. Anything passed here will take precedence.
 deepframe : None
 # Stellar effective temperature in K for wavelength calibration (optional).
 st_teff : None
@@ -134,8 +137,6 @@ save_results : True
 force_redo : False
 # Integrations of ingress and/or egress.
 baseline_ints : [50, -50]
-# File with trace centroids for box extraction and 1/f correction (optional).
-centroids : None
 # If True, make diagnostic plots.
 do_plots : True
 # ========================= END DMS CONFIG FILE =============================

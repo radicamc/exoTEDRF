@@ -821,7 +821,7 @@ class PCAReconstructStep:
         result : list(CubeModel), list(str)
             Input datamodels, after PCA reconstruction.
         deepstack : np.ndarray(float)
-            Deep stack of the observation.
+            Deep stack of the observations.
         """
 
         # Warn user that datamodels will be returned if not saving results.
@@ -887,120 +887,6 @@ class PCAReconstructStep:
         fancyprint('Step PCAReconstructStep done.')
 
         return results, deepstack
-
-
-class TracingStep:
-    """Wrapper around custom Tracing Step.
-    """
-
-    def __init__(self, input_data, deepframe, output_dir='./', generate_order0_mask=False,
-                 f277w=None):
-        """Step initializer.
-
-        Parameters
-        ----------
-        input_data : array-like(str), array-like(datamodel)
-            List of paths to input data or the input data itself.
-        deepframe : str, np.ndarray(float)
-            Path to observation deep frame or the deep frame itself.
-        output_dir : str
-            Path to directory to which to save outputs.
-        generate_order0_mask : bool
-            If True, generate a mask of background star order 0s using an
-            F277W exposure. For SOSS observations only.
-        f277w : str, np.ndarray(float)
-            F277W exposure deepstack or path to a file containing one.
-        """
-
-        # Set up easy attributes.
-        self.output_dir = output_dir
-
-        # Set toggles for functionalities.
-        self.generate_order0_mask = generate_order0_mask
-
-        # Unpack input data files.
-        self.datafiles = utils.sort_datamodels(input_data)
-        self.fileroots = utils.get_filename_root(self.datafiles)
-        self.fileroot_noseg = utils.get_filename_root_noseg(self.fileroots)
-
-        # Unpack deepframe.
-        if isinstance(deepframe, str):
-            fancyprint('Reading deepframe file: {}...'.format(deepframe))
-            self.deepframe = fits.getdata(deepframe)
-        elif isinstance(deepframe, np.ndarray) or deepframe is None:
-            self.deepframe = deepframe
-        else:
-            msg = 'Invalid type for deepframe: {}'.format(type(deepframe))
-            raise ValueError(msg)
-
-        # Unpack F277W exposure.
-        if isinstance(f277w, str):
-            fancyprint('Reading F277W exposure file: {}...'.format(f277w))
-            self.f277w = np.load(f277w)
-        elif isinstance(f277w, np.ndarray) or f277w is None:
-            self.f277w = f277w
-        else:
-            msg = 'Invalid type for f277w: {}'.format(type(f277w))
-            raise ValueError(msg)
-
-        # Get instrument.
-        self.instrument = utils.get_instrument_name(self.datafiles[0])
-        if self.instrument != 'NIRISS':
-            if generate_order0_mask is True:
-                fancyprint('generate_order0_mask is set to True, but mode is not NIRISS/SOSS. '
-                           'Ignoring generate_order0_mask.', msg_type='WARNING')
-                self.generate_order0_mask = False
-
-    def run(self, pixel_flags=None, save_results=True, force_redo=False, do_plot=False,
-            show_plot=False, allow_miri_slope=False):
-        """Method to run the step.
-
-        Parameters
-        ----------
-        pixel_flags : array-like(str), None
-            Paths to files containing existing pixel flags to which the order 0 mask should be
-            added. Only necesssary if generate_order0_mask is True.
-        save_results : bool
-            If True, save results.
-        force_redo : bool
-            If True, run step even if output files are detected.
-        do_plot : bool
-            If True, do step diagnostic plot.
-        show_plot : bool
-            If True, show the step diagnostic plot.
-        allow_miri_slope : bool
-            If True, allow the MIRI centroids to be sloped.
-
-        Returns
-        -------
-        centroids : np.ndarray(float), str
-            Trace centroids for all orders or path to centroids file.
-        """
-
-        fancyprint('TracingStep instance created.')
-
-        all_files = glob.glob(self.output_dir + '*')
-        # If an output file for this segment already exists, skip the step.
-        suffix = 'centroids.csv'
-        expected_file = self.output_dir + self.fileroot_noseg + suffix
-        if expected_file in all_files and force_redo is False:
-            fancyprint('Main output file already exists.')
-            fancyprint('If you wish to still produce secondary outputs, run with force_redo=True.')
-            fancyprint('Skipping Tracing Step.')
-            centroids = expected_file
-        # If no output files are detected, run the step.
-        else:
-            centroids = tracingstep(datafiles=self.datafiles, deepframe=self.deepframe,
-                                    pixel_flags=pixel_flags,
-                                    generate_order0_mask=self.generate_order0_mask,
-                                    f277w=self.f277w, output_dir=self.output_dir,
-                                    save_results=save_results, fileroot_noseg=self.fileroot_noseg,
-                                    do_plot=do_plot, show_plot=show_plot,
-                                    allow_miri_slope=allow_miri_slope)
-
-        fancyprint('Step TracingStep done.')
-
-        return centroids
 
 
 def backgroundstep_miri(datafile, trace_mask_width=20, background_width=14, method='slope',
@@ -1675,105 +1561,6 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
     return results
 
 
-def tracingstep(datafiles, deepframe=None, output_dir='./', save_results=True, fileroot_noseg='',
-                do_plot=False, show_plot=False, allow_miri_slope=False):
-    """A multipurpose step to perform some initial analysis of the 2D dataframes and produce
-    products which can be useful in further reduction iterations. The functionalities are
-    detailed below:
-    1. Locate the centroids of all three SOSS orders via the edgetrigger algorithm.
-    2. (optional) Generate a mask of order 0 contaminants from background stars.
-
-    Parameters
-    ----------
-    datafiles : array-like(RampModel), array-like(str)
-        Datamodels for each segment of the TSO.
-    deepframe : ndarray(float), None
-        Deep stack for the TSO. Should be 2D (dimy, dimx). If None is passed, one will be generated.
-    output_dir : str
-        Directory to which to save outputs.
-    save_results : bool
-        If Tre, save results to file.
-    fileroot_noseg : str
-        Root file name with no segment information.
-    do_plot : bool
-        If True, do the step diagnostic plot.
-    show_plot : bool
-        If True, show the step diagnostic plot instead of/in addition to saving it to file.
-    allow_miri_slope : bool
-        If True, allow the MIRI centroids to be sloped.
-
-    Returns
-    -------
-    centroids : np.ndarray(float), str
-        Trace centroids for all orders, or path to centroids file.
-    """
-
-    fancyprint('Starting Tracing Step.')
-
-    datafiles = np.atleast_1d(datafiles)
-    # If no deepframe is passed, construct one.
-    if deepframe is None:
-        # Construct datacube from the data files.
-        for i, file in enumerate(datafiles):
-            if isinstance(file, str):
-                this_data = fits.getdata(file, 1)
-            else:
-                this_data = file.data
-            if i == 0:
-                cube = this_data
-            else:
-                cube = np.concatenate([cube, this_data], axis=0)
-        deepframe = utils.make_deepstack(cube)
-
-    # ===== PART 1: Get centroids for orders one to three =====
-    fancyprint('Finding trace centroids.')
-    instrument = utils.get_instrument_name(datafiles[0])
-    if instrument == 'NIRISS':
-        subarray = utils.get_soss_subarray(datafiles[0])
-        # Get the most up to date trace table file.
-        step = calwebb_spec2.extract_1d_step.Extract1dStep()
-        tracetable = step.get_reference_file(datafiles[0], 'spectrace')
-        # Get centroids via the edgetrigger method.
-        save_filename = output_dir + fileroot_noseg
-        centroids = utils.get_centroids_soss(deepframe, tracetable, subarray,
-                                             save_results=save_results, save_filename=save_filename)
-    elif instrument == 'NIRSPEC':
-        # Get centroids via the edgetrigger method.
-        save_filename = output_dir + fileroot_noseg
-        det = utils.get_nrs_detector_name(datafiles[0])
-        subarray = utils.get_soss_subarray(datafiles[0])
-        grating = utils.get_nrs_grating(datafiles[0])
-        xstart = utils.get_nrs_trace_start(det, subarray, grating)
-        centroids = utils.get_centroids_nirspec(deepframe, xstart=xstart, save_results=save_results,
-                                                save_filename=save_filename)
-    else:
-        # Get centroids via the edgetrigger method.
-        save_filename = output_dir + fileroot_noseg
-        centroids = utils.get_centroids_miri(deepframe, ystart=50, save_results=save_results,
-                                             save_filename=save_filename,
-                                             allow_slope=allow_miri_slope)
-
-    # Do diagnostic plot if requested.
-    if do_plot is True:
-        if save_results is True:
-            if instrument == 'NIRSPEC':
-                outfile = output_dir + 'centroiding_{}.png'.format(det)
-            else:
-                outfile = output_dir + 'centroiding.png'
-        else:
-            outfile = None
-        miri_scale = False
-        if instrument == 'MIRI':
-            miri_scale = True
-        plotting.make_centroiding_plot(deepframe, centroids, instrument, show_plot=show_plot,
-                                       outfile=outfile, miri_scale=miri_scale)
-
-    if save_results is True:
-        centroids = save_filename + 'centroids.csv'
-
-    return centroids
-
-
 def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_plot=False):
     """Calculate the stability of the SOSS trace over the course of a TSO using a PCA method.
 
@@ -1915,8 +1702,8 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
     -------
     results : list(CubeModel)
         Datafiles for each segment processed through Stage 2.
-    centroids : ndarray(fllat), str
-        Centroids for all spectral orders.
+    deepframe : ndarray(float), str
+        Deep stack of the observations.
     """
 
     # ============== DMS Stage 2 ==============
@@ -2058,13 +1845,4 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
     else:
         deepframe = None
 
-    # ===== Tracing Step =====
-    # Custom DMS step.
-    if 'TracingStep' not in skip_steps:
-        step = TracingStep(results, deepframe=deepframe, output_dir=outdir)
-        centroids = step.run(save_results=save_results, do_plot=do_plot, show_plot=show_plot,
-                             force_redo=force_redo)
-    else:
-        centroids = None
-
-    return results, centroids
+    return results, deepframe
