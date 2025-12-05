@@ -191,6 +191,13 @@ def make_centroiding_plot(deepframe, centroids, instrument, outfile=None, show_p
             else:
                 plt.plot(centroids[order][0], centroids[order][1], ls='--', c='red')
 
+    elif instrument == 'MIRI':
+        if extract_width is not None:
+            plt.plot(centroids[0]+extract_width/2, centroids[1], ls='--', c='red')
+            plt.plot(centroids[0]-extract_width/2, centroids[1], ls='--', c='red')
+        else:
+            plt.plot(centroids[0], centroids[1], ls='--', c='red')
+
     else:
         if extract_width is not None:
             plt.plot(centroids[0], centroids[1]+extract_width/2, ls='--', c='red')
