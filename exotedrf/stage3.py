@@ -1899,8 +1899,6 @@ def trace_spectrum(datafiles, deepframe, output_dir='./', save_results=True, fil
         Trace centroids for all orders, or path to centroids file.
     """
 
-    fancyprint('Starting Tracing Step.')
-
     datafiles = np.atleast_1d(datafiles)
 
     # Get centroids for orders one to three
