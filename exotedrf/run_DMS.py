@@ -124,7 +124,7 @@ def run_dms(config, input_files):
                                     hot_pixel_map=config['hot_pixel_map'],
                                     miri_drop_groups=config['miri_drop_groups'],
                                     saturation_threshold=config['saturation_threshold'],
-                                    **config['stage1_kwargs'])
+                                    f277w=config['f277w'], **config['stage1_kwargs'])
     else:
         stage1_results = input_files
 
@@ -132,8 +132,8 @@ def run_dms(config, input_files):
     if 2 in config['run_stages']:
         # Determine which steps to run and which to skip.
         steps = ['AssignWCSStep', 'Extract2DStep', 'SourceTypeStep', 'WaveCorrStep',
-                 'FlatFieldStep', 'OneOverFStep_int', 'BackgroundStep', 'TracingStep',
-                 'BadPixStep', 'PCAReconstructStep']
+                 'FlatFieldStep', 'OneOverFStep_int', 'BackgroundStep', 'BadPixStep',
+                 'PCAReconstructStep']
         stage2_skip = []
         for step in steps:
             if config[step] == 'skip':
@@ -162,7 +162,6 @@ def run_dms(config, input_files):
                                     soss_outer_mask_width=config['soss_outer_mask_width'],
                                     nirspec_mask_width=config['nirspec_mask_width'],
                                     pixel_masks=config['outlier_maps'],
-                                    generate_order0_mask=config['generate_order0_mask'],
                                     f277w=config['f277w'],
                                     do_plot=config['do_plots'],
                                     centroids=config['centroids'],
@@ -170,25 +169,25 @@ def run_dms(config, input_files):
                                     miri_background_width=config['miri_background_width'],
                                     miri_background_method=config['miri_background_method'],
                                     **config['stage2_kwargs'])
-        stage2_results, centroids = stage2_results
+        stage2_results, deepframe = stage2_results
     else:
         stage2_results = input_files
-        centroids = config['centroids']
+        deepframe = config['deepframe']
 
     # ===== Run Stage 3 =====
     if 3 in config['run_stages']:
-        # If centroids are passed in the config file, they take precedence over anything
+        # If a deepframe is passed in the config file, it takes precedence over anything
         # calculated in Stage 2.
-        if config['centroids'] is None:
-            this_centroid = centroids
+        if config['deepframe'] is None:
+            this_deepframe = deepframe
         else:
-            this_centroid = config['centroids']
+            this_deepframe = config['deepframe']
         stage3_results = run_stage3(stage2_results,
                                     save_results=config['save_results'],
                                     force_redo=config['force_redo'],
                                     extract_method=config['extract_method'],
                                     soss_specprofile=config['soss_specprofile'],
-                                    centroids=this_centroid,
+                                    centroids=config['centroids'],
                                     extract_width=config['extract_width'],
                                     extract_width_soss2=config['extract_width_soss2'],
                                     st_teff=config['st_teff'],
@@ -197,7 +196,7 @@ def run_dms(config, input_files):
                                     planet_letter=config['planet_letter'],
                                     output_tag=config['output_tag'],
                                     do_plot=config['do_plots'],
-                                    deepframe=config['deepframe'],
+                                    deepframe=this_deepframe,
                                     **config['stage3_kwargs'])
 
     return

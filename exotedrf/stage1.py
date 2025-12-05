@@ -12,6 +12,7 @@ from astropy.io import fits
 import bottleneck as bn
 import copy
 import glob
+import more_itertools as mit
 import numpy as np
 import os
 import pandas as pd
@@ -672,7 +673,7 @@ class OneOverFStep:
 
     def __init__(self, input_data, output_dir, baseline_ints=None, pixel_masks=None, centroids=None,
                  soss_background=None, method='scale-achromatic', soss_timeseries=None,
-                 soss_timeseries_o2=None):
+                 soss_timeseries_o2=None, f277w=None):
         """Step initializer.
 
         Parameters
@@ -690,14 +691,17 @@ class OneOverFStep:
             Path to a file containing light curve(s) for order 1, or the light curve(s) themselves.
         soss_timeseries_o2 : np.ndarray(float), str, None
             Path to a file containing light curves for order 2, or the light curves themselves.
-        pixel_masks : array-like(str), np.ndarray(float), None
-            List of paths to maps of pixels to mask for each data segment or the masks themselves.
-            Should be 3D (nints, dimy, dimx).
+        pixel_masks : str, np.ndarray(float), None
+            List of paths to map of pixels to mask or the mask itself. Can be 2D (dimy, dimx) or
+            3D (nint, dimy, dimx).
         soss_background : np.ndarray(float), str, None
             Model of background flux.
         centroids : str, dict, None
             Path to file containing trace positions for each order or the centroids dictionary
             itself.
+        f277w : str, None
+            Path to a file containing a deepstack of the F277W exposure corresponding to these
+            observations (SOSS only). Will be used to identify and mask badckground contaminants.
         """
 
         # Set up easy attributes.
@@ -740,28 +744,18 @@ class OneOverFStep:
                   soss_timeseries_o2 is None):
                 self.timeseries_o2 = soss_timeseries_o2
             else:
-                raise ValueError('Invalid type for timeseries_o2: {}'
-                                 .format(type(soss_timeseries_o2)))
+                raise ValueError('Invalid type for timeseries_o2: {}'.format(type(soss_timeseries_o2)))
 
-        # Unpack pixel masks.
+        # Check pixel masks.
         if pixel_masks is not None:
+            # Can either pass one single mask (dimy, dimx), in which case these pixels will always
+            # be masked, or a set of masks for each segment (nints, dimy, dimx).
             pixel_masks = np.atleast_1d(pixel_masks)
-            if len(pixel_masks) <= 3:
-                self.pixel_masks = []
-                for mask in pixel_masks:
-                    if isinstance(mask, str):
-                        fancyprint('Reading pixel mask file: {}...'.format(mask))
-                        self.pixel_masks.append(fits.getdata(mask))
-                    elif isinstance(mask, np.ndarray):
-                        self.pixel_masks.append(mask)
-                    else:
-                        raise ValueError('Invalid type for pixel_masks: {}'.format(type(mask)))
-            else:
-                # For large datasets, read these in later to conserve memory.
-                self.pixel_masks = pixel_masks
-            assert len(self.pixel_masks) == len(self.datafiles)
-        else:
-            self.pixel_masks = pixel_masks
+            # If multiple masks are passed, ensure there is one per data segment.
+            if len(pixel_masks) != 1:
+                # Read these files in later to conserve memory.
+                assert len(pixel_masks) == len(self.datafiles)
+        self.pixel_masks = pixel_masks
 
         # Unpack background -- SOSS only.
         self.background = None
@@ -773,6 +767,17 @@ class OneOverFStep:
                 self.background = soss_background
             else:
                 raise ValueError('Invalid type for background: {}'.format(type(soss_background)))
+
+        # Unpack F277W exposure -- SOSS only.
+        self.f277w = None
+        if self.instrument == 'NIRISS' and f277w is not None:
+            if isinstance(f277w, str):
+                fancyprint('Reading F277W exposure file: {}...'.format(f277w))
+                self.f277w = np.load(f277w)
+            elif isinstance(f277w, np.ndarray) or f277w is None:
+                self.f277w = f277w
+            else:
+                raise ValueError('Invalid type for F277W exposure: {}'.format(type(f277w)))
 
         # If NIRSpec, get Grating -- needed for frame time in this function
         if self.instrument == 'NIRSPEC':
@@ -841,6 +846,7 @@ class OneOverFStep:
 
         all_files = glob.glob(self.output_dir + '*')
         results = []
+        processed_outliers = []
         first_time = True
         for i, segment in enumerate(self.datafiles):
             # If an output file for this segment already exists, skip the step.
@@ -856,7 +862,10 @@ class OneOverFStep:
                 # Get outlier mask for the current segment.
                 thismask = None
                 if self.pixel_masks is not None:
-                    thismask = self.pixel_masks[i]
+                    if len(self.pixel_masks) == 1:
+                        thismask = self.pixel_masks[0]
+                    else:
+                        thismask = self.pixel_masks[i]
 
                 # Generate some necessary quantities -- only do this for the first segment.
                 if first_time:
@@ -899,6 +908,19 @@ class OneOverFStep:
                     if self.method == 'solve':
                         mle_results = []
 
+                    # Quantity #4: construct NIRISS contaminant mask.
+                    # For NIRISS, mask order 0 contaminants if an F277W exposure is passed.
+                    if self.instrument == 'NIRISS' and self.f277w is not None:
+                        order0_mask = make_order0_mask_from_f277w(self.f277w, thresh_std=1,
+                                                                  thresh_size=10,
+                                                                  save_results=save_results,
+                                                                  output_dir=self.output_dir,
+                                                                  do_plot=do_plot,
+                                                                  show_plot=show_plot)
+                    else:
+                        order0_mask = None
+
+                    # Toggle first time flag to False to not repeat the above.
                     first_time = False
 
                 # Start the corrections.
@@ -930,10 +952,13 @@ class OneOverFStep:
                                                  background=self.background,
                                                  timeseries=thistso, timeseries_o2=thistso_o2,
                                                  output_dir=self.output_dir,
-                                                 save_results=save_results, pixel_mask=thismask,
-                                                 fileroot=self.fileroots[i], method=method,
-                                                 centroids=self.centroids,
+                                                 save_results=save_results,
+                                                 pixel_mask=thismask, contaminant_mask=order0_mask,
+                                                 fileroot=self.fileroots[i],
+                                                 method=method, centroids=self.centroids,
                                                  smoothing_scale=smoothing_scale, **kwargs)
+                        res, this_outlier = res
+                        processed_outliers.append(this_outlier)
                     elif self.method == 'solve':
                         # To use MLE to solve for the 1/f noise.
                         res = oneoverfstep_solve(datafile=segment, deepstack=deepstack,
@@ -943,7 +968,8 @@ class OneOverFStep:
                                                  save_results=save_results,
                                                  pixel_mask=thismask, fileroot=self.fileroots[i],
                                                  centroids=self.centroids)
-                        res, calc_vals = res
+                        res, calc_vals, this_outlier = res
+                        processed_outliers.append(this_outlier)
                         mle_results.append(calc_vals)
                     else:
                         # Raise error otherwise.
@@ -954,10 +980,12 @@ class OneOverFStep:
                         raise ValueError('Unrecognized 1/f correction: {}'.format(self.method))
 
                     res = oneoverfstep_nirspec(segment, output_dir=self.output_dir,
-                                               save_results=save_results, pixel_mask=thismask,
-                                               fileroot=self.fileroots[i],
+                                               save_results=save_results,
+                                               pixel_mask=thismask, fileroot=self.fileroots[i],
                                                mask_width=nirspec_mask_width,
                                                centroids=self.centroids, method=self.method)
+                    res, this_outlier = res
+                    processed_outliers.append(this_outlier)
             results.append(res)
 
         # Save 2D scaling determined by solving method.
@@ -1020,7 +1048,7 @@ class OneOverFStep:
                                         outfile=plot_file1, show_plot=show_plot)
             plotting.make_oneoverf_psd(results, self.datafiles, timeseries=this_ts,
                                        deepstack=deepstack_new, old_deepstack=deepstack,
-                                       pixel_masks=self.pixel_masks, outfile=plot_file2,
+                                       pixel_masks=processed_outliers, outfile=plot_file2,
                                        show_plot=show_plot, tframe=tframe)
 
             # Plot MLE results if solving method was used.
@@ -1360,7 +1388,7 @@ class RampFitStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, save_results=True, force_redo=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, maximum_cores=None, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -1369,6 +1397,8 @@ class RampFitStep:
             If True, save results.
         force_redo : bool
             If True, run step even if output files are detected.
+        maximum_cores : int, str, None
+            Number of cores to use for multiprocessing.
         kwargs : dict
             Keyword arguments for calwebb_detector1.ramp_fit_step.RampFitStep.
 
@@ -1389,9 +1419,14 @@ class RampFitStep:
                 res = expected_file
             # If no output files are detected, run the step.
             else:
+                if maximum_cores is None:
+                    maximum_cores = 'quarter'
+                # Make sure that maximum_cores is a string.
+                elif isinstance(maximum_cores, int) or isinstance(maximum_cores, float):
+                    maximum_cores = str(maximum_cores)
                 step = calwebb_detector1.ramp_fit_step.RampFitStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
-                                maximum_cores='quarter', **kwargs)[1]
+                                maximum_cores=maximum_cores, **kwargs)[1]
                 # From jwst v1.9.0-1.11.0 ramp fitting algorithm was changed to make all pixels
                 # with DO_NOT_USE DQ flags be NaN after ramp fitting. These pixels are marked,
                 # ignored and interpolated anyways, so this does not change any actual
@@ -1406,24 +1441,6 @@ class RampFitStep:
                     res.data[j] = griddata(ii, res.data[j][ii], (py, px), method='nearest')
                 if save_results is True:
                     res.save(self.output_dir + res.meta.filename)
-
-                # Store pixel flags for use in 1/f correction.
-                if save_results is True:
-                    flags = res.dq
-                    flags[flags != 0] = 1  # Convert to binary mask.
-                    # NIRISS observations have a line of bright pixels that move down the detector
-                    # one row at a time each integration. IDK why exactly, its a "detector reset
-                    # artifact" according to Loïc. It needs to be masked.
-                    if self.instrument == 'NIRISS':
-                        artifact = utils.mask_reset_artifact(res)
-                        flags = (flags.astype(bool) | artifact.astype(bool)).astype(int)
-
-                    # Save flags to file.
-                    hdu = fits.PrimaryHDU()
-                    hdu1 = fits.ImageHDU(flags)
-                    hdul = fits.HDUList([hdu, hdu1])
-                    outfile = (self.output_dir + self.fileroots[i] + 'pixelflags.fits')
-                    hdul.writeto(outfile, overwrite=True)
 
                     # Remove rate file because we don't need it and I don't like having extra files.
                     rate = res.meta.filename.replace('_1_ramp', '_0_ramp')
@@ -1836,6 +1853,80 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
     return datafile
 
 
+def make_order0_mask_from_f277w(f277w, thresh_std=1, thresh_size=10, save_results=False,
+                                output_dir='./', outfile=None, do_plot=False, show_plot=False):
+    """Locate order 0 contaminants from background stars using an F277W filter exposure data frame.
+
+    Parameters
+    ----------
+    f277w : array-like(float)
+        An F277W filter exposure, superbias and background subtracted.
+    thresh_std : int
+        Threshold above which a group of pixels will be flagged.
+    thresh_size : int
+        Size of pixel group to be considered an order 0.
+    save_results : bool
+        If True, save results to file.
+    output_dir : str
+        Path to directory to which to save outputs.
+    outfile : str, None
+        Name of file to which to save mask.
+    do_plot : bool
+        If True, do step diagnostic plot.
+    show_plot : bool
+        If True, show the step diagnostic plot.
+
+    Returns
+    -------
+    mask : ndarray(int)
+        Frame with locations of order 0 contaminants.
+    """
+
+    dimy, dimx = np.shape(f277w)
+    mask = np.zeros_like(f277w)
+
+    fancyprint('Extracting contaminant mask from an F277W exposure.')
+
+    # Loop over all columns and find groups of pixels which are significantly above the column
+    # median.
+    # Start at column 700 as that is ~where pickoff mirror effects start.
+    for col in range(700, dimx):
+        # Subtract median from column and get the standard deviation
+        diff = f277w[:, col] - np.nanmedian(f277w[:, col])
+        dev = np.nanstd(diff)
+        # Find pixels which are deviant.
+        vals = np.where(np.abs(diff) > thresh_std * dev)[0]
+        # Mark consecutive groups of pixels found above.
+        for group in mit.consecutive_groups(vals):
+            group = list(group)
+            if len(group) > thresh_size:
+                # Extend 3 columns and rows to either size.
+                min_g = np.max([0, np.min(group) - 3])
+                max_g = np.min([dimy - 1, np.max(group) + 3])
+                mask[min_g:max_g, (col - 3):(col + 3)] = 1
+    
+    # Make sure values are ints.
+    mask = mask.astype(int)
+
+    # Save results if desired.
+    if save_results:
+        if outfile is None:
+            outfile = 'contaminant_mask.npy'
+        fancyprint('Mask saved to {}.'.format(output_dir + outfile))
+        np.save(output_dir + outfile, mask)
+
+    # Do plot if desired.
+    if do_plot:
+        if save_results:
+            outfile = output_dir + 'contminant_mask.png'
+            fancyprint('Plot saved to {}.'.format(output_dir + outfile))
+        else:
+            outfile = None
+        plotting.make_order0_mask_plot(mask, f277w, outfile=outfile, show_plot=show_plot)
+
+    return mask
+
+
 def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mask=None,
                          fileroot=None, mask_width=16, centroids=None, method='median',
                          override_centroids=False):
@@ -1869,6 +1960,8 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
     -------
     result : str, CubeModel
         RampModel for the segment, corrected for 1/f noise.
+    outliers : ndarray(int)
+        Map of masked pixels.
     """
 
     fancyprint('Starting 1/f correction step using the {} method.'.format(method))
@@ -1922,39 +2015,41 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
         centroids = utils.get_centroids_nirspec(deepstack, xstart=xstart, save_results=False)
         xpos, ypos = centroids[0], centroids[1]
 
-    # Read in the outlier maps - (nints, dimy, dimx) 3D cubes.
+    # ==== Identify which pixels to mask ====
+    # There are five individual steps here, each masking different types of problematic pixels.
+    # 1. Read in the outlier maps --- 3D (nints, dimy, dimx) cubes generally.
+    fancyprint('Constructing outlier map.')
     if pixel_mask is None:
-        fancyprint('No outlier map passed, ignoring outliers.', msg_type='WARNING')
         outliers = np.zeros((nint, dimy, dimx)).astype(bool)
     else:
-        fancyprint('Constructing outlier map.')
-        # If the correction is at the integration level after performing the Extract2D step,
-        # the detector size will be limited to that illuminated by the slit.
-        # Trim pixel masks to match.
-        with utils.open_filetype(datafile) as thisfile:
-            if isinstance(pixel_mask, str):  # Unpack individually if dataset is large.
-                fancyprint('Reading pixel mask file: {}...'.format(pixel_mask))
-                pixel_mask = fits.getdata(pixel_mask)
-            if isinstance(thisfile, datamodels.SlitModel):
-                xstart = thisfile.xstart - 1  # 1-indexed.
-                xend = xstart + thisfile.xsize
-                ystart = thisfile.ystart - 1
-                yend = ystart + thisfile.ysize
-                outliers = pixel_mask[:, ystart:yend, xstart:xend].astype(bool)
-            else:
-                outliers = pixel_mask.astype(bool)
+        if isinstance(pixel_mask, str):  # Unpack individually if dataset is large.
+            fancyprint('Reading pixel mask file {}...'.format(pixel_mask))
+            try:
+                pixel_mask = np.load(pixel_mask)
+            except ValueError:
+                try:
+                    pixel_mask = fits.getdata(pixel_mask)
+                except OSError:
+                    raise ValueError('Cannot open pixel_mask file.')
 
-    # Construct trace masks.
-    fancyprint('Constructing trace mask.')
-    low = np.max([np.zeros_like(ypos), ypos - mask_width / 2], axis=0).astype(int)
-    up = np.min([dimy * np.ones_like(ypos), ypos + mask_width / 2], axis=0).astype(int)
-    tracemask = np.zeros((dimy, dimx))
-    for i, x in enumerate(xpos):
-        tracemask[low[i]:up[i], int(x)] = 1
-    # Add the trace mask to the outliers cube.
-    outliers = (outliers.astype(bool) | tracemask.astype(bool)).astype(int)
+        # If the mask is only 2D, broadcast into 3D
+        pixel_mask = np.dstack([pixel_mask] * nint).transpose(2, 0, 1)
+        outliers = pixel_mask.astype(bool)
 
-    # Identify and mask any potential jumps that are not flagged.
+    # 2. Mask any pixels with DQ flags.
+    if np.ndim(cube) == 4:
+        pixdq = fits.getdata(datafile, 2).astype(bool)
+        groupdq = fits.getdata(datafile, 3)[:, -1].astype(bool)
+        dq_flags = groupdq | pixdq
+    else:
+        dq_flags = fits.getdata(datafile, 3).astype(bool)
+    outliers = outliers | dq_flags
+
+    # 3. Mask the reset artifact.
+    reset_mask = utils.mask_reset_artifact(datafile)
+    outliers = outliers | reset_mask.astype(bool)
+
+    # 4. Identify and mask any potential jumps that are not already flagged.
     fancyprint('Flagging additional outliers.')
     if np.ndim(cube) == 4:
         thiscube = cube[:, -1]
@@ -1964,6 +2059,27 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
     scale = utils.scatter_normalize_cube(thiscube)[0]
     ii = np.where(scale > 10)
     outliers[ii] = 1
+
+    # 5. Construct trace masks.
+    fancyprint('Constructing trace mask.')
+    low = np.max([np.zeros_like(ypos), ypos - mask_width / 2], axis=0).astype(int)
+    up = np.min([dimy * np.ones_like(ypos), ypos + mask_width / 2], axis=0).astype(int)
+    tracemask = np.zeros((dimy, dimx))
+    for i, x in enumerate(xpos):
+        tracemask[low[i]:up[i], int(x)] = 1
+    # Add the trace mask to the outliers cube.
+    outliers = (outliers.astype(bool) | tracemask.astype(bool)).astype(int)
+
+    # If the correction is at the integration level after performing the Extract2D step,
+    # the detector size will be limited to that illuminated by the slit.
+    # Trim pixel masks to match.
+    with utils.open_filetype(datafile) as thisfile:
+        if isinstance(thisfile, datamodels.SlitModel):
+            xstart = thisfile.xstart - 1  # 1-indexed.
+            xend = xstart + thisfile.xsize
+            ystart = thisfile.ystart - 1
+            yend = ystart + thisfile.ysize
+            outliers = outliers[:, ystart:yend, xstart:xend].astype(bool)
 
     # The outlier map is 0 where good and >0 otherwise. As this will be applied multiplicatively,
     # replace 0s with 1s and others with NaNs.
@@ -2037,13 +2153,13 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
         result = utils.open_filetype(datafile)
         result.data = cube_corr
 
-    return result
+    return result, outliers
 
 
 def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_width=70,
                        even_odd_rows=True, background=None, timeseries=None, timeseries_o2=None,
-                       output_dir=None, save_results=True, pixel_mask=None, fileroot=None,
-                       method='achromatic', centroids=None, smoothing_scale=None):
+                       output_dir=None, save_results=True, pixel_mask=None, contaminant_mask=None,
+                       fileroot=None, method='achromatic', centroids=None, smoothing_scale=None):
     """Custom 1/f correction routine to be applied at the group or integration level. A median
     stack is constructed using all out-of-transit integrations and subtracted from each individual
     integration. The column-wise median of this difference image is then subtracted from the
@@ -2073,8 +2189,11 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
         Directory to which to save results. Only necessary if saving results.
     save_results : bool
         If True, save results to disk.
-    pixel_mask : array-like[float], None
-        Maps of pixels to mask for each data segment. Should be 3D (nints, dimy, dimx).
+    pixel_mask : str, array-like[float], None
+        Map of pixels to mask for each data segment. Should be 2D (dimy, dimx) or 3D
+        (nint dimy, dimx).
+    contaminant_mask : array-like[str], None
+        Map of additional contaminated pixels to mask. Should be 2D (dimy, dimx)
     fileroot : str, None
         Root name for output file. Only necessary if saving results.
     method : str
@@ -2089,6 +2208,8 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
     -------
     results : CubeModel, RampModel, str
         RampModel for the segment, corrected for 1/f noise.
+    outliers : ndarray(int)
+        Map of masked pixels.
     """
 
     fancyprint('Starting 1/f correction step using the scale-{} method.'.format(method))
@@ -2131,20 +2252,62 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
     y2, y3 = centroids['ypos o2'], centroids['ypos o3']
     x2, x3 = x1[:len(y2)], x1[:len(y3)]  # Trim o1 x positions to match o2 & 03.
 
-    # Read in the outlier maps - (nints, dimy, dimx) 3D cubes.
+    # ==== Identify which pixels to mask ====
+    # There are six individual steps here, each masking different types of problematic pixels.
+    # 1. Read in the outlier maps --- 3D (nints, dimy, dimx) cubes generally.
+    fancyprint('Constructing outlier map.')
     if pixel_mask is None:
-        fancyprint('No outlier maps passed, ignoring outliers.', msg_type='WARNING')
         outliers1 = np.zeros((nint, dimy, dimx)).astype(bool)
     else:
-        fancyprint('Constructing outlier map.')
         if isinstance(pixel_mask, str):  # Unpack individually if dataset is large.
-            fancyprint('Reading pixel mask file: {}...'.format(pixel_mask))
-            pixel_mask = fits.getdata(pixel_mask)
-        outliers1 = pixel_mask.astype(bool)
-    outliers2 = np.copy(outliers1)
+            fancyprint('Reading pixel mask file {}...'.format(pixel_mask))
+            try:
+                pixel_mask = np.load(pixel_mask)
+            except ValueError:
+                try:
+                    pixel_mask = fits.getdata(pixel_mask)
+                except OSError:
+                    raise ValueError('Cannot open pixel_mask file.')
 
-    # Construct trace masks.
+        # If the mask is only 2D, broadcast into 3D
+        pixel_mask = np.dstack([pixel_mask] * nint).transpose(2, 0, 1)
+        outliers1 = pixel_mask.astype(bool)
+
+    # 2. If an F277W contaminant mask was passed, join this to the existing mask.
+    if contaminant_mask is not None:
+        outliers1 = outliers1 | contaminant_mask.astype(bool)
+
+    # 3. Mask any pixels with DQ flags.
+    if np.ndim(cube) == 4:
+        pixdq = fits.getdata(datafile, 2).astype(bool)
+        groupdq = fits.getdata(datafile, 3)[:, -1].astype(bool)
+        dq_flags = groupdq | pixdq
+    else:
+        dq_flags = fits.getdata(datafile, 3).astype(bool)
+    outliers1 = outliers1 | dq_flags
+
+    # 4. Mask the reset artifact --- only necessary for group-level correction.
+    if np.ndim(cube) == 4:
+        reset_mask = utils.mask_reset_artifact(datafile)
+        outliers1 = outliers1 | reset_mask.astype(bool)
+
+    # 5. Identify and mask any potential jumps that are not already flagged.
+    fancyprint('Flagging additional outliers.')
+    if np.ndim(cube) == 4:
+        thiscube = cube[:, -1]
+    else:
+        thiscube = cube
+    # Find pixels which deviate more than 10 sigma.
+    scale = utils.scatter_normalize_cube(thiscube)[0]
+    ii = np.where(scale > 10)
+    outliers1[ii] = 1
+
+    # 6. Mask the spectral traces.
     fancyprint('Constructing trace mask.')
+
+    # Just copy the outlier mask for order 1 to order 2 at this point, since moving forwards we
+    # will need separate trace masks for the two orders.
+    outliers2 = np.copy(outliers1)
 
     # Order 1 necessary for all subarrays -- inner and outer masks.
     mask1_in = utils.make_soss_tracemask(x1, y1, inner_mask_width, dimy, dimx)
@@ -2164,30 +2327,18 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
         mask3 = np.zeros_like(mask1_in)
 
     # Add the appropriate trace mask to the outliers cube for the selected 1/f method.
-    tracemask = (mask1_in.astype(bool) | mask2_in.astype(bool) | mask3.astype(bool))
+    tracemask = mask1_in.astype(bool) | mask2_in.astype(bool) | mask3.astype(bool)
     # For the scale-achromatic, just need to mask the cores of each trace, defined by
     # inner_mask_width.
     if method == 'achromatic':
-        outliers1 = (outliers1 | tracemask).astype(int)
+        outliers1 = outliers1 | tracemask
     # For the windowed corrections, construct a window around each order defined by
     # inner_mask_width and outer_mask_width.
     else:
         window1 = ~(mask1_out - mask1_in).astype(bool)
         window2 = ~(mask2_out - mask2_in).astype(bool)
-        outliers1 = (outliers1 | window1 | tracemask).astype(int)
-        outliers2 = (outliers2 | window2 | tracemask).astype(int)
-
-    # Identify and mask any potential jumps that are not flagged.
-    fancyprint('Flagging additional outliers.')
-    if np.ndim(cube) == 4:
-        thiscube = cube[:, -1]
-    else:
-        thiscube = cube
-    # Find pixels which deviate more than 10 sigma.
-    scale = utils.scatter_normalize_cube(thiscube)[0]
-    ii = np.where(scale > 10)
-    outliers1[ii] = 1
-    outliers2[ii] = 1
+        outliers1 = outliers1 | window1 | tracemask
+        outliers2 = outliers2 | window2 | tracemask
 
     # The outlier map is 0 where good and >0 otherwise. As this will be applied multiplicatively,
     # replace 0s with 1s and others with NaNs.
@@ -2199,6 +2350,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
     else:
         outliers1 = np.where(outliers1 == 0, 1, np.nan)
 
+    # ==== Define light curve scaling ====
     # In order to subtract off the trace as completely as possible, the median stack must be
     # scaled, via the transit curve, to the flux level of each integration. This can be done via
     # two methods: using the white light curve (i.e., assuming the scaling is not wavelength
@@ -2246,6 +2398,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
             raise ValueError('2D light curves are required for chromatic correction, but 1D ones '
                              'were passed.')
 
+    # ==== Do the 1/f correction ====
     # Set up things that are needed for the 1/f correction with each method.
     if method == 'achromatic':
         # Orders to correct.
@@ -2340,11 +2493,12 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
         result = utils.open_filetype(datafile)
         result.data = cube
 
-    return result
+    return result, outliers1
 
 
 def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, output_dir=None,
-                       save_results=True, pixel_mask=None, fileroot=None, centroids=None):
+                       save_results=True, pixel_mask=None, contaminant_mask=None, fileroot=None,
+                       centroids=None):
     """Custom 1/f correction routine to be applied at the group or integration level. 1/f noise
     level and median frame scaling is calculated independently for each pixel column. Outlier
     pixels and background contaminants can (should) be masked to improve the estimation.
@@ -2366,6 +2520,8 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
         If True, save results to disk.
     pixel_mask : array-like[float], None
         Maps of pixels to mask. Can be 3D (nints, dimy, dimx), or 2D (dimy, dimx).
+    contaminant_mask : array-like[str], None
+        Map of additional contaminated pixels to mask. Should be 2D (dimy, dimx)
     fileroot : str, None
         Root name for output files. Only necessary if saving results.
     centroids : dict
@@ -2377,6 +2533,8 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
         RampModel for the segment, corrected for 1/f noise.
     calc_vals : dict
         Dictionary of calculated light curve scaling and 1/f noise values.
+    outliers : ndarray(int)
+        Map of masked pixels.
     """
 
     fancyprint('Starting 1/f correction step using the solve method.')
@@ -2424,17 +2582,29 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
         ngroup = 0
     subarray = utils.get_soss_subarray(datafile)
 
-    # Get outlier masks.
-    # Ideally, for this algorithm, we only want to consider pixels quite near to the trace.
+    # Read in the outlier maps --- 3D (nints, dimy, dimx) cubes generally.
+    fancyprint('Constructing outlier map.')
     if pixel_mask is None:
-        fancyprint('No outlier maps passed, ignoring outliers.', msg_type='WARNING')
         outliers1 = np.zeros((nint, dimy, dimx)).astype(bool)
     else:
-        fancyprint('Constructing outlier map.')
         if isinstance(pixel_mask, str):  # Unpack individually if dataset is large.
-            fancyprint('Reading pixel mask file: {}...'.format(pixel_mask))
-            pixel_mask = fits.getdata(pixel_mask)
+            fancyprint('Reading pixel mask file {}...'.format(pixel_mask))
+            try:
+                pixel_mask = np.load(pixel_mask)
+            except ValueError:
+                try:
+                    pixel_mask = fits.getdata(pixel_mask)
+                except OSError:
+                    raise ValueError('Cannot open pixel_mask file.')
+
+        # If the mask is only 2D, broadcast into 3D
+        pixel_mask = np.dstack([pixel_mask] * nint).transpose(2, 0, 1)
         outliers1 = pixel_mask.astype(bool)
+
+    # If an F277W contaminant mask was passed, join this to the existing mask.
+    if contaminant_mask is not None:
+        outliers1 = outliers1 | contaminant_mask.astype(bool)
+
     outliers2 = np.copy(outliers1)
 
     # Unpack trace centroids.
@@ -2477,23 +2647,6 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
         for g in range(ngroup):
             err1[:, g][ii] = np.inf
             err2[:, g][ii2] = np.inf
-
-    # Identify and mask any potential jumps that are not already flagged.
-    fancyprint('Flagging additional outliers.')
-    if np.ndim(cube) == 4:
-        thiscube = cube[:, -1]
-    else:
-        thiscube = cube
-    # Find pixels which deviate more than 10 sigma.
-    scale = utils.scatter_normalize_cube(thiscube)[0]
-    ii = np.where(scale > 10)
-    if ngroup == 0:
-        err1[ii] = np.inf
-        err2[ii] = np.inf
-    else:
-        for g in range(ngroup):
-            err1[:, g][ii] = np.inf
-            err2[:, g][ii] = np.inf
 
     # If no outlier masks were provided and correction is at group level, mask detector reset
     # artifact. Only necessary for first 256 integrations.
@@ -2586,7 +2739,7 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
         result = utils.open_filetype(datafile)
         result.data = cube
 
-    return result, calc_vals
+    return result, calc_vals, outliers1
 
 
 def subtract_custom_superbias(datafile, superbias, method='constant', centroids=None, mask_width=10,
@@ -2767,7 +2920,8 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                flag_in_time=True, time_rejection_threshold=10, root_dir='./', output_tag='',
                skip_steps=None, do_plot=False, show_plot=False, soss_inner_mask_width=40,
                soss_outer_mask_width=70, centroids=None, nirspec_mask_width=16, miri_drop_groups=12,
-               miri_subtract_dark=True, saturation_threshold=None, flag_neighbours=1, **kwargs):
+               miri_subtract_dark=True, saturation_threshold=None, flag_neighbours=1, f277w=None,
+               **kwargs):
     """Run the exoTEDRF Stage 1 pipeline: detector level processing, using a combination of
     official STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_detector1.html
@@ -2839,6 +2993,9 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         Threshold (in DN) for a pixel to be considered saturated.
     flag_neighbours : int
         Size of box, in pixels, to flag around a saturated pixel to mitigate charge spillage.
+    f277w : str, None
+        Path to a file containing a deepstack of the F277W exposure corresponding to these
+        observations (SOSS only). Will be used to identify and mask badckground contaminants.
 
     Returns
     -------
@@ -2965,7 +3122,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                                 pixel_masks=pixel_masks, centroids=centroids,
                                 soss_background=soss_background_model, method=oof_method,
                                 soss_timeseries=soss_timeseries,
-                                soss_timeseries_o2=soss_timeseries_o2)
+                                soss_timeseries_o2=soss_timeseries_o2, f277w=f277w)
             results = step.run(soss_inner_mask_width=soss_inner_mask_width,
                                soss_outer_mask_width=soss_outer_mask_width,
                                save_results=save_results, force_redo=force_redo, do_plot=do_plot,
