@@ -23,8 +23,12 @@ The default pip installation only includes Stages 1 to 3. Stage 4 can be include
 
     pip install exotedrf[stage4]
 
+If you plan on using ExoTiC-LD to derive limb darkening coefficients, you will also need to install its reference files manually.
+See the `ExoTiC-LD documentation <https://exotic-ld.readthedocs.io/en/latest/views/installation.html>`_ for information on how to do this.
+Moreover, if you intend to use the power2 limb darkening law (recommended) you will need to install the GitHub version of ExoTiC-LD as this functionality is not yet available via pip.
 
-Alternatively, the package can be grabbed from GitHub (inlcludes all pipeline stages as well as tutorial notebooks, etc.) via:
+
+Alternatively, **exoTEDRF** can be grabbed from GitHub (inlcludes all pipeline stages as well as tutorial notebooks, etc.) via:
 
 .. code-block:: bash
 

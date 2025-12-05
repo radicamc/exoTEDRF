@@ -24,6 +24,60 @@ import yaml
 import applesoss.edgetrigger_centroids as apl
 
 
+def collapse_f277w_exposure(data, outdir='./'):
+    """Do rough 1/f noise removal and collapse an F277W exposure cube to make the final calibrated
+    data product.
+
+    Parameters
+    ----------
+    data : jwst.datamodel
+        F277W exposure datamodel after ramp fitting.
+    outdir : str
+        Directory to which to save outputs.
+    """
+
+    if outdir[-1] != '/':
+        outdir += '/'
+
+    # Subtract median of each column to ~remove 1/f and background.
+    mm = np.nanmedian(data.data, axis=1)
+    rr = data.data - mm[:, None, :]
+    # Collapse exposure over integration axis.
+    f277w = np.nanmedian(rr, axis=0)
+
+    # Save F277W frame.
+    np.save(outdir + 'F277W.npy', f277w)
+    fancyprint('Saved to {}'.format(outdir + 'F277W.npy'))
+
+    return None
+
+
+def convert_flux_units(wave, flux):
+    """ Convert extracted flux from units of MJy (output by the pipeline by default) to
+    erg/s/cm^2/µm. Flux should still be scaled by (Rstar/Dist)**2 to correct for flux at Earth
+    effect.
+
+    Parameters
+    ----------
+    wave : array-like(float)
+        Wavelength array in µm
+    flux : array-like(float)
+        Flux array in MJy. Should be the same size as wave.
+
+    Returns
+    -------
+    flux_converted : ndarray(float)
+        Flux array converted to erg/s/cm^2/µm.
+    """
+
+    # Make sure things are numpy arrays.
+    wave, flux = np.array(wave), np.array(flux)
+    # Do the unit conversion.
+    flux_converted = flux * 1e6 * (1e-23 * (3e8 * 1e6) / wave**2)
+
+    return flux_converted
+
+
 def do_replacement(frame, badpix_map, dq=None, xbox_size=5, ybox_size=0):
     """Replace flagged pixels with the median of a surrounding box.
 
@@ -786,12 +840,12 @@ def get_nrs_trace_start(detector, subarray, grating):
     """
 
     if detector == 'nrs1':
-        if grating == 'G395H':
+        if grating in ['G395H', 'G235H', 'G140H']:
             if subarray == 'SUB1024B':
                 xstart = 0
             else:
                 xstart = 500  # Trace starts at pixel ~500 for G395M in SUB2048.
-        elif grating == 'G395M':
+        elif grating in ['G395M', 'G235M', 'G140M']:
             if subarray == 'SUB1024B':
                 xstart = 0
             else:
@@ -1215,7 +1269,10 @@ def make_soss_tracemask(xpix, ypix, mask_width, dimy, dimx, invert=False):
 
 
 def mask_reset_artifact(datafile):
-    """ Routine to mask the detector reset artifact.
+    """ Routine to mask the detector reset artifact. Observations (with NIRISS and NIRSpec at
+    least) have a line of bright pixels that move down the detector one row at a time each
+    integration. IDK why exactly, its a "detector reset artifact" according to Loïc. It needs to
+    be masked.
 
     Parameters
     ----------
@@ -1231,12 +1288,14 @@ def mask_reset_artifact(datafile):
     # Load in the datafile.
     instrument = get_instrument_name(datafile)
     subarray = get_soss_subarray(datafile)
+
     # Set maximum integration where reset artifact impacts the data frames for masking purposes.
+    # These are all empirically derived from various applicable observations.
     if instrument == 'NIRISS':
         max_reset_int = 256
     else:
         grating = get_nrs_grating(datafile)
-        if grating == 'G395H':
+        if grating in ['G395H', 'G235H', 'G140H']:
             if subarray not in ['SUB2048', 'SUB1024B']:
                 fancyprint('Reset artifact masking not tested for subarray {}. Proceed with '
                            'caution. '.format(subarray), msg_type='WARNING')
@@ -1246,7 +1305,7 @@ def mask_reset_artifact(datafile):
                 max_reset_int = 62
             else:
                 max_reset_int = 58
-        elif grating == 'G395M':
+        elif grating in ['G395M', 'G235M', 'G140M']:
             if subarray not in ['SUB2048', 'SUB1024B']:
                 fancyprint('Reset artifact masking not tested for subarray {}. Proceed with '
                            'caution. '.format(subarray), msg_type='WARNING')
@@ -1256,21 +1315,20 @@ def mask_reset_artifact(datafile):
                 fancyprint('Reset artifact masking not tested for subarray {}. Proceed with '
                            'caution. '.format(subarray), msg_type='WARNING')
             max_reset_int = 68
+
+    # Get start and end integrations of segment in question for reset artifact masking.
     if isinstance(datafile, str):
         datafile = fits.open(datafile)
         cube = datafile[1].data
-        # Get start and end integrations for reset artifact masking.
         int_start = datafile[0].header['INTSTART']
         int_end = np.min([datafile[0].header['INTEND'], max_reset_int])
     elif isinstance(datafile, fits.hdu.hdulist.HDUList):
         cube = datafile[1].data
-        # Get start and end integrations for reset artifact masking.
         int_start = datafile[0].header['INTSTART']
         int_end = np.min([datafile[0].header['INTEND'], max_reset_int])
     else:
         datafile = open_filetype(datafile)
         cube = datafile.data
-        # Get start and end integrations for reset artifact masking.
         int_start = datafile.meta.exposure.integration_start
         int_end = np.min([datafile.meta.exposure.integration_end, max_reset_int])
 
@@ -1506,7 +1564,7 @@ def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir, ld_model_ty
     # Remove old LD file if one exists.
     if observing_mode == 'NIRISS/SOSS':
         filename = (target+'_order' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type))
-    elif 'NIRSPEC' in observing_mode:
+    elif 'NIRSPEC' in observing_mode.upper():
         filename = (target + '_NRS' + str(order) + '_exotic-ld_{}.csv'.format(ld_model_type))
     else:
         filename = (target + '_LRS_exotic-ld_{}.csv'.format(ld_model_type))

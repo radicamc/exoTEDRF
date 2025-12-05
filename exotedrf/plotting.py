@@ -161,7 +161,7 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=Tru
 
 
 def make_centroiding_plot(deepframe, centroids, instrument, outfile=None, show_plot=True,
-                          miri_scale=False):
+                          miri_scale=False, extract_width=None, extract_width_soss2=None):
     """Make plot showing results of centroiding.
     """
 
@@ -177,9 +177,33 @@ def make_centroiding_plot(deepframe, centroids, instrument, outfile=None, show_p
 
     if instrument == 'NIRISS':
         for order in range(len(centroids)):
-            plt.plot(centroids[order][0], centroids[order][1], ls='--', c='red')
+            if extract_width is not None:
+                if order == 2 and extract_width_soss2 is not None:
+                    plt.plot(centroids[order][0], centroids[order][1]+extract_width_soss2/2,
+                             ls='--', c='red')
+                    plt.plot(centroids[order][0], centroids[order][1]-extract_width_soss2/2,
+                             ls='--', c='red')
+                else:
+                    plt.plot(centroids[order][0], centroids[order][1]+extract_width/2, ls='--',
+                             c='red')
+                    plt.plot(centroids[order][0], centroids[order][1]-extract_width/2, ls='--',
+                             c='red')
+            else:
+                plt.plot(centroids[order][0], centroids[order][1], ls='--', c='red')
+
+    elif instrument == 'MIRI':
+        if extract_width is not None:
+            plt.plot(centroids[0]+extract_width/2, centroids[1], ls='--', c='red')
+            plt.plot(centroids[0]-extract_width/2, centroids[1], ls='--', c='red')
+        else:
+            plt.plot(centroids[0], centroids[1], ls='--', c='red')
+
     else:
-        plt.plot(centroids[0], centroids[1], ls='--', c='red')
+        if extract_width is not None:
+            plt.plot(centroids[0], centroids[1]+extract_width/2, ls='--', c='red')
+            plt.plot(centroids[0], centroids[1]-extract_width/2, ls='--', c='red')
+        else:
+            plt.plot(centroids[0], centroids[1], ls='--', c='red')
 
     plt.ylim(0, dimy - 1)
     plt.xlim(0, dimx - 1)
@@ -908,6 +932,31 @@ def make_oneoverf_psd(results, old_results, deepstack, old_deepstack, timeseries
         plt.show()
 
 
+def make_order0_mask_plot(mask, f277w, outfile=None, show_plot=False):
+    """Plot an f277W exposure and the corresponding contaminant mask.
+    """
+
+    plt.figure(figsize=(7, 7), facecolor='white')
+    gs = GridSpec(2, 1, hspace=0.025)
+
+    ax1 = plt.subplot(gs[0])
+    ax2 = plt.subplot(gs[1])
+
+    ax1.imshow(mask, aspect='auto', origin='lower', vmin=0, vmax=1)
+    ax1.xaxis.set_major_formatter(plt.NullFormatter())
+    ax2.imshow(f277w, aspect='auto', origin='lower', vmin=-1, vmax=1)
+    ax1.text(20, 240, 'Contaminant Mask', c='white', fontsize=10, weight='bold')
+    ax2.text(20, 240, 'F277W Exposure', c='white', fontsize=10, weight='bold')
+
+    if outfile is not None:
+        plt.savefig(outfile, bbox_inches='tight')
+        fancyprint('Plot saved to {}'.format(outfile))
+    if show_plot is False:
+        plt.close()
+    else:
+        plt.show()
+
+
 def make_pca_plot(pcs, var, projections, show_plot=False, outfile=None):
     """Plot of PCA results and reprojections.
     """
@@ -1208,6 +1257,21 @@ def plot_quicklook_lightcurve(datafiles, clip=None):
     plt.xlabel('Integration No.', fontsize=12)
     plt.ylabel('Normalized Flux', fontsize=12)
     plt.show()
+
+
+def plot_saturated_pixels(pix_indices, outfile=None, show_plot=True):
+    """Plot a map of saturated pixel locations.
+    """
+
+    plt.imshow(pix_indices, aspect='auto', origin='lower', vmin=0, vmax=1)
+
+    if outfile is not None:
+        plt.savefig(outfile, bbox_inches='tight')
+        fancyprint('Plot saved to {}'.format(outfile))
+    if show_plot is False:
+        plt.close()
+    else:
+        plt.show()
 
 
 def nine_panel_plot(data, text=None, outfile=None, show_plot=True, **kwargs):

@@ -1,6 +1,24 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [2.4.0] -- 2025-12-05
+#### Added
+- Support for asymmetric transit withs with catwoman.
+- Allow for separate extraction aperture width for SOSS order 2.
+- Explicit support and tests for non-G395 NIRSpec gratings.
+- Optimal extraction capabilities for NIRSpec and MIRI.
+- Streamline flux calibration and add tutorials for NIRISS and NIRSpec.
+- Host SOSS reference files.
+- Streamline process for reducing F277W exposures. 
+- Streamline pixel masking in 1/f correction.
+- Move spectrum tracing to 1D extraction.
+- Custom saturation detection routine to replace STScI step.
+- Misc. bug fixes.
+
+#### Removed
+- Remove TracingStep as its functionalities were all moved to other steps. 
+- STScI pipeline SaturationStep replaced with custom routine.
+
 ### [2.3.2] -- 2025-10-02
 #### Added
 - Update install requirements to fix incompatibilities with numpy and crds.

@@ -113,7 +113,7 @@ def bin_at_pixel(wave, flux, error, npix):
         cut_e = -1*(cut - cut_s)
         flux = flux[:, cut_s:cut_e]
         error = error[:, cut_s:cut_e]
-        wave = wave[:, cut_s:cut_e]
+        wave = wave[cut_s:cut_e]
         nint, nwave = np.shape(flux)
     nbin = int(nwave / npix)
 
@@ -121,7 +121,7 @@ def bin_at_pixel(wave, flux, error, npix):
     flux_bin = np.nansum(np.reshape(flux, (nint, nbin, npix)), axis=2)
     err_bin = np.sqrt(np.nansum(np.reshape(error, (nint, nbin, npix))**2, axis=2))
     # Calculate mean wavelength per bin.
-    wave_bin = np.nanmean(np.reshape(wave, (nbin, npix)), axis=1)
+    wave_bin = np.nanmean(np.reshape(wave, (nbin, npix)))
     wave_err = make_bins(wave_bin)[1] / 2
 
     return wave_bin, wave_err, flux_bin, err_bin
@@ -309,7 +309,7 @@ def calculate_residual_covariance(model_files):
 
 @ray.remote
 def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins, lc_model_type, ld_model,
-             model_function, debug=False):
+             model_function, debug=False, force_redo=False):
     """Functional wrapper around run_uporf to make it compatible for multiprocessing with ray.
     """
 
@@ -332,14 +332,14 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins, lc_model_typ
         linear_regressors = {'inst': data_dictionary['lm_parameters']}
 
     fit_results = run_uporf(priors, t, flux, output_dir, gp_regressors, linear_regressors,
-                            lc_model_type, ld_model, model_function, debug)
+                            lc_model_type, ld_model, model_function, debug, force_redo)
 
     return fit_results
 
 
 def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthreads=4,
                     observing_mode='NIRISS/SOSS', lc_model_type='transit', ld_model='quadratic',
-                    custom_lc_function=None, debug=False):
+                    custom_lc_function=None, debug=False, force_redo=False):
     """Wrapper about both the exoUPRF and ray libraries to parallelize exoUPRF's light curve
     fitting functionality.
 
@@ -367,6 +367,8 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
         Custom light curve function call, if being used.
     debug : bool
         If True, always break when encountering an error.
+    force_redo : bool
+        If True, overwrite any existing fit outputs.
 
 
     Returns
@@ -402,7 +404,7 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
                                         output_dir=outdir, bin_no=num_bins[i],
                                         num_bins=len(num_bins), lc_model_type=lc_model_type,
                                         ld_model=ld_model, model_function=custom_lc_function,
-                                        debug=debug))
+                                        debug=debug, force_redo=force_redo))
     # Run the fits.
     ray_results = ray.get(all_fits)
 
@@ -436,7 +438,7 @@ def gen_ld_coefs(wavebin_low, wavebin_up, m_h, logg, teff, ld_data_path, mode, l
         ExoTiC-LD instrument mode identifier.
     ld_model_type : str
         Limb darkening model identifier. One of 'linear', 'quadratic', 'quadratic-kipping',
-        'square-root', or 'nonlinear'.
+        'square-root', 'power2', or 'nonlinear'.
     stellar_model_type : str
         Identifier for type of stellar model to use. See
         https://exotic-ld.readthedocs.io/en/latest/views/supported_stellar_grids.html
@@ -455,6 +457,7 @@ def gen_ld_coefs(wavebin_low, wavebin_up, m_h, logg, teff, ld_data_path, mode, l
              'quadratic': sld.compute_quadratic_ld_coeffs,
              'quadratic-kipping': sld.compute_kipping_ld_coeffs,
              'squareroot': sld.compute_squareroot_ld_coeffs,
+             'power2': sld.compute_power2_ld_coeffs,
              'nonlinear': sld.compute_4_parameter_non_linear_ld_coeffs}
 
     # Compute the LD coefficients over the given wavelength bins.
@@ -536,7 +539,7 @@ def read_ld_coefs(filename, wavebin_low, wavebin_up):
 
 
 def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, lc_model_type,
-              ld_model, model_function, debug=False):
+              ld_model, model_function, debug=False, force_redo=False):
     """Wrapper around the lightcurve fitting functionality of the exoUPRF package.
 
     Parameters
@@ -561,6 +564,8 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, 
         Function call for custom light curve model, if being used.
     debug : bool
         If True, always break when encountering an error.
+    force_redo : bool
+        If True, overwrite existing fit outputs.
 
     Returns
     -------
@@ -584,7 +589,7 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, 
 
         # Run the fit.
         try:
-            dataset.fit(output_file=out_folder, sampler='NestedSampling', force_redo=True)
+            dataset.fit(output_file=out_folder, sampler='NestedSampling', force_redo=force_redo)
             res = dataset
         except KeyboardInterrupt as err:
             raise err
@@ -605,7 +610,8 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, 
 
 def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, filename, target,
                                extraction_type, resolution, observing_mode, fit_meta='',
-                               occultation_type='transit'):
+                               occultation_type='transit', asymmetric=False, dppm2=None,
+                               dppm2_err=None):
     """Write a transmission/emission spectrum to file.
 
     Parameters
@@ -636,10 +642,19 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, fi
         Fitting metadata.
     occultation_type : str
         Type of occultation; either 'transit' or 'eclipse'.
+    asymmetric : bool
+        If True, an asymmetric transit was fit.
+    dppm2 : array-like[float]
+        For asymmetric transits, transit depth in each bin for the second semi-circle.
+    dppm2_err : array-like[float]
+        For asymmetric transits, error on the transit depth in each bin for the second semi-circle.
     """
 
     # Pack the quantities into a dictionary.
     dd = {'wave': wave, 'wave_err': wave_err, 'dppm': dppm, 'dppm_err': dppm_err}
+    if asymmetric is True:
+        dd['dppm2'] = dppm2
+        dd['dppm2_err'] = dppm2_err
     if observing_mode == 'NIRISS/SOSS':
         dd['order'] = order
     # Save the dictionary as a csv.
@@ -666,6 +681,9 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, fi
     else:
         f.write('# Column dppm: (Fp/F*) (ppm)\n')
         f.write('# Column dppm_err: Error in (Fp/F*) (ppm)\n')
+    if asymmetric is True:
+        f.write('# Column dppm2: (Rp2/R*)^2 (ppm)\n')
+        f.write('# Column dppm2_err: Error in (Rp2/R*)^2 (ppm)\n')
     if observing_mode == 'NIRISS/SOSS':
         f.write('# Column order: SOSS diffraction order\n')
     f.write('#\n')

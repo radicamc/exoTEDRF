@@ -73,6 +73,7 @@ The four methods below are essentially different ideologies for accomplishing th
 :sup:`[4]`: Light curve estimates passed as ``soss_timeseres`` and ``soss_timeseries_o2`` in run_DMS.yaml or the ``OneOverFstep``
 
 Additionally, in all cases, the 1/f correction can be done either at the group-level (that is, before fitting the ramp) or at the integration-level (that is, after fitting the ramp).
+However, it is recommended to always perform 1/f correction at the group-level (e.g., `Carter et al. (2025) <https://ui.adsabs.harvard.edu/abs/2025jwst.rept.8975C/abstract>`_, `Radica et al. (2026) <https://ui.adsabs.harvard.edu/abs/2025jwst.rept.8975C/abstract>`_).
 
 
 A Note on PCA Reconstruction
@@ -98,6 +99,19 @@ Finally, due to the nature of PCA, this step needs to be run on the entire TSO d
 for large datasets. If you run into memory issues, the auxiliary outputs from the step (i.e., the observation deeo stack) can still be produced by specifying ``skip_pca=True``. This will produce all auxiliary files, but skip the PCA component of
 the step, which will not have a major impact on the final data quality. As mentioned above, detector effects can be fit out at the light curve level, or mitigated by a judicious choice of extraction aperture
 (e.g., see Figures C1 & C2 in `Radica et al. 2023 <https://ui.adsabs.harvard.edu/abs/2023MNRAS.524..835R/abstract>`_).
+
+
+Flux Calibration
+----------------
+
+In many cases, it might be useful to flux calibrate extracted stellar spectra so that they can be directly compared to stellar models in "real" units (i.e., erg/s/cm^2/µm).
+The following will walk you through how to accomplish this. Note that NIRISS (as per usual) has a different process than the general one to be followed for the other instruments.
+
+.. toctree::
+   :maxdepth: 2
+
+   notebooks/flux_calibrate_niriss
+   notebooks/flux_calibrate_nirspec
 
 
 Scripting
