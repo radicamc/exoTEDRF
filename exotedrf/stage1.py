@@ -673,7 +673,7 @@ class OneOverFStep:
 
     def __init__(self, input_data, output_dir, baseline_ints=None, pixel_masks=None, centroids=None,
                  soss_background=None, method='scale-achromatic', soss_timeseries=None,
-                 soss_timeseries_o2=None):
+                 soss_timeseries_o2=None, f277w=None):
         """Step initializer.
 
         Parameters
@@ -699,6 +699,9 @@ class OneOverFStep:
         centroids : str, dict, None
             Path to file containing trace positions for each order or the centroids dictionary
             itself.
+        f277w : str, None
+            Path to a file containing a deepstack of the F277W exposure corresponding to these
+            observations (SOSS only). Will be used to identify and mask badckground contaminants.
         """
 
         # Set up easy attributes.
@@ -765,6 +768,17 @@ class OneOverFStep:
             else:
                 raise ValueError('Invalid type for background: {}'.format(type(soss_background)))
 
+        # Unpack F277W exposure -- SOSS only.
+        self.f277w = None
+        if self.instrument == 'NIRISS' and f277w is not None:
+            if isinstance(f277w, str):
+                fancyprint('Reading F277W exposure file: {}...'.format(f277w))
+                self.f277w = np.load(f277w)
+            elif isinstance(f277w, np.ndarray) or f277w is None:
+                self.f277w = f277w
+            else:
+                raise ValueError('Invalid type for F277W exposure: {}'.format(type(f277w)))
+
         # If NIRSpec, get Grating -- needed for frame time in this function
         if self.instrument == 'NIRSPEC':
             self.grating = utils.get_nrs_grating(self.datafiles[0])
@@ -785,7 +799,7 @@ class OneOverFStep:
                 self.method = 'median'
 
     def run(self, soss_inner_mask_width=40, soss_outer_mask_width=70, nirspec_mask_width=16,
-            smoothing_scale=None, f277w=None, save_results=True, force_redo=False, do_plot=False,
+            smoothing_scale=None, save_results=True, force_redo=False, do_plot=False,
             show_plot=False, **kwargs):
         """Method to run the step.
 
@@ -800,9 +814,6 @@ class OneOverFStep:
         smoothing_scale : int, None
             If no timseries is provided, the scale (in number of integrations) on which to smooth
             the self-extracted timseries.
-        f277w : str, None
-            Path to a file containing a deepstack of the F277W exposure corresponding to these
-            observations (SOSS only). Will be used to identify and mask badckground contaminants.
         save_results : bool
             If True, save results.
         force_redo : bool
@@ -835,6 +846,7 @@ class OneOverFStep:
 
         all_files = glob.glob(self.output_dir + '*')
         results = []
+        processed_outliers = []
         first_time = True
         for i, segment in enumerate(self.datafiles):
             # If an output file for this segment already exists, skip the step.
@@ -848,7 +860,6 @@ class OneOverFStep:
             # If no output files are detected, run the step.
             else:
                 # Get outlier mask for the current segment.
-                processed_outliers = []
                 thismask = None
                 if self.pixel_masks is not None:
                     if len(self.pixel_masks) == 1:
@@ -899,8 +910,8 @@ class OneOverFStep:
 
                     # Quantity #4: construct NIRISS contaminant mask.
                     # For NIRISS, mask order 0 contaminants if an F277W exposure is passed.
-                    if self.instrument == 'NIRISS' and f277w is not None:
-                        order0_mask = make_order0_mask_from_f277w(f277w, thresh_std=1,
+                    if self.instrument == 'NIRISS' and self.f277w is not None:
+                        order0_mask = make_order0_mask_from_f277w(self.f277w, thresh_std=1,
                                                                   thresh_size=10,
                                                                   save_results=save_results,
                                                                   output_dir=self.output_dir,
@@ -1377,7 +1388,7 @@ class RampFitStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, save_results=True, force_redo=False, **kwargs):
+    def run(self, save_results=True, force_redo=False, maximum_cores=None, **kwargs):
         """Method to run the step.
 
         Parameters
@@ -1386,6 +1397,8 @@ class RampFitStep:
             If True, save results.
         force_redo : bool
             If True, run step even if output files are detected.
+        maximum_cores : int, str, None
+            Number of cores to use for multiprocessing.
         kwargs : dict
             Keyword arguments for calwebb_detector1.ramp_fit_step.RampFitStep.
 
@@ -1406,9 +1419,14 @@ class RampFitStep:
                 res = expected_file
             # If no output files are detected, run the step.
             else:
+                if maximum_cores is None:
+                    maximum_cores = 'quarter'
+                # Make sure that maximum_cores is a string.
+                elif isinstance(maximum_cores, int) or isinstance(maximum_cores, float):
+                    maximum_cores = str(maximum_cores)
                 step = calwebb_detector1.ramp_fit_step.RampFitStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
-                                maximum_cores='quarter', **kwargs)[1]
+                                maximum_cores=maximum_cores, **kwargs)[1]
                 # From jwst v1.9.0-1.11.0 ramp fitting algorithm was changed to make all pixels
                 # with DO_NOT_USE DQ flags be NaN after ramp fitting. These pixels are marked,
                 # ignored and interpolated anyways, so this does not change any actual
@@ -2332,8 +2350,6 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
     else:
         outliers1 = np.where(outliers1 == 0, 1, np.nan)
 
-    np.save(fileroot + '_mask.npy', outliers1)
-
     # ==== Define light curve scaling ====
     # In order to subtract off the trace as completely as possible, the median stack must be
     # scaled, via the transit curve, to the flux level of each integration. This can be done via
@@ -3106,12 +3122,12 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                                 pixel_masks=pixel_masks, centroids=centroids,
                                 soss_background=soss_background_model, method=oof_method,
                                 soss_timeseries=soss_timeseries,
-                                soss_timeseries_o2=soss_timeseries_o2)
+                                soss_timeseries_o2=soss_timeseries_o2, f277w=f277w)
             results = step.run(soss_inner_mask_width=soss_inner_mask_width,
                                soss_outer_mask_width=soss_outer_mask_width,
                                save_results=save_results, force_redo=force_redo, do_plot=do_plot,
                                show_plot=show_plot, nirspec_mask_width=nirspec_mask_width,
-                               f277w=f277w, **step_kwargs)
+                               **step_kwargs)
     else:
         fancyprint('OneOverFStep not supported for {}.'.format(mode), msg_type='WARNING')
 

@@ -232,7 +232,8 @@ class Extract1DStep:
                                                fileroot_noseg=self.fileroot_noseg,
                                                allow_miri_slope=allow_miri_slope,
                                                extract_width=extract_width,
-                                               extract_width_soss2=extract_width_soss2)
+                                               extract_width_soss2=extract_width_soss2,
+                                               do_plot=do_plot, show_plot=show_plot)
                 # If file path is passed, open it.
                 if isinstance(centroids, str):
                     centroids = pd.read_csv(centroids, comment='#')
@@ -275,7 +276,8 @@ class Extract1DStep:
                                                fileroot_noseg=self.fileroot_noseg,
                                                allow_miri_slope=allow_miri_slope,
                                                extract_width=extract_width,
-                                               extract_width_soss2=extract_width_soss2)
+                                               extract_width_soss2=extract_width_soss2,
+                                               do_plot=do_plot, show_plot=show_plot)
                 # If file path is passed, open it.
                 if isinstance(centroids, str):
                     centroids = pd.read_csv(centroids, comment='#')
