@@ -442,7 +442,8 @@ def fit_lightcurves(config):
 
                 # Plot transit model and residuals.
                 scatter = param_dict['sigma_inst']['value']
-                nfit = len(np.where(config['dists'] != 'fixed')[0])
+                dists = np.array(config['dists'])
+                nfit = len(dists[dists != 'fixed'])
                 t0_loc = np.where(np.array(config['params']) == 't0_p1')[0][0]
                 if config['dists'][t0_loc] == 'fixed':
                     t0 = config['values'][t0_loc]
