@@ -13,9 +13,7 @@ import copy
 from datetime import datetime
 import exouprf.light_curve_models as model
 from exouprf.plotting import make_lightcurve_plot
-import matplotlib.backends.backend_pdf
 import numpy as np
-import os
 import pandas as pd
 import shutil
 import sys
@@ -39,8 +37,8 @@ def fit_lightcurves(config):
     if config['output_tag'] != '':
         config['output_tag'] = '_' + config['output_tag']
     # Create output directories and define output paths.
-    utils.verify_path('pipeline_outputs_directory' + config['output_tag'])
-    utils.verify_path('pipeline_outputs_directory' + config['output_tag'] + '/Stage4')
+    verify_path('pipeline_outputs_directory' + config['output_tag'])
+    verify_path('pipeline_outputs_directory' + config['output_tag'] + '/Stage4')
     outdir = 'pipeline_outputs_directory' + config['output_tag'] + '/Stage4/'
 
     # Tag for this particular fit.
@@ -67,6 +65,7 @@ def fit_lightcurves(config):
 
     # Save a copy of the config file.
     copy_dir = outdir + 'speclightcurve{0}/'.format(fit_suffix)
+    verify_path(copy_dir)
     copy_config = copy_dir + config_file
     shutil.copy(config_file, copy_config)
     # Append time at which it was run.
@@ -116,22 +115,8 @@ def fit_lightcurves(config):
     model_file_names = []
     if config['observing_mode'] != 'NIRISS/SOSS':
         config['orders'] = [1]
-    for order in config['orders']:
-        if config['do_plots'] is True:
-            if config['observing_mode'] == 'NIRISS/SOSS':
-                expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_order{0}.pdf'.format(
-                    order, fit_suffix)
-                outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
-            elif 'NIRSPEC' in config['observing_mode'].upper():
-                expected_file = outdir + 'speclightcurve{1}/lightcurve_fit_{0}.pdf'.format(
-                    config['detector'], fit_suffix)
-                outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
-            else:
-                expected_file = outdir + 'speclightcurve{}/lightcurve_fit.pdf'.format(fit_suffix)
-                outpdf = matplotlib.backends.backend_pdf.PdfPages(expected_file)
-        else:
-            outpdf = None
 
+    for order in config['orders']:
         # === Set Up Priors and Fit Parameters ===
         if config['observing_mode'] == 'NIRISS/SOSS':
             fancyprint('Fitting order {} at {}.'.format(order, res_str))
@@ -379,6 +364,15 @@ def fit_lightcurves(config):
         models = np.ones((5, nints, nbins)) * np.nan
         residuals = np.ones((nints, nbins)) * np.nan
         order_results = {'dppm': [], 'dppm_err': [], 'wave': wave, 'wave_err': wave_err}
+
+        # Set order specific labelling text.
+        if config['observing_mode'].upper() == 'NIRISS/SOSS':
+            order_txt = 'order{}'.format(order)
+        elif 'NIRSPEC' in config['observing_mode'].upper():
+            order_txt = config['detector']
+        else:
+            order_txt = 'LRS'
+
         if asymmetric is True:
             order_results['dppm2'] = []
             order_results['dppm2_err'] = []
@@ -472,13 +466,19 @@ def fit_lightcurves(config):
                         systematics += parametric_model
 
                 if config['do_plots'] is True:
+                    plotfile = outdir + 'speclightcurve{0}/{1}_bin{2}_FitResult.pdf'.format(
+                        fit_suffix, order_txt, i
+                    )
                     make_lightcurve_plot(t=(t - t0) * 24, data=norm_flux[:, i], model=transit_model,
-                                         scatter=scatter, errors=norm_err[:, i], outpdf=outpdf,
+                                         scatter=scatter, errors=norm_err[:, i],
+                                         outpdf=plotfile,
                                          title='bin {0} | {1:.3f}µm'.format(i, wave[i]),
-                                         systematics=systematics, nfit=nfit, nbin=int(len(t) / 35),
-                                         rasterized=True)
+                                         systematics=systematics, nfit=nfit, nbin=int(len(t) / 35))
                     # Corner plot for fit.
                     if config['include_corner'] is True:
+                        plotfile = outdir + 'speclightcurve{0}/{1}_bin{2}_Corner.pdf'.format(
+                            fit_suffix, order_txt, i
+                        )
                         posterior_names = []
                         for param in prior_dict[wavebin].keys():
                             dist = prior_dict[wavebin][param]['distribution']
@@ -487,7 +487,8 @@ def fit_lightcurves(config):
                                     posterior_names.append(formatted_names[param])
                                 else:
                                     posterior_names.append(param)
-                        fit_results[wavebin].make_corner_plot(labels=posterior_names, outpdf=outpdf)
+                        fit_results[wavebin].make_corner_plot(labels=posterior_names,
+                                                              outpdf=plotfile)
 
                 data[:, i] = norm_flux[:, i]
                 models[0, :, i] = transit_model
@@ -503,25 +504,22 @@ def fit_lightcurves(config):
         results_dict['order {}'.format(order)] = order_results
 
         # Save best-fitting light curve models.
-        if config['observing_mode'].upper() == 'NIRISS/SOSS':
-            order_txt = 'order{}'.format(order)
-        elif 'NIRSPEC' in config['observing_mode'].upper():
-            order_txt = config['detector']
-        else:
-            order_txt = 'LRS'
         filename = outdir + 'speclightcurve{0}/_models_{1}.npy'.format(fit_suffix, order_txt)
         np.save(filename, models)
         model_file_names.append(filename)
 
         # Plot 2D lightcurves.
         if config['do_plots'] is True:
-            plotting.make_2d_lightcurve_plot(wave, data, outpdf=outpdf,
+            plotfile = outdir + 'speclightcurve{0}/{1}_NormalizedLightcurves.pdf'.format(fit_suffix,
+                                                                                         order_txt)
+            plotting.make_2d_lightcurve_plot(wave, data, outpdf=plotfile,
                                              title='Normalized Lightcurves')
-            plotting.make_2d_lightcurve_plot(wave, models[0], outpdf=outpdf,
+            plotfile = outdir + 'speclightcurve{0}/{1}_ModelLightcurves.pdf'.format(fit_suffix,
+                                                                                    order_txt)
+            plotting.make_2d_lightcurve_plot(wave, models[0], outpdf=plotfile,
                                              title='Model Lightcurves')
-            plotting.make_2d_lightcurve_plot(wave, residuals, outpdf=outpdf, title='Residuals')
-            outpdf.close()
-            fancyprint('Plot saved to {}'.format(expected_file))
+            plotfile = outdir + 'speclightcurve{0}/{1}_Residuals.pdf'.format(fit_suffix, order_txt)
+            plotting.make_2d_lightcurve_plot(wave, residuals, outpdf=plotfile, title='Residuals')
 
     # === Transmission Spectrum ===
     # Save the transmission spectrum.
