@@ -1102,8 +1102,12 @@ def make_2d_lightcurve_plot(wave1, flux1, wave2=None, flux2=None, outpdf=None, t
         if title != '':
             title = ': ' + title
 
-        fig = plt.figure(figsize=(12, 5), facecolor='white')
-        gs = GridSpec(1, 2, width_ratios=[1, 1])
+        if wave2 is not None:
+            fig = plt.figure(figsize=(12, 5), facecolor='white')
+            gs = GridSpec(1, 2, width_ratios=[1, 1])
+        else:
+            fig = plt.figure(figsize=(6, 5), facecolor='white')
+            gs = GridSpec(1, 1)
 
         ax1 = fig.add_subplot(gs[0, 0])
         pp = ax1.imshow(flux1.T, aspect='auto', origin='lower',
@@ -1142,7 +1146,7 @@ def make_2d_lightcurve_plot(wave1, flux1, wave2=None, flux2=None, outpdf=None, t
         if isinstance(outpdf, matplotlib.backends.backend_pdf.PdfPages):
             outpdf.savefig(fig)
         else:
-            fig.savefig(outpdf)
+            fig.savefig(outpdf, bbox_inches='tight')
         fig.clear()
         plt.close(fig)
     else:

@@ -511,14 +511,15 @@ def fit_lightcurves(config):
 
         # Plot 2D lightcurves.
         if config['do_plots'] is True:
+            kwargs = {'vmin': np.nanpercentile(data, 32), 'vmax': np.nanpercentile(data, 68)}
             plotfile = outdir + 'speclightcurve{0}/{1}_NormalizedLightcurves.pdf'.format(fit_suffix,
                                                                                          order_txt)
             plotting.make_2d_lightcurve_plot(wave, data, outpdf=plotfile,
-                                             title='Normalized Lightcurves')
+                                             title='Normalized Lightcurves', **kwargs)
             plotfile = outdir + 'speclightcurve{0}/{1}_ModelLightcurves.pdf'.format(fit_suffix,
                                                                                     order_txt)
             plotting.make_2d_lightcurve_plot(wave, models[0], outpdf=plotfile,
-                                             title='Model Lightcurves')
+                                             title='Model Lightcurves', **kwargs)
             plotfile = outdir + 'speclightcurve{0}/{1}_Residuals.pdf'.format(fit_suffix, order_txt)
             plotting.make_2d_lightcurve_plot(wave, residuals, outpdf=plotfile, title='Residuals')
 
