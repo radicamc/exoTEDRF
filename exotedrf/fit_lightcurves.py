@@ -66,17 +66,8 @@ def fit_lightcurves(config):
         raise ValueError('Number of columns to bin or spectral resolution must be provided.')
 
     # Save a copy of the config file.
-    root_dir = 'pipeline_outputs_directory' + config['output_tag'] + '/config_files'
-    verify_path(root_dir)
-    i = 0
-    copy_config = root_dir + '/' + config_file
-    root = copy_config.split('.yaml')[0]
-    copy_config = root + '{}.yaml'.format(fit_suffix)
-    while os.path.exists(copy_config):
-        i += 1
-        copy_config = root_dir + '/' + config_file
-        root = copy_config.split('.yaml')[0]
-        copy_config = root + '{0}_{1}.yaml'.format(fit_suffix, i)
+    copy_dir = outdir + 'speclightcurve{0}/'.format(fit_suffix)
+    copy_config = copy_dir + config_file
     shutil.copy(config_file, copy_config)
     # Append time at which it was run.
     f = open(copy_config, 'a')
