@@ -301,7 +301,7 @@ def calculate_residual_covariance(model_files):
         else:
             models = np.concatenate([models, np.load(model)], axis=2)
 
-    res = models[3] - models[0]
+    res = models[4] - models[0]
     cov_matrix = np.corrcoef(res.T)
 
     return cov_matrix
