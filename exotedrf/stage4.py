@@ -370,7 +370,6 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
     force_redo : bool
         If True, overwrite any existing fit outputs.
 
-
     Returns
     -------
     results : exouprf.dataset object

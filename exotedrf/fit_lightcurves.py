@@ -436,9 +436,10 @@ def fit_lightcurves(config):
                     t={'inst': data_dict[wavebin]['times']},
                     linear_regressors=thislm, gp_regressors=thisgp,
                     observations={'inst': {'flux': data_dict[wavebin]['flux']}},
-                    ld_model=config['ld_model_type'], silent=True
+                    ld_model=config['ld_model_type'], silent=True,
+                    lc_model_type=thislcmod, lc_model_functions=thislcfunc
                 )
-                result.compute_lightcurves(lc_model_type=thislcmod, lc_model_functions=thislcfunc)
+                result.compute_lightcurves()
 
                 # Plot transit model and residuals.
                 scatter = param_dict['sigma_inst']['value']
