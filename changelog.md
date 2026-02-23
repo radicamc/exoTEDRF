@@ -1,6 +1,13 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [2.4.1] -- 2026-02-23
+#### Added
+- Updates to efficiency and memory usage in light curve fitting. 
+- Fix persistent bug when using non-analytic limb darkening models.
+- Misc. improvements to light curve plotting.
+- Misc. bug fixes.
+
 ### [2.4.0] -- 2025-12-05
 #### Added
 - Support for asymmetric transit withs with catwoman.
