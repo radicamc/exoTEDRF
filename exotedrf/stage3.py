@@ -1056,7 +1056,7 @@ def do_optimal_extraction(cube, deepframe, ymin=0, ymax=None, xmin=0, xmax=None,
             fancyprint('All outliers masked.')
             break
 
-    return f_opt, var_opt
+    return f_opt, np.sqrt(var_opt)
 
 
 def extract_optimal(prof, data, var, ymin=0, ymax=None, xmin=0, xmax=None):
