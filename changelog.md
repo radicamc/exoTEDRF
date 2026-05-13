@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [2.4.1] -- 2026-05-13
+#### Added
+- Fix bug when binning light curves to a fixed number of pixels instead of resolution. 
+- Fix bug which would cause flux to be zero if the extraction aperture exceeeded detector bounds.
+- Fix bug which swapped optimally extracted error for variance.
+
 ### [2.4.1] -- 2026-02-23
 #### Added
 - Updates to efficiency and memory usage in light curve fitting. 
