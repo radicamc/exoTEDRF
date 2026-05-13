@@ -872,7 +872,8 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None,
 
             # Now incorporate the partial pixels at the upper and lower edges.
             if edge_up[xx] >= (dimy-1) or edge_low[xx] == 0:
-                continue
+                f[i, x] = this_flux
+                ferr[i, x] = np.sqrt(this_err)
             else:
                 up_part = edge_up[xx] % 1
                 low_part = 1 - edge_low[xx] % 1
