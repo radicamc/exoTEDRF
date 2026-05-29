@@ -74,7 +74,7 @@ class DQInitStep:
             raise ValueError('Invalid type for hot_pixel_map: {}'.format(type(hot_pixel_map)))
 
     def run(self, save_results=True, force_redo=False, flag_first_miri_frame=True,
-            flag_last_miri_frame=True, saturation_threshold=None, flag_neighbours=1,
+            flag_last_miri_frame=True, saturation_threshold=80, flag_neighbours=1,
             do_plot=False, show_plot=False, **kwargs):
         """Method to run the step.
 
@@ -88,8 +88,8 @@ class DQInitStep:
             If True, set the first MIRI group to DO_NOT_USE.
         flag_last_miri_frame : bool
             If True, set the last MIRI group to DO_NOT_USE.
-        saturation_threshold : float
-            Threshold (in DN) for a pixel to be considered saturated.
+        saturation_threshold : float, int
+            Threshold (in percent of full well) for a pixel to be considered saturated.
         flag_neighbours : int
             Size of box, in pixels, to flag around a saturated pixel to mitigate charge spillage.
         do_plot : bool
@@ -1668,7 +1668,7 @@ def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15, hot_pix=None
     return result, hot_pix
 
 
-def flag_saturated_pixels(datafile, instrument, saturation_threshold=None, nrs_detector=None,
+def flag_saturated_pixels(datafile, instrument, saturation_threshold=80, nrs_detector=None,
                           flag_neighbours=1):
     """Flag pixels above a user-defined threshold as saturated.
 
@@ -1679,7 +1679,8 @@ def flag_saturated_pixels(datafile, instrument, saturation_threshold=None, nrs_d
     instrument : str
         JWST instrument identifier.
     saturation_threshold : int, float, None
-        Threshold in ADU to consider a pixel saturated.
+        Threshold in percent of full well to consider a pixel saturated. Defaults to 80% (~the same
+        value as is used by the ETC).
     nrs_detector : str
         NIRSpec detector identifier.
     flag_neighbours : int
@@ -1693,26 +1694,27 @@ def flag_saturated_pixels(datafile, instrument, saturation_threshold=None, nrs_d
         Locations of saturated pixels.
     """
 
-    # Set default saturation thresholds if none are provided.
-    # Sourced from the revelant saturation reference files.
-    if saturation_threshold is None:
-        if instrument == 'NIRISS':
-            saturation_threshold = 62070
-        elif instrument == 'NIRSPEC':
-            if nrs_detector == 'NRS1':
-                saturation_threshold = 61537
-            else:
-                saturation_threshold = 60000
+    # Get default full well values in ADU. Sourced from the relevant reference files.
+    # Relevant ETC values (in e-) can be found here: https://jwst-docs.stsci.edu/jwst-exposure-time-calculator-overview/jwst-etc-calculations-page-overview/jwst-etc-saturation#gsc.tab=0
+    if instrument == 'NIRISS':
+        saturation_adu = 62070
+    elif instrument == 'NIRSPEC':
+        if nrs_detector == 'NRS1':
+            saturation_adu = 61537
         else:
-            saturation_threshold = 56600
+            saturation_adu = 60000
+    else:
+        saturation_adu = 56600
 
-    fancyprint(
-        'Identifying saturated pixels using a threshold of {} DN.'.format(saturation_threshold))
+    # Calculate saturation threshold in adu.
+    saturation_threshold /= 100  # Convert from percentage
+    saturation_adu *= saturation_threshold
+
+    fancyprint('Identifying saturated pixels using a threshold of {} DN ({}% full well).'
+               .format(saturation_adu, saturation_threshold*100))
 
     # Locate saturated pixels.
-    inds = datafile.data >= saturation_threshold
-    nints, ngroups, ydim, xdim = np.shape(datafile.data)
-
+    inds = datafile.data >= saturation_adu
     fancyprint('{} saturated pixels identified.'.format(np.sum(inds)))
 
     # For saturated pixels, also flag neighbouring pixels to mitigate charge spillage.

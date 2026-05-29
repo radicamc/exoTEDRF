@@ -29,8 +29,8 @@ RampFitStep : 'run'
 GainScaleStep : 'run'
 # Custom map of hot pixel locations (optional).
 hot_pixel_map : None
-# Saturation threshold in ADU (optional).
-saturation_threshold : None
+# Saturation threshold in percent of full well (optional).
+saturation_threshold : 80
 # (NIRSpec only) Superbias calculation method. Options are 'crds', 'custom', or 'custom-rescale'.
 superbias_method : 'crds'
 # (SOSS only) Background model for NIRISS/SOSS. Default model available here:
