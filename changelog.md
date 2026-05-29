@@ -1,7 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-### [2.4.1] -- 2026-05-13
+### [2.4.3] -- 2026-05-29
+#### Added
+- Synchronize saturation definition with the JWST ETC. Saturation threshold now defaults to 80% of full well.
+
+### [2.4.2] -- 2026-05-13
 #### Added
 - Fix bug when binning light curves to a fixed number of pixels instead of resolution. 
 - Fix bug which would cause flux to be zero if the extraction aperture exceeeded detector bounds.
