@@ -376,6 +376,11 @@ def make_decontamination_plot(results, models, outfile=None, show_plot=True):
         fancyprint('Plot saved to {}'.format(outfile))
 
 
+# TODO: make this make a plot.
+def make_inl_correction_plot(outfile, show_plot=True):
+    pass
+
+
 def make_jump_location_plot(results, outfile=None, show_plot=True):
     """Show locations of detected jumps.
     """
