@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+### [X.X.X] -- 20XX-XX-XX
+#### Added
+- New SOSS-only Stage 1 pipeline step to correct the ADC INL effect identified by Dholakia et al. (2026).
+
 ### [2.4.3] -- 2026-05-29
 #### Added
 - Synchronize saturation definition with the JWST ETC. Saturation threshold now defaults to 80% of full well.
