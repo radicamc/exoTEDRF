@@ -200,7 +200,7 @@ class INLCorrStep:
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
     def run(self, save_results=True, force_redo=False, amplitude_file=None, periods=None,
-            do_plot=False, show_plot=False):
+            do_plot=False, show_plot=False, npix_to_bin=1000):
         """Method to run the step.
 
         Parameters
@@ -218,6 +218,8 @@ class INLCorrStep:
             If True, do step diagnostic plot.
         show_plot : bool
             If True, show the step diagnostic plot.
+        npix_to_bin : int
+            Number of pixels to bin for plotting purposes.
 
         Returns
         -------
@@ -251,13 +253,13 @@ class INLCorrStep:
                                   output_dir=self.output_dir, save_results=save_results,
                                   fileroot=self.fileroots[i])
 
-            results.append(res)
+                # Do step plot if requested.
+                if do_plot is True and i == 0:
+                    plot_file = self.output_dir + self.tag.replace('.fits', '.png')
+                    plotting.plot_inl_correction(segment, res, outfile=plot_file,
+                                                 show_plot=show_plot, npix_to_bin=npix_to_bin)
 
-        # Do step plot if requested.
-        if do_plot is True:
-            plot_file = self.output_dir + self.tag.replace('.fits', '.png')
-            # TODO: correct inputs for plotting routine
-            plotting.make_inl_correction_plot(outfile=plot_file, show_plot=show_plot)
+            results.append(res)
 
         return results
 
@@ -3055,7 +3057,6 @@ def reduce_f277w_exposure(filename, outdir='./'):
     return None
 
 
-# TODO: Add INL Correction
 def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                oof_method='scale-achromatic', superbias_method='crds',
                soss_timeseries=None, soss_timeseries_o2=None, save_results=True, pixel_masks=None,
@@ -3064,7 +3065,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                skip_steps=None, do_plot=False, show_plot=False, soss_inner_mask_width=40,
                soss_outer_mask_width=70, centroids=None, nirspec_mask_width=16, miri_drop_groups=12,
                miri_subtract_dark=True, saturation_threshold=None, flag_neighbours=1, f277w=None,
-               **kwargs):
+               inl_amplitude_file=None, inl_periods=None, **kwargs):
     """Run the exoTEDRF Stage 1 pipeline: detector level processing, using a combination of
     official STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_detector1.html
@@ -3139,6 +3140,11 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     f277w : str, None
         Path to a file containing a deepstack of the F277W exposure corresponding to these
         observations (SOSS only). Will be used to identify and mask badckground contaminants.
+    inl_amplitude_file : str, None
+        Path to file containing Fourier series ampliudes for each INL period to correct. Should be
+        a numpy file.
+    inl_periods : array-like(float), None
+        List of INL periods to correct.
 
     Returns
     -------
@@ -3173,6 +3179,21 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                            saturation_threshold=saturation_threshold,
                            flag_neighbours=flag_neighbours, do_plot=do_plot, show_plot=show_plot,
                            **step_kwargs)
+
+    # ===== INL Correction Step =====
+    # Custom DMS step.
+    if 'INLCorrStep' not in skip_steps:
+        if mode.upper() == 'NIRISS/SOSS':
+            if 'INLCorrStep' in kwargs.keys():
+                step_kwargs = kwargs['INLCorrStep']
+            else:
+                step_kwargs = {}
+            step = INLCorrStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo,
+                               amplitude_file=inl_amplitude_file, periods=inl_periods,
+                               **step_kwargs)
+        else:
+            fancyprint('INLCorrStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== EMI Correction Step =====
     # Default DMS step.
@@ -3239,6 +3260,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step = DarkCurrentStep(results, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
+    # ===== 1/f and Background Correction Suite =====
     if mode.upper() != 'MIRI/LRS':
         if 'OneOverFStep' not in skip_steps:
             if mode == 'NIRISS/SOSS':

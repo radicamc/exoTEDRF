@@ -376,9 +376,55 @@ def make_decontamination_plot(results, models, outfile=None, show_plot=True):
         fancyprint('Plot saved to {}'.format(outfile))
 
 
-# TODO: make this make a plot.
-def make_inl_correction_plot(outfile, show_plot=True):
-    pass
+def make_inl_plot(data_pre, res_pre, data_post, outfile=None, show_plot=True):
+    """Plot showing data before INL correction and INL model.
+    """
+
+    fancyprint('Doing diagnostic plot.')
+
+    f, ax = plt.subplots()
+
+    ax.scatter(data_pre, res_pre, s=1, alpha=0.5, c='royalblue')
+    ax.plot(data_pre, data_pre - data_post, alpha=1, c='salmon')
+
+    ax.set_ylim(-2.75, 2.75)
+    ax.set_xlim(10000, 20000)
+    ax.set_xlabel('Counts [ADU]', fontsize=12)
+
+    if outfile is not None:
+        plt.savefig(outfile, bbox_inches='tight')
+        fancyprint('Plot saved to {}'.format(outfile))
+    if show_plot is False:
+        plt.close()
+    else:
+        plt.show()
+
+
+def make_inl_plot2(data_pre, res_pre, data_post, res_post, outfile=None, show_plot=True):
+    """Plot showing power spectrum before and after INL correction.
+    """
+
+    fancyprint('Doing diagnostic plot 2.')
+    frequency, power = LombScargle(data_pre, res_pre).autopower()
+    frequency2, power2 = LombScargle(data_post, res_post).autopower()
+
+    f, ax = plt.subplots()
+    ax.plot(1 / frequency, power, c='royalblue')
+    ax.plot(1 / frequency2, power2, c='salmon')
+    ax.set_xlim(100, 2100)
+    ax.axvline(1024, ls='--', c='grey')
+    ax.axvline(1024 / 2, ls='--', c='grey')
+    ax.axvline(1024 / 3, ls='--', c='grey')
+    ax.set_xlabel('Periodicity [ADU]', fontsize=12)
+    ax.set_ylabel('Power', fontsize=12)
+
+    if outfile is not None:
+        plt.savefig(outfile, bbox_inches='tight')
+        fancyprint('Plot saved to {}'.format(outfile))
+    if show_plot is False:
+        plt.close()
+    else:
+        plt.show()
 
 
 def make_jump_location_plot(results, outfile=None, show_plot=True):
@@ -1223,9 +1269,97 @@ def plot_average_covariance(matrices, labels=None, xspan=None):
     plt.show()
 
 
+def plot_inl_correction(data_pre_corr, data_post_corr, npix_to_bin=1000, show_plot=True,
+                        outfile=None):
+    """Process data and then make the two INL correction step plots.
+    """
+
+    int_start, int_end = 10, 20
+    pre_corr = utils.open_filetype(data_pre_corr).data
+    post_corr = utils.open_filetype(data_post_corr).data
+
+    def fit_and_subtract_line_from_ramps(data):
+        """Fit counts = intercept + slope * group number for every ramp."""
+        ngroup = data.shape[1]
+        groups = np.arange(ngroup, dtype=np.float32)
+        centered_groups = groups - np.mean(groups)
+        denom = np.sum(centered_groups * centered_groups)
+
+        slope = np.tensordot(data, centered_groups, axes=([1], [0])) / denom
+        intercept = np.mean(data, axis=1) - slope * np.mean(groups)
+        model = intercept[:, None, :, :] + slope[:, None, :, :] * groups[None, :, None, None]
+
+        return data - model, model
+
+    def bin_n_pix(data, npix=10):
+        """Bin data in npix chunks."""
+        data_flat = data.flatten()
+        remainder = data_flat.size % npix
+        nbin = int((data_flat.size - remainder) / npix)
+        data_reshape = np.reshape(data_flat[remainder:], (nbin, npix))
+        data_bin = np.nanmedian(data_reshape, axis=1)
+
+        return data_bin
+
+    # Get rough ramp residuals.
+    res_pre, _ = fit_and_subtract_line_from_ramps(pre_corr[int_start:int_end])
+    res_post, _ = fit_and_subtract_line_from_ramps(post_corr[int_start:int_end])
+
+    # Flatten, sort, and filter arrays.
+    dpre_flat = pre_corr[int_start:int_end].flatten()
+    rpre_flat = res_pre.flatten()
+
+    ii = np.argsort(dpre_flat)
+    dpre_flat = dpre_flat[ii]
+    rpre_flat = rpre_flat[ii]
+
+    # Limit to pixels with counts in the 10-20K range.
+    mask = (dpre_flat >= 10000) & (dpre_flat <= 20000)
+    dpre_flat = dpre_flat[mask]
+    rpre_flat = rpre_flat[mask]
+
+    # Do same for post-correction data.
+    dpost_flat = post_corr[int_start:int_end].flatten()
+    rpost_flat = res_post.flatten()
+
+    dpost_flat = dpost_flat[ii]
+    rpost_flat = rpost_flat[ii]
+    dpost_flat = dpost_flat[mask]
+    rpost_flat = rpost_flat[mask]
+
+    # Bin processed data.
+    dpre_bin = bin_n_pix(dpre_flat, npix_to_bin)
+    # Make sure there are few enough samples that the periodogram won't crash.
+    while dpre_bin.size >= 1000000:
+        fancyprint('Too many samples, increasing npix_to_bin.', msg_type='WARNING')
+        npix_to_bin *= 2
+        dpre_bin = bin_n_pix(dpre_flat, npix_to_bin)
+    rpre_bin = bin_n_pix(rpre_flat, npix_to_bin)
+    dpost_bin = bin_n_pix(dpost_flat, npix_to_bin)
+    rpost_bin = bin_n_pix(rpost_flat, npix_to_bin)
+
+    # A largeish amount of binning is necessary to have the INL signal pop out clearly.
+    # Warn user if residual scatter is ~larger than the correction amplitude.
+    # Note this only affects the visualization and has nothing to do with the correction itself.
+    if np.max(rpre_bin) - np.min(rpre_bin) >= 6:
+        msg = 'Min-max spread >6; correction visualization may not be optimal. \n ' \
+              'Consider increasing npix_to_bin. Current value is {}'.format(npix_to_bin)
+        fancyprint(msg, msg_type='WARNING')
+
+    # Do first plot showing binned data and correction.
+    if outfile is not None:
+        oo = outfile.split('.')
+        outfile1 = oo[0] + '_1.' + oo[1]
+        outfile2 = oo[0] + '_2.' + oo[1]
+    else:
+        outfile1, outfile2 = None, None
+    make_inl_plot(dpre_bin, rpre_bin, dpost_bin, outfile=outfile1, show_plot=show_plot)
+    # Do second plot showing power spectrum before and after correction.
+    make_inl_plot2(dpre_bin, rpre_bin, dpost_bin, rpost_bin, outfile=outfile2, show_plot=show_plot)
+
+
 def plot_quicklook_lightcurve(datafiles, clip=None):
-    """Quick and dirty light curve plot, mostly for validation of
-    observations.
+    """Quick and dirty light curve plot, mostly for validation of observations.
     """
 
     datafiles = np.atleast_1d(datafiles)

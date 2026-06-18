@@ -17,6 +17,7 @@ filter_detector : 'CLEAR'
 # ===== Stage 1 Input Files & Parameters =====
 # List of stage 1 steps to run or skip.
 DQInitStep : 'run'
+INLCorrStep : 'run'        # SOSS only
 EmiCorrStep : 'skip'       # MIRI only
 ResetStep : 'skip'         # MIRI only
 SuperBiasStep : 'run'      # SOSS/NIRSpec only
@@ -29,12 +30,16 @@ RampFitStep : 'run'
 GainScaleStep : 'run'
 # Custom map of hot pixel locations (optional).
 hot_pixel_map : None
+# (SOSS only) For integral nonlinearity, list of periods (in ADU) to remove (optional).
+inl_periods : None
+# (SOSS only) Path to numpy file containing Fourier Series amplitudes for each INL period (optional).
+# Will default to the Dholakia et al. (2026) values.
+inl_amplitude_file : None
 # Saturation threshold in percent of full well (optional).
 saturation_threshold : 80
 # (NIRSpec only) Superbias calculation method. Options are 'crds', 'custom', or 'custom-rescale'.
 superbias_method : 'crds'
-# (SOSS only) Background model for NIRISS/SOSS. Default model available here:
-# https://jwst-docs.stsci.edu/jwst-near-infrared-imager-and-slitless-spectrograph/niriss-observing-strategies/niriss-soss-recommended-strategies
+# (SOSS only) Background model for NIRISS/SOSS. Default model available here: https://github.com/radicamc/exoTEDRF/tree/main/files
 soss_background_file : 'model_background256.npy'
 # 1/f correction method. For SOSS, options are 'scale-achromatic', 'scale-achromatic-window', 'scale-chromatic', or
 # 'solve'. For NIRSpec, options are 'median', or 'slope'.
