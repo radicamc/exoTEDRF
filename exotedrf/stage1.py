@@ -28,6 +28,7 @@ from jwst.pipeline import calwebb_spec2
 import exotedrf.stage2 as stage2
 from exotedrf import utils, plotting
 from exotedrf.utils import fancyprint
+from exotedrf.extra_functions import download_ref_file
 
 
 class DQInitStep:
@@ -168,6 +169,97 @@ class DQInitStep:
             if self.instrument == 'NIRSPEC':
                 plot_file = plot_file.replace('.png', '_{}.png'.format(self.detector))
             plotting.plot_saturated_pixels(sat_pix[-1, -1], outfile=plot_file, show_plot=show_plot)
+
+        return results
+
+
+class INLCorrStep:
+    """Wrapper around custom integral non-linearity correction routine.
+    """
+
+    def __init__(self, input_data, output_dir):
+        """Step initializer.
+
+        Parameters
+        ----------
+        input_data : array-like(str), array-like(datamodel)
+            List of paths to input data or the input data itself.
+        output_dir : str
+            Path to directory to which to save outputs.
+        """
+
+        # Set up easy attributes.
+        self.tag = 'inlcorrstep.fits'
+        self.output_dir = output_dir
+
+        # Unpack input data files.
+        self.datafiles = utils.sort_datamodels(input_data)
+        self.fileroots = utils.get_filename_root(self.datafiles)
+
+        # Get instrument.
+        self.instrument = utils.get_instrument_name(self.datafiles[0])
+
+    def run(self, save_results=True, force_redo=False, amplitude_file=None, periods=None,
+            do_plot=False, show_plot=False, npix_to_bin=1000):
+        """Method to run the step.
+
+        Parameters
+        ----------
+        save_results : bool
+            If True, save results.
+        force_redo : bool
+            If True, run step even if output files are detected.
+        amplitude_file : str, None
+            Path to file containing Fourier series ampliudes for each period to correct. Should be
+            a numpy file.
+        periods : array-like(float), None
+            List of periods to correct.
+        do_plot : bool
+            If True, do step diagnostic plot.
+        show_plot : bool
+            If True, show the step diagnostic plot.
+        npix_to_bin : int
+            Number of pixels to bin for plotting purposes.
+
+        Returns
+        -------
+        results : list(datamodel)
+            Input data files processed through the step.
+        """
+
+        # Only run for NIRISS observations.
+        if self.instrument != 'NIRISS':
+            fancyprint('INL Correction only necessary for NIRISS.')
+            fancyprint('Skipping INL Correction Step.')
+            return self.datafiles
+
+        # Warn user that datamodels will be returned if not saving results.
+        if save_results is False:
+            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
+
+        results = []
+        all_files = glob.glob(self.output_dir + '*')
+        for i, segment in enumerate(self.datafiles):
+            # If an output file for this segment already exists, skip the step.
+            expected_file = self.output_dir + self.fileroots[i] + self.tag
+            if expected_file in all_files and force_redo is False:
+                fancyprint('File {} already exists.'.format(expected_file))
+                fancyprint('Skipping INL Correction Step.')
+                res = expected_file
+            # If no output files are detected, run the step.
+            else:
+                # Apply the INL correction.
+                res = inlcorrstep(segment, amplitude_file=amplitude_file, periods=periods,
+                                  output_dir=self.output_dir, save_results=save_results,
+                                  fileroot=self.fileroots[i])
+
+                # Do step plot if requested.
+                if do_plot is True and i == 0:
+                    plot_file = self.output_dir + self.tag.replace('.fits', '.png')
+                    plotting.plot_inl_correction(segment, res, outfile=plot_file,
+                                                 show_plot=show_plot, npix_to_bin=npix_to_bin)
+
+            results.append(res)
 
         return results
 
@@ -1532,72 +1624,36 @@ class GainScaleStep:
         return results
 
 
-def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15, hot_pix=None):
-    """Identify and flag additional hot pixels in a SOSS TSO which are not already in the default
-    pipeline flags.
+def eval_inl_fourier_counts(data, theta, periods):
+    """Evaluate a Fourier series to calculate the INL correction for NIRISS data frames.
+    Based on the correction developed by Dholakia et al. (2026) PASP.
 
     Parameters
     ----------
-    result : jwst.datamodel
-        Input datamodel.
-    deepframe : array-like(float), None
-        Deep stack of the time series.
-    box_size : int
-        Size of box around each pixel to consider.
-    thresh : int
-        Sigma threshold above which a pixel will be flagged.
-    hot_pix : array-like(bool), None
-        Map of pixels to flag.
+    data : array-like(float)
+        Input data frame.
+    theta : array-like(float)
+        INL Fourier series coefficients corresponding to each period.
+    periods : array-like(float)
+        INL Fourier series periods to remove.
 
     Returns
     -------
-    result : jwst.datamodel
-        Input datamodel with newly flagged pixels added to pixeldq extension.
-    hot_pix : np.ndarray(bool)
-        Map of new flagged pixels.
+    corr : np.ndarray(float)
+        INL correction values.
     """
 
-    fancyprint('Identifying additional unflagged hot pixels...')
+    corr = np.zeros_like(data)
 
-    # Get location of all pixels already flagged as warm or hot.
-    hot = utils.get_dq_flag_metrics(result.pixeldq, ['HOT', 'WARM'])
+    # Loop over the (generally three) periods to correct.
+    # Nominally the 1024 ADU primary signal and it's first two harmonics.
+    for k, period in enumerate(periods):
+        w = 2.0 * np.pi / period * data
+        c1 = theta[2 * k]  # sine coefficient
+        c2 = theta[2 * k + 1]  # cosine coefficient
+        corr += c1 * np.sin(w) + c2 * np.cos(w)  # Evaluate correction based on Dholakia+ 2026
 
-    if hot_pix is not None:
-        hot_pix = hot_pix
-        fancyprint('Using provided hot pixel map...')
-        result.pixeldq[hot_pix] += 2048
-
-    else:
-        assert deepframe is not None
-
-        dimy, dimx = np.shape(deepframe)
-        all_med = np.nanmedian(deepframe)
-        hot_pix = np.zeros_like(deepframe).astype(bool)
-        for i in tqdm(range(4, dimx - 4)):
-            for j in range(dimy):
-                box_size_i = box_size
-                box_prop = utils.get_interp_box(deepframe, box_size_i, i, j, dimx)
-                # Ensure that the median and std dev extracted are good. If not, increase the box
-                # size until they are.
-                while np.any(np.isnan(box_prop)):
-                    box_size_i += 1
-                    box_prop = utils.get_interp_box(deepframe, box_size_i, i, j, dimx)
-                med, std = box_prop[0], box_prop[1]
-
-                # If central pixel is too deviant...
-                if np.abs(deepframe[j, i] - med) >= (thresh * std):
-                    # And reasonably bright (don't want to flag noise)...
-                    if deepframe[j, i] > all_med:
-                        # And not already flagged...
-                        if hot[j, i] == 0:
-                            # Flag it.
-                            result.pixeldq[j, i] += 2048
-                            hot_pix[j, i] = True
-
-        count = int(np.sum(hot_pix))
-        fancyprint('{} additional hot pixels identified.'.format(count))
-
-    return result, hot_pix
+    return corr
 
 
 def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15, hot_pix=None):
@@ -1734,6 +1790,92 @@ def flag_saturated_pixels(datafile, instrument, saturation_threshold=80, nrs_det
     fancyprint('{} ADU floor pixels identified.'.format(np.sum(adu_floor)))
 
     return datafile, inds
+
+
+def inlcorrstep(datafile, amplitude_file=None, periods=None, save_results=True, output_dir='./',
+                fileroot=None):
+    """Correct the Integral Nonlinearity effect identified by Dholakia+ 2026 and Desdoigts+ 2025 in
+    NIRISS datasets.
+
+    Parameters
+    ----------
+    datafile : str
+        Path to input uncalibrated datafile.
+    amplitude_file : str, None
+        Path to file containing Fourier series ampliudes for each period to correct. Should be a
+        numpy file.
+    periods : array-like(float), None
+        List of periods to correct.
+    output_dir : str, None
+        Directory to which to save results. Only necessary if saving results.
+    save_results : bool
+        If True, save results to disk.
+    fileroot : str, None
+        Root name for output file. Only necessary if saving results.
+
+    Returns
+    -------
+    result : CubeModel, RampModel, str
+        RampModel for the segment, corrected for the INL effect.
+    """
+
+    fancyprint('Starting SOSS Integral Nonlinearity Correction step.')
+    # Load in data, accept both strings (open as fits) and datamodels.
+    if isinstance(datafile, str):
+        cube = fits.getdata(datafile, 1)
+        filename = fits.getheader(datafile, 0)['FILENAME']
+    else:
+        with utils.open_filetype(datafile) as thisfile:
+            cube = thisfile.data
+            filename = thisfile.meta.filename
+    fancyprint('Processing file {}.'.format(filename))
+
+    # Output directory formatting.
+    if output_dir is not None:
+        if output_dir[-1] != '/':
+            output_dir += '/'
+
+    # If no periods are provided, use the default 1024 ADU value and its first two harmonics.
+    if periods is None:
+        periods = [1024/3, 1024/2, 1024]
+
+    # If no amplitude file is passed, grab the Dholakia+ 2026 one from GitHub.
+    if amplitude_file is None:
+        amplitude_file = 'fourier_series_amplitudes.npy'
+        download_ref_file(amplitude_file,
+                          'https://raw.githubusercontent.com/shashankdholakia/niriss-cal-inl/main/',
+                          './')
+    # Open the Fourier series amplitudes.
+    theta = np.load(amplitude_file)
+    # There should be two coefficients for each period.
+    assert len(theta) == 2 * len(periods)
+
+    # Calculate the per-pixel INL correction.
+    fancyprint('Evaluating INL correction...')
+    inl_correction = eval_inl_fourier_counts(cube, theta, periods)
+
+    # Apply the INL correction.
+    fancyprint('Applying INL correction...')
+    cube_corr = cube / (1 + inl_correction)
+
+    # Save results is requested
+    if save_results is True:
+        thisfile = fits.open(datafile)
+        thisfile[1].data = cube_corr
+        # Save corrected data.
+        result = output_dir + fileroot + 'inlcorrstep.fits'
+        thisfile[0].header['FILENAME'] = fileroot + 'inlcorrstep.fits'
+        thisfile.writeto(result, overwrite=True)
+        fancyprint('File saved to: {}.'.format(result))
+
+    # If not saving results, need to work in datamodels to not break interoperability with stsci
+    # pipeline.
+    else:
+        currentfile = utils.open_filetype(datafile)
+        result = copy.deepcopy(currentfile)
+        result.data = cube_corr
+
+    return result
 
 
 def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=True,
@@ -2923,7 +3065,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                skip_steps=None, do_plot=False, show_plot=False, soss_inner_mask_width=40,
                soss_outer_mask_width=70, centroids=None, nirspec_mask_width=16, miri_drop_groups=12,
                miri_subtract_dark=True, saturation_threshold=None, flag_neighbours=1, f277w=None,
-               **kwargs):
+               inl_amplitude_file=None, inl_periods=None, **kwargs):
     """Run the exoTEDRF Stage 1 pipeline: detector level processing, using a combination of
     official STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_detector1.html
@@ -2998,6 +3140,11 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     f277w : str, None
         Path to a file containing a deepstack of the F277W exposure corresponding to these
         observations (SOSS only). Will be used to identify and mask badckground contaminants.
+    inl_amplitude_file : str, None
+        Path to file containing Fourier series ampliudes for each INL period to correct. Should be
+        a numpy file.
+    inl_periods : array-like(float), None
+        List of INL periods to correct.
 
     Returns
     -------
@@ -3032,6 +3179,21 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
                            saturation_threshold=saturation_threshold,
                            flag_neighbours=flag_neighbours, do_plot=do_plot, show_plot=show_plot,
                            **step_kwargs)
+
+    # ===== INL Correction Step =====
+    # Custom DMS step.
+    if 'INLCorrStep' not in skip_steps:
+        if mode.upper() == 'NIRISS/SOSS':
+            if 'INLCorrStep' in kwargs.keys():
+                step_kwargs = kwargs['INLCorrStep']
+            else:
+                step_kwargs = {}
+            step = INLCorrStep(results, output_dir=outdir)
+            results = step.run(save_results=save_results, force_redo=force_redo,
+                               amplitude_file=inl_amplitude_file, periods=inl_periods,
+                               **step_kwargs)
+        else:
+            fancyprint('INLCorrStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== EMI Correction Step =====
     # Default DMS step.
@@ -3098,6 +3260,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step = DarkCurrentStep(results, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
 
+    # ===== 1/f and Background Correction Suite =====
     if mode.upper() != 'MIRI/LRS':
         if 'OneOverFStep' not in skip_steps:
             if mode == 'NIRISS/SOSS':
