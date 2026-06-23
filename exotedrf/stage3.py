@@ -1787,7 +1787,7 @@ def optimal_extract_miri(datafiles, deepframe, centroids, extract_width=None, ma
     # Do the extraction.
     fancyprint('Performing optimal extraction.')
     flux, ferr = do_optimal_extraction(cube.transpose(0, 2, 1), deepframe.transpose(1, 0), ymin,
-                                       ymax, xmin=int(np.min(y1)), xmax=int(np.max(y1)),
+                                       ymax, xmin=int(np.min(y1)), xmax=int(np.max(y1)+1),
                                        max_iter=max_iter, var_thresh=var_thresh)
 
     # Get default 2D wavelength solution.
