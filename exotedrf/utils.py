@@ -551,6 +551,7 @@ def get_dq_flag_metrics(dq_map, flags):
     dimy, dimx, nint = np.shape(dq_map)
 
     # From here: https://jwst-reffiles.stsci.edu/source/data_quality.html
+    # Note: HIGH_VARIANCE added by me.
     flags_dict = {'DO_NOT_USE': 0, 'SATURATED': 1, 'JUMP_DET': 2, 'DROPOUT': 3, 'OUTLIER': 4,
                   'PERSISTENCE': 5, 'AD_FLOOR': 6, 'RESERVED': 7, 'UNRELIABLE_ERROR': 8,
                   'NON_SCIENCE': 9, 'DEAD': 10, 'HOT': 11, 'WARM': 12, 'LOW_QE': 13, 'RC': 14,
@@ -558,7 +559,7 @@ def get_dq_flag_metrics(dq_map, flags):
                   'NO_GAIN_VALUE': 19, 'NO_LIN_CORR': 20, 'NO_SAT_CHECK': 21, 'UNRELIABLE_BIAS': 22,
                   'UNRELIABLE_DARK': 23, 'UNRELIABLE_SLOPE': 24, 'UNRELIABLE_FLAT': 25, 'OPEN': 26,
                   'ADJ_OPEN': 27, 'UNRELIABLE_RESET': 28, 'MSA_FAILED_OPEN': 29,
-                  'OTHER_BAD_PIXEL': 30, 'REFERENCE_PIXEL': 31}
+                  'OTHER_BAD_PIXEL': 30, 'REFERENCE_PIXEL': 31, 'HIGH_VARIANCE': 32}
 
     flagged = np.zeros_like(dq_map).astype(bool)
     # Get bit corresponding to the desired flags.
@@ -570,7 +571,7 @@ def get_dq_flag_metrics(dq_map, flags):
     for i in range(nint):
         for x in range(dimx):
             for y in range(dimy):
-                val = np.binary_repr(dq_map[y, x, i], width=32)[::-1]
+                val = np.binary_repr(dq_map[y, x, i], width=33)[::-1]
                 for bit in flag_bits:
                     if val[bit] == '1':
                         flagged[y, x, i] = True

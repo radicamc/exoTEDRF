@@ -118,7 +118,7 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=Tru
     first_time = True
     for ypos, xpos in zip(hotpix[0], hotpix[1]):
         if first_time is True:
-            marker = Ellipse((xpos, ypos), xx, yy, color='red', fill=False, label='Hot Pixel')
+            marker = Ellipse((xpos, ypos), xx, yy, color='red', fill=False, label='DQ Pixel')
             ax.add_patch(marker)
             first_time = False
         else:
@@ -140,7 +140,7 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=Tru
     first_time = True
     for ypos, xpos in zip(otherpix[0], otherpix[1]):
         if first_time is True:
-            marker = Ellipse((xpos, ypos), xx, yy, color='green', fill=False, label='Other')
+            marker = Ellipse((xpos, ypos), xx, yy, color='green', fill=False, label='Flagged Pixel')
             ax.add_patch(marker)
             first_time = False
         else:
