@@ -44,6 +44,7 @@ from_pca_only : False
 # ===== Stage 1 Input Files & Parameters =====
 # List of stage 1 steps to run or skip.
 DQInitStep : 'run'
+INLCorrStep : 'run'       # NIRISS/SOSS only
 EmiCorrStep : 'skip'       # MIRI only
 ResetStep : 'skip'         # MIRI only
 SuperBiasStep : 'run'      # SOSS/NIRSpec only
@@ -56,6 +57,10 @@ RampFitStep : 'run'
 GainScaleStep : 'run'
 # Custom map of hot pixel locations (optional).
 hot_pixel_map : None
+# (SOSS only) Integral non-linearity correction inputs. If None, the default
+# Dholakia+ Fourier amplitude file is downloaded/used.
+inl_amplitude_file : None
+inl_periods : None
 
 # (NIRSpec only) Superbias calculation method. Options are 'crds', 'custom', or 'custom-rescale'.
 superbias_method : 'crds'

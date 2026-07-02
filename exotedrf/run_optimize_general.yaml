@@ -42,6 +42,7 @@ st_met : None
 # ===== Stage 1 Input Files & Parameters =====
 # SOSS defaults are active. NIRSpec and MIRI alternatives are shown in comments.
 DQInitStep : 'run'
+INLCorrStep : 'run'       # NIRSpec/MIRI: 'skip'
 EmiCorrStep : 'skip'       # MIRI: 'run'
 SaturationStep : 'run'
 ResetStep : 'skip'         # MIRI: 'run'
@@ -56,6 +57,10 @@ GainScaleStep : 'run'
 
 # NIRSpec only. Options are 'crds', 'custom', or 'custom-rescale'.
 superbias_method : 'crds'
+
+# SOSS only. If None, the default Dholakia+ Fourier amplitude file is downloaded/used.
+inl_amplitude_file : None
+inl_periods : None
 
 # SOSS only. Use 'model_background96.npy' for SUBSTRIP96.
 # NIRSpec/MIRI: None

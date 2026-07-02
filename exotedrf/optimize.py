@@ -1741,7 +1741,7 @@ def main():
             'name': 'OneOverFStep_grp',
             'stage': 1,
             'params': ['soss_inner_mask_width', 'soss_outer_mask_width', 'nirspec_mask_width'],
-            'skip_before': ['DQInitStep', 'EmiCorrStep',  'ResetStep',
+            'skip_before': ['DQInitStep', 'INLCorrStep', 'EmiCorrStep',  'ResetStep',
                            'SuperBiasStep', 'RefPixStep', 'DarkCurrentStep'],
             'skip_after': ['LinearityStep', 'JumpStep', 'RampFitStep', 'GainScaleStep'],
         },
@@ -1749,7 +1749,7 @@ def main():
             'name': 'JumpStep',
             'stage': 1,
             'params': ['time_jump_threshold', 'time_window'],
-            'skip_before': ['DQInitStep', 'EmiCorrStep',  'ResetStep',
+            'skip_before': ['DQInitStep', 'INLCorrStep', 'EmiCorrStep',  'ResetStep',
                            'SuperBiasStep', 'RefPixStep', 'DarkCurrentStep',
                            'OneOverFStep_grp', 'LinearityStep'],
             'skip_after': ['RampFitStep', 'GainScaleStep'],
@@ -1868,7 +1868,7 @@ def main():
                     skip_list = checkpoint['skip_after'].copy()
 
                     # ALSO add user's skip preferences from YAML config
-                    stage1_steps = ['DQInitStep', 'EmiCorrStep',  'ResetStep', 'SuperBiasStep',
+                    stage1_steps = ['DQInitStep', 'INLCorrStep', 'EmiCorrStep',  'ResetStep', 'SuperBiasStep',
                                     'RefPixStep', 'DarkCurrentStep', 'OneOverFStep_grp', 'LinearityStep', 'JumpStep',
                                     'RampFitStep', 'GainScaleStep']
                     for step in stage1_steps:
@@ -1913,6 +1913,8 @@ def main():
                         miri_drop_groups=run_cfg.get('miri_drop_groups'),
                         saturation_threshold=run_cfg.get('saturation_threshold', 80),
                         f277w=run_cfg.get('f277w'),
+                        inl_amplitude_file=run_cfg.get('inl_amplitude_file'),
+                        inl_periods=run_cfg.get('inl_periods'),
                         pipeline_outputs_directory=base_outdir,
                         **s1_kwargs
                     )
@@ -1923,7 +1925,7 @@ def main():
                 elif checkpoint['stage'] == 2:
                     # First, need Stage 1 results (use cached)
                     # Build skip list for Stage 1 based on user config
-                    stage1_steps = ['DQInitStep', 'EmiCorrStep',  'ResetStep', 'SuperBiasStep',
+                    stage1_steps = ['DQInitStep', 'INLCorrStep', 'EmiCorrStep',  'ResetStep', 'SuperBiasStep',
                                     'RefPixStep', 'DarkCurrentStep', 'OneOverFStep_grp', 'LinearityStep', 'JumpStep',
                                     'RampFitStep', 'GainScaleStep']
                     stage1_skip_for_s2 = []
@@ -1962,6 +1964,8 @@ def main():
                         pipeline_outputs_directory=base_outdir,
                         saturation_threshold=run_cfg.get('saturation_threshold', 80),
                         f277w=run_cfg.get('f277w'),
+                        inl_amplitude_file=run_cfg.get('inl_amplitude_file'),
+                        inl_periods=run_cfg.get('inl_periods'),
 
                         **run_cfg.get('stage1_kwargs', {})
                     )
@@ -2028,7 +2032,7 @@ def main():
                 elif checkpoint['stage'] == 3:
                     # Need Stage 1 and 2 completed first (use cached)
                     # Build skip list for Stage 1 based on user config
-                    stage1_steps = ['DQInitStep', 'EmiCorrStep',  'ResetStep', 'SuperBiasStep',
+                    stage1_steps = ['DQInitStep', 'INLCorrStep', 'EmiCorrStep',  'ResetStep', 'SuperBiasStep',
                                     'RefPixStep', 'DarkCurrentStep', 'OneOverFStep_grp', 'LinearityStep', 'JumpStep',
                                     'RampFitStep', 'GainScaleStep']
                     stage1_skip_for_s3 = []
@@ -2067,6 +2071,8 @@ def main():
                         pipeline_outputs_directory=base_outdir,
                         saturation_threshold=run_cfg.get('saturation_threshold', 80),
                         f277w=run_cfg.get('f277w'),
+                        inl_amplitude_file=run_cfg.get('inl_amplitude_file'),
+                        inl_periods=run_cfg.get('inl_periods'),
 
                         **run_cfg.get('stage1_kwargs', {})
                     )
@@ -2195,7 +2201,7 @@ def main():
     final_cfg.update(current_best)
 
     # Build skip lists for Stage 1 and Stage 2 based on config settings
-    stage1_steps = ['DQInitStep', 'EmiCorrStep',  'ResetStep', 'SuperBiasStep',
+    stage1_steps = ['DQInitStep', 'INLCorrStep', 'EmiCorrStep',  'ResetStep', 'SuperBiasStep',
                     'RefPixStep', 'DarkCurrentStep', 'OneOverFStep_grp', 'LinearityStep', 'JumpStep',
                     'RampFitStep', 'GainScaleStep']
     stage1_skip = []
@@ -2237,6 +2243,8 @@ def main():
         pipeline_outputs_directory=base_outdir,
         saturation_threshold=final_cfg.get('saturation_threshold', 80),
         f277w=final_cfg.get('f277w'),
+        inl_amplitude_file=final_cfg.get('inl_amplitude_file'),
+        inl_periods=final_cfg.get('inl_periods'),
 
         **final_cfg.get('stage1_kwargs', {})
     )

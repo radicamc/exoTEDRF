@@ -34,6 +34,7 @@ first_pass_extract_method : 'box'
 # ===== Stage 1 Input Files & Parameters =====
 # List of stage 1 steps to run or skip.
 DQInitStep : 'run'
+INLCorrStep : 'skip'      # NIRISS/SOSS only
 EmiCorrStep : 'skip'       # MIRI only
 SaturationStep : 'run'
 ResetStep : 'skip'         # MIRI only
@@ -47,6 +48,9 @@ RampFitStep : 'run'
 GainScaleStep : 'run'
 # Custom map of hot pixel locations (optional).
 hot_pixel_map : None
+# (SOSS only) Integral non-linearity correction inputs.
+inl_amplitude_file : None
+inl_periods : None
 # (NIRSpec only) Superbias calculation method. Options are 'crds', 'custom', or 'custom-rescale'.
 superbias_method : 'crds'
 # (SOSS only) Background model for NIRISS/SOSS. Default model available here:
