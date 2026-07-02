@@ -437,7 +437,10 @@ class BackgroundStep:
             # If an output file for this segment already exists, skip the step.
             expected_file = self.output_dir + self.fileroots[i] + self.tag
             expected_bkg = self.output_dir + self.fileroot_noseg + 'background.npy'
-            if expected_file in all_files and force_redo is False:
+            can_skip = expected_file in all_files
+            if self.instrument == 'NIRISS':
+                can_skip = can_skip and expected_bkg in all_files
+            if can_skip and force_redo is False:
                 fancyprint('File {} already exists.'.format(expected_file))
                 fancyprint('Skipping Background Subtraction Step.')
                 res = expected_file
@@ -725,10 +728,17 @@ class BadPixStep:
         all_files = glob.glob(self.output_dir + '*')
         results = []
         first_time = True
+        expected_hotpix = self.output_dir + self.fileroot_noseg + 'hot_pixels.npy'
+        to_flag = None
+        if save_results is True and expected_hotpix in all_files and force_redo is False:
+            to_flag = np.load(expected_hotpix)
         for i, segment in enumerate(self.datafiles):
             # If an output file for this segment already exists, skip the step.
             expected_file = self.output_dir + self.fileroots[i] + self.tag
-            if expected_file in all_files and force_redo is False:
+            can_skip = expected_file in all_files
+            if save_results is True:
+                can_skip = can_skip and expected_hotpix in all_files
+            if can_skip and force_redo is False:
                 fancyprint('File {} already exists.'.format(expected_file))
                 fancyprint('Skipping Bad Pixel Correction Step.')
                 res = expected_file
@@ -742,7 +752,6 @@ class BadPixStep:
                     deepstack = utils.make_baseline_stack_general(datafiles=self.datafiles,
                                                                   baseline_ints=self.baseline_ints)
 
-                    to_flag = None  # No pixels yet identified to flag.
                     first_time = False
 
                 step_results = badpixstep(segment, deepframe=deepstack, output_dir=self.output_dir,
@@ -753,7 +762,7 @@ class BadPixStep:
                 res, to_flag = step_results
             results.append(res)
 
-        if save_results is True:
+        if save_results is True and to_flag is not None:
             # Save hot pixel mask.
             outfile = self.output_dir + self.fileroot_noseg + 'hot_pixels.npy'
             np.save(outfile, to_flag)
@@ -838,7 +847,7 @@ class PCAReconstructStep:
             expected_file = self.output_dir + self.fileroots[i] + self.tag
             expected_deep = self.output_dir + self.fileroot_noseg + 'deepframe.fits'
             # If an output is missing, then we need to re run.
-            if expected_file not in all_files:
+            if expected_file not in all_files or expected_deep not in all_files:
                 do_step = 0
                 break
             # If ouput is present add to return.
@@ -960,6 +969,22 @@ def backgroundstep_miri(datafile, trace_mask_width=20, background_width=14, meth
     return result
 
 
+def _estimate_soss_background_scale(bkg_ratio):
+    """Estimate a finite SOSS background scale from the second quartile."""
+
+    finite = np.isfinite(bkg_ratio)
+    if not np.any(finite):
+        return np.nan
+
+    vals = bkg_ratio[finite]
+    q1, q2 = np.nanpercentile(vals, [25, 50])
+    use = finite & (bkg_ratio > q1) & (bkg_ratio < q2)
+    if not np.any(use):
+        use = finite
+
+    return np.nanmedian(bkg_ratio[use])
+
+
 def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', save_results=True,
                         fileroot=None, fileroot_noseg='', scale1=None, background_coords1=None,
                         scale2=None, background_coords2=None, differential=False):
@@ -1064,12 +1089,22 @@ def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', 
                              background_model[xl:xu, yl:yu])
                 # Instead of a straight median, use the median of the 2nd quartile to limit the
                 # effect of any remaining illuminated pixels.
-                q1 = np.nanpercentile(bkg_ratio, 25)
-                q2 = np.nanpercentile(bkg_ratio, 50)
-                ii = np.where((bkg_ratio > q1) & (bkg_ratio < q2))
-                scale_factor1 = np.nanmedian(bkg_ratio[ii])
+                scale_factor1 = _estimate_soss_background_scale(bkg_ratio)
+                if not np.isfinite(scale_factor1):
+                    fancyprint('Could not calculate a finite SOSS background scale for group {}. '
+                               'Using scale factor 0.0 to avoid writing NaNs into the data.'
+                               .format(i), msg_type='WARNING')
+                    scale_factor1 = 0.0
+                    break
                 if scale_factor1 < 0:
-                    shifts[i] -= (scale_factor1 * np.median(background_model[xl:xu, yl:yu]))
+                    model_median = np.nanmedian(background_model[xl:xu, yl:yu])
+                    if not np.isfinite(model_median) or model_median == 0:
+                        fancyprint('Could not shift SOSS background scale for group {} because '
+                                   'the model region is non-finite or zero. Using scale factor '
+                                   '0.0.'.format(i), msg_type='WARNING')
+                        scale_factor1 = 0.0
+                        break
+                    shifts[i] -= (scale_factor1 * model_median)
         else:
             scale_factor1 = scale1[i]
 
@@ -1091,11 +1126,12 @@ def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', 
             bkg_ratio = ((deepstack[i, xl:xu, yl:yu] + shifts[i]) / background_model[xl:xu, yl:yu])
             # Instead of a straight median, use the median of the 2nd quartile to limit the effect
             # of any remaining illuminated pixels.
-            q1 = np.nanpercentile(bkg_ratio, 25)
-            q2 = np.nanpercentile(bkg_ratio, 50)
-            ii = np.where((bkg_ratio > q1) & (bkg_ratio < q2))
-            scale_factor2 = np.nanmedian(bkg_ratio[ii])
-            if scale_factor2 < 0:
+            scale_factor2 = _estimate_soss_background_scale(bkg_ratio)
+            if not np.isfinite(scale_factor2):
+                fancyprint('Could not calculate a finite differential SOSS background scale for '
+                           'group {}. Using scale factor 0.0.'.format(i), msg_type='WARNING')
+                scale_factor2 = 0.0
+            elif scale_factor2 < 0:
                 scale_factor2 = 0
         elif scale2 is not None and differential is True:
             scale_factor2 = scale2[i]
@@ -1215,6 +1251,8 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
     newdata = np.copy(cube)
     newdq = np.copy(dq_cube)
     nint, dimy, dimx = np.shape(newdata)
+    saturated = (dq_cube.astype(np.uint32) & np.uint32(2)) != 0
+    saturated_any = np.any(saturated, axis=0)
 
     # ===== Spatial Outlier Flagging ======
     fancyprint('Starting spatial outlier flagging...')
@@ -1280,6 +1318,10 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
         # Combine all flagged pixel maps.
         badpix = (hotpix.astype(bool) | nanpix.astype(bool) |
                   otherpix.astype(bool))
+        # SATURATED pixels carry physically meaningful DQ information for the later extraction
+        # choice: either mask them in Stage 3 or keep RampFit's pre-saturation slope estimate.
+        # Do not interpolate or clear their flags here.
+        badpix = badpix & ~saturated_any
         badpix = badpix.astype(int)
         fancyprint('{0} hot, {1} nan, and {2} deviant pixels identified.'
                    .format(int(np.sum(hotpix)), int(np.sum(nanpix)), int(np.sum(otherpix))))
@@ -1312,7 +1354,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
     std_dev = bn.nanmedian(np.abs(0.5*(newdata[0:-2] + newdata[2:]) - newdata[1:-1]), axis=0)
     std_dev = np.where(std_dev == 0, np.nanmedian(std_dev), std_dev)
     scale = np.abs(newdata - cube_filt) / std_dev
-    ii = np.where((scale > time_thresh))
+    ii = np.where((scale > time_thresh) & ~saturated)
     fancyprint('{} outliers detected.'.format(len(ii[0])))
     # Replace the flagged pixels in each integration.
     fancyprint('Doing pixel replacement...')
@@ -1341,6 +1383,10 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
         newdata[:, :, :5] = 0
         newdata[:, :, -5:] = 0
         newdata[:, -5:] = 0
+
+    # Preserve SATURATED flags even if other DQ flags were cleared during interpolation.
+    newdq = np.bitwise_or(newdq.astype(np.uint32),
+                          2 * saturated.astype(np.uint32)).astype(dq_cube.dtype)
 
     # Save interpolated data.
     if save_results is True:
@@ -1629,7 +1675,8 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
                generate_lc=True, soss_inner_mask_width=40, soss_outer_mask_width=70,
                nirspec_mask_width=16, pixel_masks=None, f277w=None, do_plot=False, show_plot=False,
                centroids=None, miri_trace_width=20, miri_background_width=14,
-               miri_background_method='median', **kwargs):
+               miri_background_method='median',
+               pipeline_outputs_directory='pipeline_outputs_directory', **kwargs):
     """Run the exoTEDRF Stage 2 pipeline: spectroscopic processing, using a combination of official
     STScI DMS and custom steps. Documentation for the official DMS steps can be found here:
     https://jwst-pipeline.readthedocs.io/en/latest/jwst/pipeline/calwebb_spec2.html
@@ -1714,9 +1761,15 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
     if output_tag != '':
         output_tag = '_' + output_tag
     # Create output directories and define output paths.
-    utils.verify_path(root_dir + 'pipeline_outputs_directory' + output_tag)
-    utils.verify_path(root_dir + 'pipeline_outputs_directory' + output_tag + '/Stage2')
-    outdir = root_dir + 'pipeline_outputs_directory' + output_tag + '/Stage2/'
+    # Handle absolute vs relative pipeline_outputs_directory paths.
+    import os
+    if os.path.isabs(pipeline_outputs_directory) or pipeline_outputs_directory.startswith('~'):
+        base_dir = os.path.expanduser(pipeline_outputs_directory) + output_tag
+    else:
+        base_dir = os.path.join(root_dir, pipeline_outputs_directory + output_tag)
+    utils.verify_path(base_dir)
+    utils.verify_path(os.path.join(base_dir, 'Stage2'))
+    outdir = os.path.join(base_dir, 'Stage2/')
 
     if skip_steps is None:
         skip_steps = []
@@ -1808,12 +1861,12 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
             step = stage1.OneOverFStep(results, output_dir=outdir, baseline_ints=baseline_ints,
                                        pixel_masks=pixel_masks, centroids=centroids,
                                        method=oof_method, soss_timeseries=soss_timeseries,
-                                       soss_timeseries_o2=soss_timeseries_o2)
+                                       soss_timeseries_o2=soss_timeseries_o2, f277w=f277w)
             results = step.run(soss_inner_mask_width=soss_inner_mask_width,
                                soss_outer_mask_width=soss_outer_mask_width,
                                nirspec_mask_width=nirspec_mask_width, save_results=save_results,
                                force_redo=force_redo, do_plot=do_plot, show_plot=show_plot,
-                               f277w=f277w, **step_kwargs)
+                               **step_kwargs)
         else:
             fancyprint('OneOverFStep not supported for {}.'.format(mode), msg_type='WARNING')
 

@@ -11,9 +11,11 @@ Custom JWST DMS pipeline steps for Stage 3 (1D spectral extraction).
 from astropy.io import fits
 import glob
 import numpy as np
+import os
 import pandas as pd
 import pastasoss
 from scipy.ndimage import median_filter
+from scipy.optimize import curve_fit, least_squares
 from scipy.signal import butter, filtfilt, correlate
 import spectres
 from spectres.spectral_resampling import make_bins
@@ -136,6 +138,9 @@ class Extract1DStep:
             fancyprint('ATOCA extraction selected but observation does not use NIRISS/SOSS. '
                        'Switching to box extraction.', msg_type='WARNING')
             self.extract_method = 'box'
+        if extract_method in ['doublegauss', 'decontam']:
+            raise ValueError('{} extraction is not supported in this branch.'
+                             .format(extract_method))
         if self.instrument == 'NIRISS' and extract_method == 'optimal':
             fancyprint('Optimal extraction not available for NIRISS/SOSS. '
                        'Switching to box extraction.', msg_type='WARNING')
@@ -144,15 +149,17 @@ class Extract1DStep:
     def run(self, extract_width=40, extract_width_soss2=None, soss_specprofile=None, centroids=None,
             save_results=True, force_redo=False, do_plot=False, show_plot=False, deepframe=None,
             use_pastasoss=False, soss_estimate=None, opt_max_iter=25, opt_var_thresh=25,
-            allow_miri_slope=False):
+            allow_miri_slope=False, saturation_rescue=False, mask_do_not_use_pixels=True):
         """Method to run the step.
 
         Parameters
         ----------
-        extract_width : int
-            Full width of extraction aperture to use.
-        extract_width_soss2 : int, None
-            Full width of extraction aperture to use for SOSS order 2.
+        extract_width : int, tuple(float, float)
+            Full width of extraction aperture to use. A two-element tuple is interpreted as an
+            asymmetric `(lower_width, upper_width)` aperture for box extraction.
+        extract_width_soss2 : int, tuple(float, float), None
+            Full width of extraction aperture to use for SOSS order 2. A two-element tuple is
+            interpreted as an asymmetric `(lower_width, upper_width)` aperture for box extraction.
         soss_specprofile : str, None
             Path to specprofile file.
         centroids : str, None
@@ -177,6 +184,11 @@ class Extract1DStep:
             Variance threshold for a pixel to be flagged as an outlier during optimal exraction.
         allow_miri_slope : bool
             If True, allow the MIRI centroids to be sloped.
+        saturation_rescue : bool
+            If True for NIRISS/SOSS box extraction, keep post-RampFit pixels whose ramps were only
+            partially saturated so RampFit's pre-saturation slope estimate can be extracted.
+        mask_do_not_use_pixels : bool
+            If True, NaN DO_NOT_USE pixels before box extraction in addition to saturation handling.
 
 
         Returns
@@ -238,21 +250,33 @@ class Extract1DStep:
                 if isinstance(centroids, str):
                     centroids = pd.read_csv(centroids, comment='#')
 
+                mask_saturated_pixels = True
+                if self.instrument == 'NIRISS' and saturation_rescue is True:
+                    fancyprint('NIRISS saturation rescue enabled; keeping post-RampFit pixels '
+                               'with SATURATED DQ flags for box extraction.')
+                    mask_saturated_pixels = False
+
                 if self.instrument == 'NIRISS':
                     results = box_extract_soss(self.datafiles, centroids, extract_width,
                                                soss_width_o2=extract_width_soss2, do_plot=do_plot,
                                                show_plot=show_plot, save_results=save_results,
-                                               output_dir=self.output_dir)
+                                               output_dir=self.output_dir,
+                                               mask_saturated_pixels=mask_saturated_pixels,
+                                               mask_do_not_use_pixels=mask_do_not_use_pixels)
                 elif self.instrument == 'NIRSPEC':
                     results = box_extract_nirspec(self.datafiles, centroids, extract_width,
                                                   do_plot=do_plot, show_plot=show_plot,
                                                   save_results=save_results,
-                                                  output_dir=self.output_dir)
+                                                  output_dir=self.output_dir,
+                                                  mask_saturated_pixels=mask_saturated_pixels,
+                                                  mask_do_not_use_pixels=mask_do_not_use_pixels)
                 else:
                     results = box_extract_miri(self.datafiles, centroids, extract_width,
                                                do_plot=do_plot, show_plot=show_plot,
                                                save_results=save_results,
-                                               output_dir=self.output_dir)
+                                               output_dir=self.output_dir,
+                                               mask_saturated_pixels=mask_saturated_pixels,
+                                               mask_do_not_use_pixels=mask_do_not_use_pixels)
                 if extract_width == 'optimize':
                     # Get optimized width.
                     extract_width = int(results[-1])
@@ -310,7 +334,8 @@ class Extract1DStep:
                                                    show_plot=show_plot)
 
             # Save the final extraction parameters.
-            extract_params = {'extract_width': extract_width, 'method': self.extract_method}
+            extract_params = {'extract_width': _format_extract_width(extract_width),
+                              'method': self.extract_method}
             # Get timestamps and pupil wheel position.
             for i, datafile in enumerate(self.datafiles):
                 with utils.open_filetype(datafile) as file:
@@ -500,8 +525,120 @@ def atoca_extract_soss(datafiles, specprofile, output_dir='./', save_results=Tru
     return results
 
 
+def _get_dq_mask(dq, data_shape, bits):
+    """Return a boolean mask for selected DQ bits, broadcast to the science data shape."""
+
+    if dq is None:
+        return None
+
+    dq = np.asarray(dq)
+    bitmask = np.uint32(0)
+    for bit in np.atleast_1d(bits):
+        bitmask = np.bitwise_or(bitmask, np.uint32(bit))
+    dq_flagged = (dq.astype(np.uint32) & bitmask) != 0
+
+    if dq_flagged.shape == data_shape:
+        return dq_flagged
+
+    if len(data_shape) == 3:
+        if dq_flagged.ndim == 2 and dq_flagged.shape == data_shape[-2:]:
+            return np.broadcast_to(dq_flagged[np.newaxis, :, :], data_shape)
+        if dq_flagged.ndim == 3 and dq_flagged.shape[0] == data_shape[0]:
+            if dq_flagged.shape[-2:] == data_shape[-2:]:
+                return dq_flagged
+        if dq_flagged.ndim == 4 and dq_flagged.shape[0] == data_shape[0]:
+            if dq_flagged.shape[-2:] == data_shape[-2:]:
+                return np.any(dq_flagged, axis=1)
+
+    return None
+
+
+def _mask_dq_pixels(data, err, dq, source_label, mask_saturated_pixels=True,
+                    mask_do_not_use_pixels=True):
+    """NaN unusable DQ pixels so box extraction ignores them."""
+
+    data = np.array(data, dtype=float, copy=True)
+    err = np.array(err, dtype=float, copy=True)
+
+    # Mask only the requested DQ classes. Saturated pixels can be kept for rescue runs.
+    bits = []
+    if mask_do_not_use_pixels is True:
+        bits.append(1)
+    if mask_saturated_pixels is True:
+        bits.append(2)
+    if len(bits) == 0:
+        return data, err, 0
+
+    bad = _get_dq_mask(dq, data.shape, bits)
+    if bad is None:
+        return data, err, 0
+
+    count = int(np.sum(bad))
+    if count > 0:
+        data[bad] = np.nan
+        err[bad] = np.nan
+        do_not_use = _get_dq_mask(dq, data.shape, [1])
+        saturated = _get_dq_mask(dq, data.shape, [2])
+        do_not_use_count = int(np.sum(do_not_use)) if do_not_use is not None else 0
+        saturated_count = int(np.sum(saturated)) if saturated is not None else 0
+        if mask_saturated_pixels is True:
+            fancyprint('Masked {} DQ pixels for box extraction in {} '
+                       '({} DO_NOT_USE, {} SATURATED).'
+                       .format(count, source_label, do_not_use_count, saturated_count))
+        else:
+            fancyprint('Masked {} DQ pixels for box extraction in {} '
+                       '({} DO_NOT_USE; {} SATURATED kept for rescue).'
+                       .format(count, source_label, do_not_use_count, saturated_count))
+
+    return data, err, count
+
+
+def _load_box_extraction_cubes(datafiles, mask_saturated_pixels=True,
+                               mask_do_not_use_pixels=True):
+    """Load science/error cubes and NaN selected DQ pixels before box extraction."""
+
+    datafiles = np.atleast_1d(datafiles)
+    total_saturated = 0
+    for i, file in enumerate(datafiles):
+        if isinstance(file, str):
+            data = fits.getdata(file)
+            err = fits.getdata(file, 2)
+            try:
+                dq = fits.getdata(file, 3)
+            except (IndexError, KeyError, OSError):
+                dq = None
+            source_label = os.path.basename(file)
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+                err = datamodel.err
+                dq = getattr(datamodel, 'dq', None)
+                if dq is None:
+                    dq = getattr(datamodel, 'groupdq', None)
+            source_label = 'datamodel segment {}'.format(i)
+
+        data, err, count = _mask_dq_pixels(
+            data, err, dq, source_label, mask_saturated_pixels=mask_saturated_pixels,
+            mask_do_not_use_pixels=mask_do_not_use_pixels
+        )
+        total_saturated += count
+        if i == 0:
+            cube = data
+            ecube = err
+        else:
+            cube = np.concatenate([cube, data])
+            ecube = np.concatenate([ecube, err])
+
+    if total_saturated > 0:
+        fancyprint('Box extraction will ignore {} total DQ pixels.'
+                   .format(total_saturated))
+
+    return cube, ecube
+
+
 def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_plot=False,
-                     save_results=True, output_dir='./'):
+                     save_results=True, output_dir='./', mask_saturated_pixels=True,
+                     mask_do_not_use_pixels=True):
     """Perform a simple box aperture extraction on MIRI.
 
     Parameters
@@ -510,8 +647,9 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
         Input datamodels or paths to datamodels for each segment.
     centroids : dict
         Dictionary of centroid positions for all SOSS orders.
-    extract_width : int, str
-        Width of extraction box. Or 'optimize'.
+    extract_width : int, tuple(float, float), str
+        Width of extraction box. Or 'optimize'. A two-element tuple is interpreted as an
+        asymmetric `(lower_width, upper_width)` aperture.
     do_plot : bool
         If True, do the step diagnostic plot.
     show_plot : bool
@@ -535,21 +673,9 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
     """
 
     datafiles = np.atleast_1d(datafiles)
-    # Get flux and errors to extract.
-    for i, file in enumerate(datafiles):
-        if isinstance(file, str):
-            data = fits.getdata(file)
-            err = fits.getdata(file, 2)
-        else:
-            with utils.open_filetype(file) as datamodel:
-                data = datamodel.data
-                err = datamodel.err
-        if i == 0:
-            cube = data
-            ecube = err
-        else:
-            cube = np.concatenate([cube, data])
-            ecube = np.concatenate([ecube, err])
+    cube, ecube = _load_box_extraction_cubes(datafiles,
+                                             mask_saturated_pixels=mask_saturated_pixels,
+                                             mask_do_not_use_pixels=mask_do_not_use_pixels)
 
     # Get centroid positions.
     x1, y1 = centroids['xpos'].values, centroids['ypos'].values
@@ -596,7 +722,8 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
 
 
 def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show_plot=False,
-                        save_results=True, output_dir='./'):
+                        save_results=True, output_dir='./', mask_saturated_pixels=True,
+                        mask_do_not_use_pixels=True):
     """Perform a simple box aperture extraction on NIRSpec.
 
     Parameters
@@ -605,8 +732,9 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
         Input datamodels or paths to datamodels for each segment.
     centroids : dict
         Dictionary of centroid positions for all SOSS orders.
-    extract_width : int, str
-        Width of extraction box. Or 'optimize'.
+    extract_width : int, tuple(float, float), str
+        Width of extraction box. Or 'optimize'. A two-element tuple is interpreted as an
+        asymmetric `(lower_width, upper_width)` aperture.
     do_plot : bool
         If True, do the step diagnostic plot.
     show_plot : bool
@@ -631,21 +759,9 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
 
     datafiles = np.atleast_1d(datafiles)
     det = utils.get_nrs_detector_name(datafiles[0])
-    # Get flux and errors to extract.
-    for i, file in enumerate(datafiles):
-        if isinstance(file, str):
-            data = fits.getdata(file)
-            err = fits.getdata(file, 2)
-        else:
-            with utils.open_filetype(file) as datamodel:
-                data = datamodel.data
-                err = datamodel.err
-        if i == 0:
-            cube = data
-            ecube = err
-        else:
-            cube = np.concatenate([cube, data])
-            ecube = np.concatenate([ecube, err])
+    cube, ecube = _load_box_extraction_cubes(datafiles,
+                                             mask_saturated_pixels=mask_saturated_pixels,
+                                             mask_do_not_use_pixels=mask_do_not_use_pixels)
 
     # Get centroid positions.
     x1, y1 = centroids['xpos'].values, centroids['ypos'].values
@@ -704,8 +820,525 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
     return wave, flux, ferr, extract_width
 
 
+def double_gaussian_extract_nirspec(datafiles, centroids, extract_width, separation_guess=4.0,
+                                    fit_background=True, main_component=1, deepframe=None,
+                                    do_plot=False, show_plot=False, save_results=True,
+                                    output_dir='./'):
+    """Extract both members of an overlapping NIRSpec binary with a two-Gaussian profile fit.
+
+    Parameters
+    ----------
+    datafiles : array-like[str], array-like[jwst.RampModel]
+        Input datamodels or paths to datamodels for each segment.
+    centroids : dict
+        Trace centroids. The supplied `ypos` trace is treated as the midpoint between the two
+        stellar traces.
+    extract_width : int, tuple(float, float), dict
+        Width of the extraction aperture around the midpoint trace.
+    separation_guess : float
+        Initial guess for the separation between the lower and upper Gaussian components, in
+        pixels.
+    fit_background : bool
+        If True, include a constant background term in the spatial profile fit.
+    main_component : int
+        Which fitted component to treat as the primary extracted target. `1` selects the lower
+        trace and `2` selects the upper trace.
+    deepframe : array-like[float], None
+        Median-combined 2D frame to use for plotting diagnostics. If None and `do_plot` is True,
+        a median frame will be built from the extracted cube.
+    do_plot : bool
+        If True, generate the double-Gaussian extraction diagnostic plot.
+    show_plot : bool
+        If True, show the diagnostic plot instead of/in addition to saving it.
+    save_results : bool
+        If True, save the diagnostic plot to file when plotting is requested.
+    output_dir : str
+        Directory to which diagnostic products should be written.
+
+    Returns
+    -------
+    result : dict
+        Dictionary containing the primary and companion spectra and fit diagnostics.
+    """
+
+    if main_component not in [1, 2]:
+        raise ValueError('main_component must be either 1 (lower trace) or 2 (upper trace).')
+
+    datafiles = np.atleast_1d(datafiles)
+    det = utils.get_nrs_detector_name(datafiles[0])
+    for i, file in enumerate(datafiles):
+        if isinstance(file, str):
+            data = fits.getdata(file)
+            err = fits.getdata(file, 2)
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+                err = datamodel.err
+        if i == 0:
+            cube = data
+            ecube = err
+        else:
+            cube = np.concatenate([cube, data])
+            ecube = np.concatenate([ecube, err])
+
+    x1, y1 = centroids['xpos'].values, centroids['ypos'].values
+    subarray = utils.get_soss_subarray(datafiles[0])
+    grating = utils.get_nrs_grating(datafiles[0])
+    xstart = utils.get_nrs_trace_start(det, subarray, grating)
+
+    fancyprint('Performing double-Gaussian NIRSpec extraction.')
+    flux1, ferr1, flux2, ferr2, profile_params = do_two_gaussian_extraction(
+        cube, ecube, y1, width=extract_width, extract_start=xstart,
+        separation_guess=separation_guess, fit_background=fit_background
+    )
+
+    if main_component == 1:
+        flux, ferr = flux1, ferr1
+        flux_companion, ferr_companion = flux2, ferr2
+    else:
+        flux, ferr = flux2, ferr2
+        flux_companion, ferr_companion = flux1, ferr1
+
+    wave = get_wave_nirspec(datafiles[0], centroids, cube.shape[0], cube.shape[2])
+
+    if do_plot is True:
+        if deepframe is None:
+            deepframe = np.nanmedian(cube, axis=0)
+        if save_results is True:
+            outfile = output_dir + 'doublegauss_diagnostics_{}.png'.format(det)
+        else:
+            outfile = None
+        plotting.make_doublegauss_nirspec_plot(deepframe, x1, y1, extract_width,
+                                               profile_params, extract_start=xstart,
+                                               outfile=outfile, show_plot=show_plot)
+
+    return {'wave': wave, 'flux': flux, 'ferr': ferr,
+            'flux_companion': flux_companion, 'ferr_companion': ferr_companion,
+            'profile': profile_params}
+
+
+def _default_nirspec_decontam_separation(detector, grating=None):
+    """Return notebook-inspired default separations for NIRSpec contamination modeling."""
+
+    detector = str(detector).lower()
+    if detector == 'nrs1':
+        return 3.7
+    if detector == 'nrs2':
+        return 3.2
+    if grating in ['G395H', 'G395M']:
+        return 3.5
+    return 3.0
+
+
+def _get_notebook_nirspec_decontam_setup(detector, separation_guess=None, oversample=10,
+                                         min_separation=3.0):
+    """Return detector-specific defaults used by the contamination notebook."""
+
+    detector = str(detector).lower()
+    if separation_guess in [None, 'None', 'null', '']:
+        if detector == 'nrs1':
+            separation_guess = 3.7
+        elif detector == 'nrs2':
+            separation_guess = 3.2
+        else:
+            separation_guess = _default_nirspec_decontam_separation(detector)
+
+    fit_start_col = 500 if detector == 'nrs1' else 0
+    return {
+        'fit_start_col': fit_start_col,
+        'amp_target_0': 3000.0,
+        'amp_companion_0': 500.0,
+        'sigma_0_os': 1.0 * oversample,
+        'separation_guess_os': float(separation_guess) * oversample,
+        'min_separation_os': float(min_separation) * oversample,
+    }
+
+
+def _prefer_nirspec_pcareconstruct_files(datafiles):
+    """Prefer PCA-reconstructed files for notebook-style decontamination when available."""
+
+    preferred = []
+    used_pca = False
+    for datafile in np.atleast_1d(datafiles):
+        if isinstance(datafile, str) is not True:
+            preferred.append(datafile)
+            continue
+
+        replacement = None
+        if '_badpixstep.fits' in datafile:
+            candidate = datafile.replace('_badpixstep.fits', '_pcareconstructstep.fits')
+            if os.path.exists(candidate):
+                replacement = candidate
+        if replacement is None:
+            replacement = datafile
+        elif replacement != datafile:
+            used_pca = True
+        preferred.append(replacement)
+
+    if used_pca is True:
+        fancyprint('Using *_pcareconstructstep.fits inputs to match the contamination notebook.')
+
+    return np.asarray(preferred, dtype=object)
+
+
+def _fit_nirspec_contamination_profile_notebook(profile_native, primary_guess, detector,
+                                                separation_guess, oversample=10,
+                                                min_separation=3.0):
+    """Literal shared-sigma two-Gaussian column fit used in the contamination notebook."""
+
+    profile_native = np.asarray(profile_native, dtype=float)
+    if np.any(np.isfinite(profile_native)) is not True:
+        return None
+
+    dimy = len(profile_native)
+    y_native = np.arange(dimy, dtype=float)
+    x_fit = np.arange((dimy - 1) * oversample + 1, dtype=float)
+    profile_os = np.interp(x_fit / oversample, y_native, np.nan_to_num(profile_native, nan=0.0))
+
+    primary_guess_os = float(primary_guess) * oversample
+    setup = _get_notebook_nirspec_decontam_setup(
+        detector,
+        separation_guess=separation_guess, oversample=oversample,
+        min_separation=min_separation
+    )
+    min_sep_os = setup['min_separation_os']
+
+    def notebook_model(x, amp1, mu1, sigma1, amp2, mu2):
+        assert mu2 >= mu1 + min_sep_os
+        return (amp1 * np.exp(-(x - mu1) ** 2 / (2. * sigma1 ** 2)) +
+                amp2 * np.exp(-(x - mu2) ** 2 / (2. * sigma1 ** 2)))
+
+    p0 = [
+        setup['amp_target_0'],
+        primary_guess_os,
+        setup['sigma_0_os'],
+        setup['amp_companion_0'],
+        primary_guess_os + setup['separation_guess_os']
+    ]
+
+    try:
+        coeff, _ = curve_fit(notebook_model, x_fit, profile_os, p0=p0, maxfev=10000)
+    except (RuntimeError, ValueError, AssertionError):
+        return None
+
+    model_os = notebook_model(x_fit, *coeff)
+    rms = np.sqrt(np.nanmean((profile_os - model_os) ** 2))
+    return {
+        'coeff': np.asarray(coeff, dtype=float),
+        'profile_os': profile_os,
+        'model_os': model_os,
+        'fit_rms': rms,
+        'x_fit': x_fit,
+    }
+
+
+def _fit_nirspec_contamination_profile(y_os, profile_os, primary_guess, separation_guess,
+                                       min_separation=3.0, max_separation=5.5,
+                                       oversample=10, prev_params=None, fit_background=False,
+                                       primary_tolerance=1.5):
+    """Fit the notebook-style target+contaminant profile on an oversampled NIRSpec column."""
+
+    mask = np.isfinite(y_os) & np.isfinite(profile_os)
+    if np.sum(mask) < 6:
+        return None
+
+    yy = y_os[mask]
+    pp = profile_os[mask]
+    background0 = float(np.nanmedian(np.concatenate([pp[:2], pp[-2:]]))) if len(pp) >= 4 else 0.0
+    primary_guess_os = float(primary_guess) * oversample
+    sep_guess_os = float(separation_guess) * oversample
+    min_sep_os = float(min_separation) * oversample
+    max_sep_os = float(max_separation) * oversample
+    tol_os = float(primary_tolerance) * oversample
+
+    if fit_background is not True:
+        def notebook_model(x, amp1, mu1, sigma1, amp2, mu2):
+            assert mu2 >= mu1 + min_sep_os
+            return (amp1 * np.exp(-(x - mu1) ** 2 / (2. * sigma1 ** 2)) +
+                    amp2 * np.exp(-(x - mu2) ** 2 / (2. * sigma1 ** 2)))
+
+        amp1_0 = max(float(np.nanmax(pp)), 1.0)
+        amp2_0 = max(0.15 * amp1_0, 1.0)
+        p0 = [amp1_0, primary_guess_os, 1.0 * oversample, amp2_0,
+              primary_guess_os + sep_guess_os]
+
+        try:
+            coeff, _ = curve_fit(notebook_model, yy, pp, p0=p0, maxfev=10000)
+        except (RuntimeError, ValueError, AssertionError):
+            return None
+
+        if coeff[4] < coeff[1] + min_sep_os:
+            return None
+
+        return np.array([coeff[0], coeff[1], coeff[2], coeff[3], coeff[4] - coeff[1]],
+                        dtype=float)
+
+    lower_bounds = [0, primary_guess_os - tol_os, 0.4 * oversample, 0, min_sep_os]
+    upper_bounds = [np.inf, primary_guess_os + tol_os, 3.5 * oversample, np.inf, max_sep_os]
+    if fit_background is True:
+        lower_bounds.append(-np.inf)
+        upper_bounds.append(np.inf)
+
+    if prev_params is None:
+        amp1_0 = max(float(np.nanmax(pp)) - background0, 0)
+        companion_side = yy >= primary_guess_os + min_sep_os / 2
+        if np.any(companion_side):
+            amp2_0 = max(float(np.nanmax(pp[companion_side])) - background0, 0)
+        else:
+            amp2_0 = max(amp1_0 * 0.15, 0)
+        sigma_0 = 1.0 * oversample
+        p0 = [amp1_0, primary_guess_os, sigma_0, amp2_0, sep_guess_os]
+        if fit_background is True:
+            p0.append(background0)
+    else:
+        p0 = np.array(prev_params, dtype=float)
+
+    p0 = np.clip(np.asarray(p0, dtype=float), lower_bounds, upper_bounds)
+
+    def residuals(params):
+        mu_target = params[1]
+        sigma = params[2]
+        mu_comp = mu_target + params[4]
+        model = (params[0] * _gaussian_profile(yy, mu_target, sigma) +
+                 params[3] * _gaussian_profile(yy, mu_comp, sigma))
+        if fit_background is True:
+            model += params[5]
+        return pp - model
+
+    try:
+        fit = least_squares(residuals, p0, bounds=(lower_bounds, upper_bounds))
+    except ValueError:
+        return None
+
+    if fit.success is not True:
+        return None
+
+    return np.array(fit.x, dtype=float)
+
+
+def _build_nirspec_contamination_model(deepframe, xtrace, ypos, width,
+                                       separation_guess=None, min_separation=3.0,
+                                       max_separation=5.5, oversample=10,
+                                       fit_background=False, primary_tolerance=1.5,
+                                       detector='nrs1'):
+    """Build a companion-only contamination image from the notebook-style deepframe fit."""
+
+    dimy, dimx = np.shape(deepframe)
+    if separation_guess in [None, 'None', 'null', '']:
+        separation_guess = 3.5
+
+    xtrace = np.asarray(np.rint(xtrace), dtype=int)
+    ypos = np.asarray(ypos, dtype=float)
+    contamination_image = np.zeros_like(deepframe, dtype=float)
+    model_params = {
+        'amp_target': np.full(dimx, np.nan),
+        'mu_target': np.full(dimx, np.nan),
+        'sigma': np.full(dimx, np.nan),
+        'amp_companion': np.full(dimx, np.nan),
+        'mu_companion': np.full(dimx, np.nan),
+        'background': np.full(dimx, np.nan),
+        'model_rms': np.full(dimx, np.nan),
+        'target_flux_in_aperture': np.full(dimx, np.nan),
+        'companion_flux_in_aperture': np.full(dimx, np.nan),
+        'companion_fraction': np.full(dimx, np.nan),
+    }
+
+    edge_low, edge_up, _, _ = _get_extraction_edges(ypos, dimy, width)
+    y_native = np.arange(dimy, dtype=float)
+    x_os = np.arange((dimy - 1) * oversample + 1, dtype=float)
+    notebook_setup = _get_notebook_nirspec_decontam_setup(
+        detector, separation_guess=separation_guess, oversample=oversample,
+        min_separation=min_separation
+    )
+
+    prev_params = None
+    for xx, x in enumerate(xtrace):
+        if x < notebook_setup['fit_start_col'] or x < 0 or x >= dimx:
+            continue
+
+        profile_native = np.asarray(deepframe[:, x], dtype=float)
+        if not np.any(np.isfinite(profile_native)):
+            continue
+
+        if fit_background is not True:
+            fit_result = _fit_nirspec_contamination_profile_notebook(
+                profile_native, ypos[xx], detector, separation_guess,
+                oversample=oversample, min_separation=min_separation
+            )
+            if fit_result is None:
+                continue
+            params = fit_result['coeff']
+            profile_os = fit_result['profile_os']
+            model_os = fit_result['model_os']
+            model_rms = fit_result['fit_rms']
+        else:
+            profile_os = np.interp(x_os / oversample, y_native,
+                                   np.nan_to_num(profile_native, nan=0.0))
+            params = _fit_nirspec_contamination_profile(
+                x_os, profile_os, ypos[xx], separation_guess,
+                min_separation=min_separation, max_separation=max_separation,
+                oversample=oversample, prev_params=prev_params,
+                fit_background=fit_background, primary_tolerance=primary_tolerance
+            )
+            if params is None:
+                continue
+            prev_params = np.array(params, dtype=float)
+            model_rms = np.sqrt(np.nanmean((
+                profile_os - (
+                    params[0] * _gaussian_profile(x_os, params[1], params[2]) +
+                    params[3] * _gaussian_profile(x_os, params[1] + params[4], params[2]) +
+                    params[5]
+                )
+            ) ** 2))
+
+        mu_target = params[1] / oversample
+        sigma = params[2] / oversample
+        mu_comp = params[4] / oversample if fit_background is not True else (params[1] + params[4]) / oversample
+        background = params[5] if fit_background is True else 0.0
+        target_native = params[0] * _gaussian_profile(y_native, mu_target, sigma)
+        companion_native = params[3] * _gaussian_profile(y_native, mu_comp, sigma)
+        model_native = target_native + companion_native + background
+
+        contamination_image[:, x] = companion_native
+        model_params['amp_target'][x] = params[0]
+        model_params['mu_target'][x] = mu_target
+        model_params['sigma'][x] = sigma
+        model_params['amp_companion'][x] = params[3]
+        model_params['mu_companion'][x] = mu_comp
+        model_params['background'][x] = background
+        model_params['model_rms'][x] = model_rms
+
+        rows, weights = _get_aperture_pixels(edge_low[xx], edge_up[xx], dimy)
+        if len(rows) > 0:
+            ygrid = rows + 0.5
+            target_box = np.sum(params[0] * _gaussian_profile(ygrid, mu_target, sigma) * weights)
+            comp_box = np.sum(params[3] * _gaussian_profile(ygrid, mu_comp, sigma) * weights)
+            model_params['target_flux_in_aperture'][x] = target_box
+            model_params['companion_flux_in_aperture'][x] = comp_box
+            if target_box > 0:
+                model_params['companion_fraction'][x] = comp_box / target_box
+
+    return contamination_image, model_params
+
+
+def _save_decontaminated_segment_copy(datafile, contamination_image, output_dir):
+    """Save one decontaminated copy of a Stage 2 NIRSpec segment."""
+
+    if isinstance(datafile, str) is not True:
+        return None
+
+    with fits.open(datafile) as hdul:
+        sci_idx = None
+        for idx, hdu in enumerate(hdul):
+            data = getattr(hdu, 'data', None)
+            if data is None:
+                continue
+            if np.ndim(data) >= 2 and np.shape(data)[-2:] == np.shape(contamination_image):
+                sci_idx = idx
+                break
+        if sci_idx is None:
+            return None
+
+        hdu_data = np.array(hdul[sci_idx].data, dtype=float)
+        if np.ndim(hdu_data) == 3:
+            hdul[sci_idx].data = hdu_data - contamination_image[None, :, :]
+        elif np.ndim(hdu_data) == 2:
+            hdul[sci_idx].data = hdu_data - contamination_image
+        else:
+            return None
+
+        basename = os.path.basename(datafile).replace('.fits', '_decontaminated.fits')
+        outfile = os.path.join(output_dir, basename)
+        hdul.writeto(outfile, overwrite=True)
+
+    return outfile
+
+
+def decontaminate_nirspec_then_box_extract(datafiles, centroids, extract_width, deepframe=None,
+                                           separation_guess=None, min_separation=3.0,
+                                           max_separation=5.5, oversample=10,
+                                           fit_background=False, primary_tolerance=1.5,
+                                           do_plot=False, show_plot=False, save_results=True,
+                                           output_dir='./', save_decontaminated_files=True):
+    """Model and subtract contamination, then perform a standard NIRSpec box extraction."""
+
+    datafiles = _prefer_nirspec_pcareconstruct_files(np.atleast_1d(datafiles))
+    det = utils.get_nrs_detector_name(datafiles[0])
+    grating = utils.get_nrs_grating(datafiles[0])
+    if separation_guess in [None, 'None', 'null', '']:
+        separation_guess = _default_nirspec_decontam_separation(det, grating=grating)
+
+    for i, file in enumerate(datafiles):
+        if isinstance(file, str):
+            data = fits.getdata(file)
+            err = fits.getdata(file, 2)
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+                err = datamodel.err
+        if i == 0:
+            cube = data
+            ecube = err
+        else:
+            cube = np.concatenate([cube, data])
+            ecube = np.concatenate([ecube, err])
+
+    if deepframe is None:
+        deepframe = np.nanmedian(cube, axis=0)
+
+    x1, y1 = centroids['xpos'].values, centroids['ypos'].values
+    xtrace = np.asarray(np.rint(x1), dtype=int)
+    finite_x = xtrace[np.isfinite(xtrace)]
+    if len(finite_x) == 0:
+        raise ValueError('No finite centroid x-positions available for decontamination.')
+    extract_start = int(np.nanmin(finite_x))
+
+    fancyprint('Building notebook-style contamination model.')
+    contamination_image, model_params = _build_nirspec_contamination_model(
+        deepframe, x1, y1, extract_width, separation_guess=separation_guess,
+        min_separation=min_separation, max_separation=max_separation, oversample=oversample,
+        fit_background=fit_background, primary_tolerance=primary_tolerance,
+        detector=det
+    )
+
+    deepframe_decont = deepframe - contamination_image
+    cube_decont = cube - contamination_image[None, :, :]
+
+    saved_decontaminated_files = []
+    if save_results is True and save_decontaminated_files is True:
+        for file in datafiles:
+            outfile = _save_decontaminated_segment_copy(file, contamination_image, output_dir)
+            if outfile is not None:
+                saved_decontaminated_files.append(outfile)
+
+    fancyprint('Performing box extraction on decontaminated data.')
+    if len(saved_decontaminated_files) == len(datafiles):
+        wave, flux, ferr, _ = box_extract_nirspec(
+            saved_decontaminated_files, centroids, extract_width,
+            do_plot=False, show_plot=False, save_results=False, output_dir=output_dir
+        )
+    else:
+        flux, ferr = do_box_extraction(cube_decont, ecube, y1, width=extract_width,
+                                       extract_start=extract_start)
+        wave = get_wave_nirspec(datafiles[0], centroids, cube.shape[0], cube.shape[2])
+
+    if do_plot is True:
+        outfile = None
+        if save_results is True:
+            outfile = output_dir + 'decontam_diagnostics_{}.png'.format(det)
+        plotting.make_nirspec_decontamination_plot(
+            deepframe, contamination_image, deepframe_decont, x1, y1, extract_width,
+            model_params, extract_start=extract_start, outfile=outfile, show_plot=show_plot
+        )
+
+    return {'wave': wave, 'flux': flux, 'ferr': ferr, 'contamination_image': contamination_image,
+            'decontaminated_deepframe': deepframe_decont, 'profile': model_params,
+            'decontaminated_files': saved_decontaminated_files}
+
+
 def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_plot=False,
-                     show_plot=False, save_results=True, output_dir='./'):
+                     show_plot=False, save_results=True, output_dir='./',
+                     mask_saturated_pixels=True, mask_do_not_use_pixels=True):
     """Perform a simple box aperture extraction on SOSS orders 1 and 2.
 
     Parameters
@@ -714,11 +1347,13 @@ def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_pl
         Input datamodels or paths to datamodels for each segment.
     centroids : dict
         Dictionary of centroid positions for all SOSS orders.
-    soss_width : int, str
-        Width of extraction box for order 1. Or 'optimize'.
-    soss_width_o2 : int, str, None
+    soss_width : int, tuple(float, float), str
+        Width of extraction box for order 1. Or 'optimize'. A two-element tuple is interpreted as
+        an asymmetric `(lower_width, upper_width)` aperture.
+    soss_width_o2 : int, tuple(float, float), str, None
         Width of extraction box for order 2. Or 'optimize'. If None, will use the same aperture as
-        order 1.
+        order 1. A two-element tuple is interpreted as an asymmetric `(lower_width, upper_width)`
+        aperture.
     do_plot : bool
         If True, do the step diagnostic plot.
     show_plot : bool
@@ -747,21 +1382,9 @@ def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_pl
     """
 
     datafiles = np.atleast_1d(datafiles)
-    # Get flux and errors to extract.
-    for i, file in enumerate(datafiles):
-        if isinstance(file, str):
-            data = fits.getdata(file)
-            err = fits.getdata(file, 2)
-        else:
-            with utils.open_filetype(file) as datamodel:
-                data = datamodel.data
-                err = datamodel.err
-        if i == 0:
-            cube = data
-            ecube = err
-        else:
-            cube = np.concatenate([cube, data])
-            ecube = np.concatenate([ecube, err])
+    cube, ecube = _load_box_extraction_cubes(datafiles,
+                                             mask_saturated_pixels=mask_saturated_pixels,
+                                             mask_do_not_use_pixels=mask_do_not_use_pixels)
 
     # Get centroid positions.
     x1 = centroids['xpos'].values
@@ -816,7 +1439,278 @@ def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_pl
     return wave_o1, flux_o1, ferr_o1, wave_o2, flux_o2, ferr_o2, soss_width
 
 
-def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None, progress=True):
+def double_gaussian_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None,
+                                 separation_guess=4.0, separation_guess_o2=None,
+                                 fit_background=True, main_component=1):
+    """Extract both members of an overlapping SOSS binary with a two-Gaussian profile fit.
+
+    Parameters
+    ----------
+    datafiles : array-like[str], array-like[jwst.RampModel]
+        Input datamodels or paths to datamodels for each segment.
+    centroids : dict
+        Dictionary of centroid positions for all SOSS orders. The supplied centroids are treated as
+        the midpoint between the two stellar traces for each order.
+    soss_width : int, tuple(float, float), dict
+        Width of extraction box for order 1.
+    soss_width_o2 : int, tuple(float, float), dict, None
+        Width of extraction box for order 2. If None, order 1 is reused.
+    separation_guess : float
+        Initial guess for the separation between the lower and upper Gaussian components in order
+        1, in pixels.
+    separation_guess_o2 : float, None
+        Initial guess for the separation between the lower and upper Gaussian components in order
+        2, in pixels. If None, the order 1 value is reused.
+    fit_background : bool
+        If True, include a constant background term in the spatial profile fit.
+    main_component : int
+        Which fitted component to treat as the primary extracted target. `1` selects the lower
+        trace and `2` selects the upper trace.
+
+    Returns
+    -------
+    result : dict
+        Dictionary containing the primary and companion spectra for SOSS orders 1 and 2.
+    """
+
+    if main_component not in [1, 2]:
+        raise ValueError('main_component must be either 1 (lower trace) or 2 (upper trace).')
+
+    datafiles = np.atleast_1d(datafiles)
+    for i, file in enumerate(datafiles):
+        if isinstance(file, str):
+            data = fits.getdata(file)
+            err = fits.getdata(file, 2)
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+                err = datamodel.err
+        if i == 0:
+            cube = data
+            ecube = err
+        else:
+            cube = np.concatenate([cube, data])
+            ecube = np.concatenate([ecube, err])
+
+    x1 = centroids['xpos'].values
+    y1, y2 = centroids['ypos o1'].values, centroids['ypos o2'].values
+    ii = np.where(np.isfinite(y2))
+    x2, y2 = x1[ii], y2[ii]
+
+    if soss_width_o2 is None:
+        soss_width_o2 = soss_width
+    if separation_guess_o2 is None:
+        separation_guess_o2 = separation_guess
+
+    fancyprint('Performing double-Gaussian SOSS extraction.')
+    flux1_o1, ferr1_o1, flux2_o1, ferr2_o1, prof_o1 = do_two_gaussian_extraction(
+        cube, ecube, y1, width=soss_width, separation_guess=separation_guess,
+        fit_background=fit_background
+    )
+    flux1_o2, ferr1_o2, flux2_o2, ferr2_o2, prof_o2 = do_two_gaussian_extraction(
+        cube, ecube, y2, width=soss_width_o2, extract_end=len(x2),
+        separation_guess=separation_guess_o2, fit_background=fit_background
+    )
+
+    if main_component == 1:
+        flux_o1, ferr_o1 = flux1_o1, ferr1_o1
+        flux_o2, ferr_o2 = flux1_o2, ferr1_o2
+        flux_o1_comp, ferr_o1_comp = flux2_o1, ferr2_o1
+        flux_o2_comp, ferr_o2_comp = flux2_o2, ferr2_o2
+    else:
+        flux_o1, ferr_o1 = flux2_o1, ferr2_o1
+        flux_o2, ferr_o2 = flux2_o2, ferr2_o2
+        flux_o1_comp, ferr_o1_comp = flux1_o1, ferr1_o1
+        flux_o2_comp, ferr_o2_comp = flux1_o2, ferr1_o2
+
+    wave_o1, wave_o2 = get_wave_soss(datafiles[0])
+
+    return {'wave_o1': wave_o1, 'flux_o1': flux_o1, 'ferr_o1': ferr_o1,
+            'wave_o2': wave_o2, 'flux_o2': flux_o2, 'ferr_o2': ferr_o2,
+            'flux_o1_companion': flux_o1_comp, 'ferr_o1_companion': ferr_o1_comp,
+            'flux_o2_companion': flux_o2_comp, 'ferr_o2_companion': ferr_o2_comp,
+            'profile_o1': prof_o1, 'profile_o2': prof_o2}
+
+
+def _format_extract_width(width):
+    """Convert extraction width metadata into a FITS-header-safe value."""
+
+    if isinstance(width, str) or np.isscalar(width):
+        return width
+    if isinstance(width, dict):
+        if 'lower' in width and 'upper' in width:
+            return 'lower={}, upper={}'.format(width['lower'], width['upper'])
+        return str(width)
+
+    try:
+        lower_width, upper_width = width
+    except (TypeError, ValueError):
+        return str(width)
+
+    return 'lower={}, upper={}'.format(lower_width, upper_width)
+
+
+def _parse_extraction_width(width, lower_width=None, upper_width=None):
+    """Normalize symmetric and asymmetric aperture definitions into half-widths."""
+
+    if isinstance(width, str):
+        raise ValueError('String widths are not supported by the low-level extraction helpers.')
+
+    if lower_width is not None or upper_width is not None:
+        if lower_width is None or upper_width is None:
+            raise ValueError('Both lower_width and upper_width must be provided.')
+        lower_half = float(lower_width)
+        upper_half = float(upper_width)
+    elif isinstance(width, dict):
+        if 'lower' not in width or 'upper' not in width:
+            raise ValueError('Width dictionaries must contain "lower" and "upper" keys.')
+        lower_half = float(width['lower'])
+        upper_half = float(width['upper'])
+    elif np.isscalar(width):
+        lower_half = float(width) / 2
+        upper_half = float(width) / 2
+    else:
+        try:
+            lower_half, upper_half = width
+        except (TypeError, ValueError):
+            raise ValueError('width must be a scalar full width or a two-element '
+                             '(lower_width, upper_width) pair.')
+        lower_half = float(lower_half)
+        upper_half = float(upper_half)
+
+    if lower_half <= 0 or upper_half <= 0:
+        raise ValueError('Extraction widths must be strictly positive.')
+
+    return lower_half, upper_half
+
+
+def _get_extraction_edges(ypos, dimy, width, lower_width=None, upper_width=None):
+    """Determine the lower and upper edges of an extraction aperture."""
+
+    lower_half, upper_half = _parse_extraction_width(width, lower_width=lower_width,
+                                                     upper_width=upper_width)
+    ypos = np.asarray(ypos, dtype=float)
+    edge_up = np.min([ypos + upper_half, np.ones_like(ypos, dtype=float) * dimy], axis=0)
+    edge_low = np.max([ypos - lower_half, np.zeros_like(ypos, dtype=float)], axis=0)
+
+    return edge_low, edge_up, lower_half, upper_half
+
+
+def _get_aperture_pixels(edge_low, edge_up, dimy):
+    """Return detector rows and fractional pixel overlaps for one aperture."""
+
+    row_start = max(int(np.floor(edge_low)), 0)
+    row_end = min(int(np.ceil(edge_up)), dimy)
+    rows = np.arange(row_start, row_end)
+    if len(rows) == 0:
+        return rows.astype(int), np.array([], dtype=float)
+
+    weights = np.minimum(rows + 1, edge_up) - np.maximum(rows, edge_low)
+    weights = np.clip(weights, 0, 1)
+    ii = np.where(weights > 0)[0]
+
+    return rows[ii].astype(int), weights[ii]
+
+
+def _gaussian_profile(y, mu, sigma):
+    """Evaluate a unit-amplitude Gaussian profile."""
+
+    return np.exp(-0.5 * ((y - mu) / sigma) ** 2)
+
+
+def _initial_peak_guess(y, profile, default):
+    """Estimate a Gaussian center from the strongest local signal."""
+
+    if len(y) == 0 or not np.any(np.isfinite(profile)):
+        return default
+
+    return y[np.nanargmax(profile)]
+
+
+def _fit_two_gaussian_profile(y, profile, profile_err, midpoint, edge_low, edge_up, lower_half,
+                              upper_half, separation_guess=None, prev_params=None,
+                              fit_background=True):
+    """Fit a two-Gaussian profile to a single spatial cut."""
+
+    min_points = 5 if fit_background is True else 4
+    mask = (np.isfinite(y) & np.isfinite(profile) & np.isfinite(profile_err) &
+            (profile_err > 0))
+    if np.sum(mask) < min_points:
+        return None
+
+    yy = y[mask]
+    pp = profile[mask]
+    ee = profile_err[mask]
+    divider = np.clip(midpoint, edge_low + 0.25, edge_up - 0.25)
+    if divider <= edge_low or divider >= edge_up:
+        return None
+
+    sigma_max = max(lower_half + upper_half, 1.5)
+    lower_bounds = [0, edge_low, 0.3, 0, divider, 0.3]
+    upper_bounds = [np.inf, divider, sigma_max, np.inf, edge_up, sigma_max]
+    if fit_background is True:
+        lower_bounds.append(-np.inf)
+        upper_bounds.append(np.inf)
+
+    if prev_params is None:
+        lower_side = yy <= divider
+        upper_side = yy >= divider
+        if len(pp) >= 4:
+            background0 = float(np.nanmedian(np.concatenate([pp[:2], pp[-2:]])))
+        else:
+            background0 = float(np.nanmedian(pp))
+
+        lower_default = divider - max(lower_half / 2, 0.5)
+        upper_default = divider + max(upper_half / 2, 0.5)
+        if separation_guess is not None:
+            lower_default = divider - separation_guess / 2
+            upper_default = divider + separation_guess / 2
+
+        mu1_0 = _initial_peak_guess(yy[lower_side], pp[lower_side], lower_default)
+        mu2_0 = _initial_peak_guess(yy[upper_side], pp[upper_side], upper_default)
+        mu1_0 = np.clip(mu1_0, edge_low + 0.1, divider - 0.1)
+        mu2_0 = np.clip(mu2_0, divider + 0.1, edge_up - 0.1)
+
+        amp1_0 = max(float(np.nanmax(pp[lower_side])) - background0, 0) if np.any(lower_side) else 0
+        amp2_0 = max(float(np.nanmax(pp[upper_side])) - background0, 0) if np.any(upper_side) else 0
+        sigma1_0 = np.clip(max(lower_half / 3, 0.8), 0.3, sigma_max)
+        sigma2_0 = np.clip(max(upper_half / 3, 0.8), 0.3, sigma_max)
+        p0 = [amp1_0, mu1_0, sigma1_0, amp2_0, mu2_0, sigma2_0]
+        if fit_background is True:
+            p0.append(background0)
+    else:
+        p0 = np.array(prev_params, dtype=float)
+
+    p0 = np.clip(np.asarray(p0, dtype=float), lower_bounds, upper_bounds)
+
+    def residuals(params):
+        model = (params[0] * _gaussian_profile(yy, params[1], params[2]) +
+                 params[3] * _gaussian_profile(yy, params[4], params[5]))
+        if fit_background is True:
+            model += params[6]
+        return (pp - model) / ee
+
+    try:
+        fit = least_squares(residuals, p0, bounds=(lower_bounds, upper_bounds))
+    except ValueError:
+        return None
+
+    if fit.success is not True:
+        return None
+
+    params = np.array(fit.x, dtype=float)
+    if params[1] > params[4]:
+        params = np.array([params[3], params[4], params[5],
+                           params[0], params[1], params[2],
+                           params[6] if fit_background is True else 0], dtype=float)
+        if fit_background is not True:
+            params = params[:6]
+
+    return params
+
+
+def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None, progress=True,
+                      lower_width=None, upper_width=None):
     """Do intrapixel aperture extraction.
 
     Parameters
@@ -827,14 +1721,21 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None,
         Error cube.
     ypos : array-like(float)
         Detector Y-positions to extract.
-    width : int
-        Full-width of the extraction aperture to use.
+    width : int, tuple(float, float)
+        Full-width of the extraction aperture to use. A two-element tuple is interpreted as an
+        asymmetric `(lower_width, upper_width)` aperture.
     extract_start : int
         Detector X-position at which to start extraction.
     extract_end : int, None
         Detector X-position at which to end extraction.
     progress : bool
         if True, show extraction progress bar.
+    lower_width : float, None
+        Distance from the centroid to the lower aperture edge. If provided together with
+        `upper_width`, overrides the symmetric interpretation of `width`.
+    upper_width : float, None
+        Distance from the centroid to the upper aperture edge. If provided together with
+        `lower_width`, overrides the symmetric interpretation of `width`.
 
     Returns
     -------
@@ -855,34 +1756,162 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None,
     # Initialize output arrays.
     f, ferr = np.zeros((nint, dimx)), np.zeros((nint, dimx))
 
-    # Determine the upper and lower edges of the extraction region. Cut at
-    # detector edges if necessary.
-    edge_up = np.min([ypos + width / 2, np.ones_like(ypos) * dimy], axis=0)
-    edge_low = np.max([ypos - width / 2, np.zeros_like(ypos)], axis=0)
+    # Determine the upper and lower edges of the extraction region. Cut at detector edges if
+    # necessary.
+    edge_low, edge_up, _, _ = _get_extraction_edges(ypos, dimy, width,
+                                                    lower_width=lower_width,
+                                                    upper_width=upper_width)
 
-    # Loop over all integrations and sum flux within the extraction aperture.
-    for i in tqdm(range(nint), disable=not progress):
-        for x in range(extract_start, extract_end):
-            xx = x - extract_start
-            # First sum the whole pixel components within the aperture.
-            up_whole = np.floor(edge_up[xx]).astype(int)
-            low_whole = np.ceil(edge_low[xx]).astype(int)
-            this_flux = np.sum(cube[i, low_whole:up_whole, x])
-            this_err = np.sum(err[i, low_whole:up_whole, x]**2)
+    # Loop over all columns and sum flux within the extraction aperture.
+    for x in tqdm(range(extract_start, extract_end), disable=not progress):
+        xx = x - extract_start
+        rows, weights = _get_aperture_pixels(edge_low[xx], edge_up[xx], dimy)
+        if len(rows) == 0:
+            continue
 
-            # Now incorporate the partial pixels at the upper and lower edges.
-            if edge_up[xx] >= (dimy-1) or edge_low[xx] == 0:
-                f[i, x] = this_flux
-                ferr[i, x] = np.sqrt(this_err)
-            else:
-                up_part = edge_up[xx] % 1
-                low_part = 1 - edge_low[xx] % 1
-                this_flux += (up_part * cube[i, up_whole, x] + low_part * cube[i, low_whole-1, x])
-                this_err += (up_part * err[i, up_whole, x]**2 + low_part * err[i, low_whole-1, x]**2)
-                f[i, x] = this_flux
-                ferr[i, x] = np.sqrt(this_err)
+        weighted_cube = cube[:, rows, x] * weights[None, :]
+        weighted_err = err[:, rows, x] * weights[None, :]
+        f[:, x] = np.nansum(weighted_cube, axis=1)
+        ferr[:, x] = np.sqrt(np.nansum(weighted_err**2, axis=1))
 
     return f, ferr
+
+
+def do_two_gaussian_extraction(cube, err, ypos, width, extract_start=0, extract_end=None,
+                               progress=True, lower_width=None, upper_width=None,
+                               separation_guess=None, fit_background=True):
+    """Fit and extract two overlapping Gaussian traces inside one aperture.
+
+    Parameters
+    ----------
+    cube : array-like(float)
+        Data cube.
+    err : array-like(float)
+        Error cube.
+    ypos : array-like(float)
+        Detector Y-positions of the midpoint between the two traces.
+    width : int, tuple(float, float)
+        Full-width of the extraction aperture to use. A two-element tuple is interpreted as an
+        asymmetric `(lower_width, upper_width)` aperture.
+    extract_start : int
+        Detector X-position at which to start extraction.
+    extract_end : int, None
+        Detector X-position at which to end extraction.
+    progress : bool
+        If True, show extraction progress bar.
+    lower_width : float, None
+        Distance from the midpoint trace to the lower aperture edge. If provided together with
+        `upper_width`, overrides the symmetric interpretation of `width`.
+    upper_width : float, None
+        Distance from the midpoint trace to the upper aperture edge. If provided together with
+        `lower_width`, overrides the symmetric interpretation of `width`.
+    separation_guess : float, None
+        Initial separation between the two Gaussian centroids, in pixels.
+    fit_background : bool
+        If True, include a constant background term in the profile fit.
+
+    Returns
+    -------
+    f1 : np.array(float)
+        Extracted flux for the lower trace.
+    ferr1 : np.array(float)
+        Extracted error for the lower trace.
+    f2 : np.array(float)
+        Extracted flux for the upper trace.
+    ferr2 : np.array(float)
+        Extracted error for the upper trace.
+    profile_params : dict
+        Column-by-column Gaussian profile parameters.
+    """
+
+    assert np.shape(cube) == np.shape(err)
+    nint, dimy, dimx = np.shape(cube)
+
+    if extract_end is None:
+        extract_end = dimx
+
+    f1 = np.zeros((nint, dimx))
+    ferr1 = np.zeros((nint, dimx))
+    f2 = np.zeros((nint, dimx))
+    ferr2 = np.zeros((nint, dimx))
+    profile_params = {'amp1': np.full(dimx, np.nan), 'mu1': np.full(dimx, np.nan),
+                      'sigma1': np.full(dimx, np.nan), 'amp2': np.full(dimx, np.nan),
+                      'mu2': np.full(dimx, np.nan), 'sigma2': np.full(dimx, np.nan),
+                      'reduced_chi2': np.full(dimx, np.nan)}
+    if fit_background is True:
+        profile_params['background'] = np.full(dimx, np.nan)
+
+    edge_low, edge_up, lower_half, upper_half = _get_extraction_edges(ypos, dimy, width,
+                                                                      lower_width=lower_width,
+                                                                      upper_width=upper_width)
+    prev_params = None
+    for x in tqdm(range(extract_start, extract_end), disable=not progress):
+        xx = x - extract_start
+        rows, weights = _get_aperture_pixels(edge_low[xx], edge_up[xx], dimy)
+        if len(rows) < 4:
+            continue
+
+        ygrid = rows + 0.5
+        col_cube = cube[:, rows, x] * weights[None, :]
+        col_err = err[:, rows, x] * weights[None, :]
+        profile = np.nanmedian(col_cube, axis=0)
+        profile_err = np.sqrt(np.nanmedian(col_err**2, axis=0))
+
+        params = _fit_two_gaussian_profile(ygrid, profile, profile_err, ypos[xx], edge_low[xx],
+                                           edge_up[xx], lower_half, upper_half,
+                                           separation_guess=separation_guess,
+                                           prev_params=prev_params,
+                                           fit_background=fit_background)
+        if params is None:
+            params = prev_params
+        if params is None:
+            continue
+        prev_params = np.array(params, dtype=float)
+
+        g1 = _gaussian_profile(ygrid, params[1], params[2])
+        g2 = _gaussian_profile(ygrid, params[4], params[5])
+        design = [g1, g2]
+        if fit_background is True:
+            design.append(np.ones_like(g1))
+        design = np.column_stack(design)
+
+        background = params[6] if fit_background is True else 0.0
+        model_profile = params[0] * g1 + params[3] * g2 + background
+        good = np.isfinite(profile) & np.isfinite(profile_err) & (profile_err > 0)
+        dof = np.sum(good) - design.shape[1]
+
+        profile_params['amp1'][x] = params[0]
+        profile_params['mu1'][x] = params[1]
+        profile_params['sigma1'][x] = params[2]
+        profile_params['amp2'][x] = params[3]
+        profile_params['mu2'][x] = params[4]
+        profile_params['sigma2'][x] = params[5]
+        if dof > 0:
+            chi2 = np.nansum(((profile[good] - model_profile[good]) / profile_err[good]) ** 2)
+            profile_params['reduced_chi2'][x] = chi2 / dof
+        if fit_background is True:
+            profile_params['background'][x] = background
+
+        component_scale1 = np.sum(g1 * weights)
+        component_scale2 = np.sum(g2 * weights)
+        for i in range(nint):
+            data = col_cube[i]
+            sigma = col_err[i]
+            mask = np.isfinite(data) & np.isfinite(sigma) & (sigma > 0)
+            if np.sum(mask) < design.shape[1]:
+                continue
+
+            aw = design[mask] / sigma[mask, None]
+            bw = data[mask] / sigma[mask]
+            coeffs, _, _, _ = np.linalg.lstsq(aw, bw, rcond=None)
+            covariance = np.linalg.pinv(aw.T @ aw)
+
+            f1[i, x] = coeffs[0] * component_scale1
+            f2[i, x] = coeffs[1] * component_scale2
+            ferr1[i, x] = np.sqrt(np.clip(covariance[0, 0], 0, None)) * component_scale1
+            ferr2[i, x] = np.sqrt(np.clip(covariance[1, 1], 0, None)) * component_scale2
+
+    return f1, ferr1, f2, ferr2, profile_params
 
 
 def do_ccf(wave, flux, mod_flux, oversample=5):
@@ -1435,8 +2464,21 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     """
 
     fancyprint('Formatting extracted 1d spectra.')
-    # Box extract outputs will just be a tuple of arrays.
-    if isinstance(datafiles, tuple):
+    companion_data = None
+    # Box and double-Gaussian extract outputs are local arrays.
+    if isinstance(datafiles, dict):
+        wave1d_o1 = datafiles['wave_o1']
+        flux_o1 = datafiles['flux_o1']
+        ferr_o1 = datafiles['ferr_o1']
+        wave1d_o2 = datafiles['wave_o2']
+        flux_o2 = datafiles['flux_o2']
+        ferr_o2 = datafiles['ferr_o2']
+        if 'flux_o1_companion' in datafiles:
+            companion_data = {'flux_o1': datafiles['flux_o1_companion'],
+                              'ferr_o1': datafiles['ferr_o1_companion'],
+                              'flux_o2': datafiles['flux_o2_companion'],
+                              'ferr_o2': datafiles['ferr_o2_companion']}
+    elif isinstance(datafiles, tuple):
         wave1d_o1 = datafiles[0]
         flux_o1 = datafiles[1]
         ferr_o1 = datafiles[2]
@@ -1485,6 +2527,11 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
         ferr_o1 = ferr_o1[:, 4:-4]
         flux_o2 = flux_o2[:, xpos_o2]
         ferr_o2 = ferr_o2[:, xpos_o2]
+        if companion_data is not None:
+            companion_data['flux_o1'] = companion_data['flux_o1'][:, 4:-4]
+            companion_data['ferr_o1'] = companion_data['ferr_o1'][:, 4:-4]
+            companion_data['flux_o2'] = companion_data['flux_o2'][:, xpos_o2]
+            companion_data['ferr_o2'] = companion_data['ferr_o2'][:, xpos_o2]
 
     # Cross-correlate with stellar model.
     # If one or more of the stellar parameters are not provided, use the existing wavelength
@@ -1521,10 +2568,18 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     flux_o2 = flux_o2[:, ::-1]
     ferr_o1 = ferr_o1[:, ::-1]
     ferr_o2 = ferr_o2[:, ::-1]
+    if companion_data is not None:
+        companion_data['flux_o1'] = companion_data['flux_o1'][:, ::-1]
+        companion_data['flux_o2'] = companion_data['flux_o2'][:, ::-1]
+        companion_data['ferr_o1'] = companion_data['ferr_o1'][:, ::-1]
+        companion_data['ferr_o2'] = companion_data['ferr_o2'][:, ::-1]
 
     # Clip remaining 5-sigma outliers.
     flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1)
     flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2)
+    if companion_data is not None:
+        flux_o1_comp_clip = utils.sigma_clip_lightcurves(companion_data['flux_o1'])
+        flux_o2_comp_clip = utils.sigma_clip_lightcurves(companion_data['flux_o2'])
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
@@ -1546,6 +2601,12 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
              'Wave O2', 'Wave Err O2', 'Flux O2', 'Flux Err O2', 'Time']
     units = ['Micron', 'Micron', 'DN/s', 'DN/s',
              'Micron', 'Micron', 'DN/s', 'DN/s', 'MJD_TDB']
+    if companion_data is not None:
+        data[8:8] = [flux_o1_comp_clip, companion_data['ferr_o1'],
+                     flux_o2_comp_clip, companion_data['ferr_o2']]
+        names[8:8] = ['Flux O1 Companion', 'Flux Err O1 Companion',
+                      'Flux O2 Companion', 'Flux Err O2 Companion']
+        units[8:8] = ['DN/s', 'DN/s', 'DN/s', 'DN/s']
     spectra = utils.save_extracted_spectra(filename, data, names, units, header_dict,
                                            header_comments, save_results=save_results)
 
@@ -1787,7 +2848,7 @@ def optimal_extract_miri(datafiles, deepframe, centroids, extract_width=None, ma
     # Do the extraction.
     fancyprint('Performing optimal extraction.')
     flux, ferr = do_optimal_extraction(cube.transpose(0, 2, 1), deepframe.transpose(1, 0), ymin,
-                                       ymax, xmin=int(np.min(y1)), xmax=int(np.max(y1)+1),
+                                       ymax, xmin=int(np.min(y1)), xmax=int(np.max(y1)),
                                        max_iter=max_iter, var_thresh=var_thresh)
 
     # Get default 2D wavelength solution.
@@ -1889,10 +2950,12 @@ def trace_spectrum(datafiles, deepframe, output_dir='./', save_results=True, fil
         If True, show the step diagnostic plot instead of/in addition to saving it to file.
     allow_miri_slope : bool
         If True, allow the MIRI centroids to be sloped.
-    extract_width : int, None
-        Extraction full width.
-    extract_width_soss2 : int, None
-        Extraction full width for SOSS order 2.
+    extract_width : int, tuple(float, float), None
+        Extraction full width. A two-element tuple is interpreted as an asymmetric
+        `(lower_width, upper_width)` aperture for box extraction.
+    extract_width_soss2 : int, tuple(float, float), None
+        Extraction full width for SOSS order 2. A two-element tuple is interpreted as an
+        asymmetric `(lower_width, upper_width)` aperture for box extraction.
 
     Returns
     -------
@@ -2046,7 +3109,8 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
                soss_specprofile=None, centroids=None, extract_width=40, extract_width_soss2=None,
                st_teff=None, st_logg=None, st_met=None, planet_letter='b', output_tag='',
                do_plot=False, show_plot=False, opt_max_iter=25, opt_var_thresh=25, deepframe=None,
-               **kwargs):
+               saturation_rescue=False, mask_do_not_use_pixels=True,
+               pipeline_outputs_directory='pipeline_outputs_directory', **kwargs):
     """Run the exoTEDRF Stage 3 pipeline: 1D spectral extraction, using a combination of the
     official STScI DMS and custom steps.
 
@@ -2061,15 +3125,18 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
     force_redo : bool
         If True, redo steps even if outputs files are already present.
     extract_method : str
-        Either 'box', 'optimal', or 'atoca'. Runs the applicable 1D extraction routine.
+        Either 'box', 'optimal', or 'atoca'.
     soss_specprofile : str, None
         Specprofile reference file; only neceessary for ATOCA extractions.
     centroids : str, None
         Path to file containing trace positions for each order.
-    extract_width : int, str
-        Width around the trace centroids, in pixels, for the 1D extraction.
-    extract_width_soss2 : int, str, None
-        Width of extraction box for order 2. If None, will use the same aperture as order 1.
+    extract_width : int, tuple(float, float), str
+        Width around the trace centroids, in pixels, for the 1D extraction. A two-element tuple is
+        interpreted as an asymmetric `(lower_width, upper_width)` aperture for box extraction.
+    extract_width_soss2 : int, tuple(float, float), str, None
+        Width of extraction box for order 2. If None, will use the same aperture as order 1. A
+        two-element tuple is interpreted as an asymmetric `(lower_width, upper_width)` aperture for
+        box extraction.
     st_teff : float, None
         Stellar effective temperature.
     st_logg : float, None
@@ -2091,6 +3158,11 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
         Variance threshold for a pixel to be flagged as an outlier during optimal exraction.
     deepframe : str, None
         Path to file containing a median stack of the observation.
+    saturation_rescue : bool
+        If True for NIRISS/SOSS box extraction, keep post-RampFit pixels whose ramps were only
+        partially saturated so RampFit's pre-saturation slope estimate can be extracted.
+    mask_do_not_use_pixels : bool
+        If True, NaN DO_NOT_USE pixels before box extraction in addition to saturation handling.
 
     Returns
     -------
@@ -2106,9 +3178,13 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
     if output_tag != '':
         output_tag = '_' + output_tag
     # Create output directories and define output paths.
-    utils.verify_path(root_dir + 'pipeline_outputs_directory' + output_tag)
-    utils.verify_path(root_dir + 'pipeline_outputs_directory' + output_tag + '/Stage3')
-    outdir = root_dir + 'pipeline_outputs_directory' + output_tag + '/Stage3/'
+    if os.path.isabs(pipeline_outputs_directory) or pipeline_outputs_directory.startswith('~'):
+        base_dir = os.path.expanduser(pipeline_outputs_directory) + output_tag
+    else:
+        base_dir = os.path.join(root_dir, pipeline_outputs_directory + output_tag)
+    utils.verify_path(base_dir)
+    utils.verify_path(os.path.join(base_dir, 'Stage3'))
+    outdir = os.path.join(base_dir, 'Stage3/')
 
     # ===== SpecProfile Construction Step =====
     # Custom DMS step
@@ -2133,6 +3209,7 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
                        soss_specprofile=soss_specprofile, centroids=centroids,
                        save_results=save_results, force_redo=force_redo, do_plot=do_plot,
                        show_plot=show_plot, deepframe=deepframe, opt_max_iter=opt_max_iter,
-                       opt_var_thresh=opt_var_thresh, **step_kwargs)
+                       opt_var_thresh=opt_var_thresh, saturation_rescue=saturation_rescue,
+                       mask_do_not_use_pixels=mask_do_not_use_pixels, **step_kwargs)
 
     return spectra

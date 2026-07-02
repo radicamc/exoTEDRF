@@ -1,0 +1,207 @@
+# General optimizer template.
+#
+# Active defaults are for NIRISS/SOSS and use the threshold sweeps from
+# run_optimize_niriss.yaml. NIRSpec and MIRI alternatives are shown in comments
+# next to the values that usually need to change.
+
+# ===== Key Parameters =====
+crds_cache_path : './crds_cache/'
+crds_context: 'jwst_1322.pmap'
+
+input_dir : 'DMS_uncal/' # input folder containing *uncal.fits
+pipeline_outputs_directory : 'pipeline_outputs_directory/' # output folder
+input_filetag : 'uncal'
+
+# Instrument mode used.
+# SOSS:    'NIRISS/SOSS'
+# NIRSpec: 'NIRSpec/G395H'
+# MIRI:    'MIRI/LRS'
+observing_mode : 'NIRISS/SOSS'
+
+# Type of filter or detector used.
+# SOSS:    'CLEAR' or 'F277W'
+# NIRSpec: 'NRS1' or 'NRS2'
+# MIRI:    ''
+filter_detector : 'CLEAR'
+
+name_tag : ''
+output_tag : ''
+
+# Optional custom inputs.
+outlier_maps : None
+hot_pixel_map : None
+centroids : None
+deepframe : None
+
+# Stellar parameters for calibrated wavelength solution (optional).
+st_teff : None
+st_logg: None
+st_met : None
+
+
+# ===== Stage 1 Input Files & Parameters =====
+# SOSS defaults are active. NIRSpec and MIRI alternatives are shown in comments.
+DQInitStep : 'run'
+EmiCorrStep : 'skip'       # MIRI: 'run'
+SaturationStep : 'run'
+ResetStep : 'skip'         # MIRI: 'run'
+SuperBiasStep : 'run'      # MIRI: 'skip'
+RefPixStep : 'run'         # NIRSpec/MIRI: 'skip'
+DarkCurrentStep : 'skip'
+OneOverFStep_grp : 'run'   # MIRI: 'skip'
+LinearityStep : 'run'
+JumpStep : 'run'
+RampFitStep : 'run'
+GainScaleStep : 'run'
+
+# NIRSpec only. Options are 'crds', 'custom', or 'custom-rescale'.
+superbias_method : 'crds'
+
+# SOSS only. Use 'model_background96.npy' for SUBSTRIP96.
+# NIRSpec/MIRI: None
+soss_background_file : 'model_background256.npy'
+
+# 1/f correction method.
+# SOSS:    'scale-achromatic', 'scale-achromatic-window', 'scale-chromatic', or 'solve'
+# NIRSpec: 'median' or 'slope'
+# MIRI:     unused because OneOverFStep_grp is skipped
+oof_method : 'scale-achromatic'
+
+# SOSS only optional 1/f correction time series estimates.
+soss_timeseries : None
+soss_timeseries_o2 : None
+
+# MIRI only, for linearity correction.
+miri_drop_groups : 12
+
+# Jump detection.
+flag_up_ramp : False
+jump_threshold : 15
+flag_in_time : True
+
+# DMS Stage 1 kwargs. Format: {'step_name': {'kwd': value}}.
+stage1_kwargs : {}
+
+
+# ===== Stage 2 Input Files & Parameters =====
+AssignWCSStep : 'run'
+Extract2DStep : 'skip'     # NIRSpec: 'run'
+SourceTypeStep: 'run'
+WaveCorrStep : 'skip'      # NIRSpec: 'run'
+FlatFieldStep : 'run'      # NIRSpec: 'skip'
+BackgroundStep : 'run'     # NIRSpec: 'skip'
+OneOverFStep_int : 'run'   # MIRI: 'skip'
+BadPixStep : 'run'
+PCAReconstructStep : 'run' 
+TracingStep : 'run'
+
+# MIRI only. Options are 'median' or 'slope'.
+miri_background_method : 'median'
+
+# PCA reconstruction.
+pca_components : 10
+remove_components : None
+
+# SOSS only.
+generate_lc : True         # MIRI: False
+smoothing_scale : None
+generate_order0_mask : False
+f277w : None
+
+# DMS Stage 2 kwargs. Format: {'step_name': {'kwd': value}}.
+stage2_kwargs : {}
+
+
+# ===== Stage 3 Input Files & Parameters =====
+# SOSS: 'box' or 'atoca'
+# NIRSpec/MIRI: 'box'
+extract_method : 'box'
+soss_specprofile : None
+extract_width_soss2 : None
+planet_letter : 'b'
+
+# DMS Stage 3 kwargs. Format: {'step_name': {'kwd': value}}.
+stage3_kwargs : {}
+
+
+# ===== Other General Parameters =====
+baseline_ints : [100, -100]
+do_plots : True
+
+
+# ===== Optimize Cost Function =====
+wave_range : null       # null uses optimizer defaults when spectral cost is active
+wave_range_plot : null
+ylim_plot : null
+w1 : 0.0               # white-light cost weight
+w2 : 1.0               # spectral-light cost weight
+
+
+# ===== Stage 1 Parameters To Sweep =====
+# SOSS only. NIRSpec/MIRI should keep these fixed.
+optimize_soss_inner_mask_width : True
+soss_inner_mask_width : [36,38,40,42,44] # fixed default: 40
+
+optimize_soss_outer_mask_width : True
+soss_outer_mask_width : [66,68,70,72,74] # fixed default: 70
+
+# NIRSpec only. To optimize NIRSpec, set optimize_nirspec_mask_width: True.
+optimize_nirspec_mask_width : False
+nirspec_mask_width : 0 # NIRSpec sweep option: [10,12,14,16,18,20]
+
+# Shared jump-detection thresholds from run_optimize_niriss.yaml.
+optimize_time_jump_threshold : True
+time_jump_threshold : [5,6,7,8,9,10]
+
+optimize_time_window : True
+time_window : [3,5,7,9,11]
+
+
+# ===== Stage 2 Parameters To Sweep =====
+# MIRI only. To optimize MIRI, set these optimize flags True.
+optimize_miri_trace_width : False
+miri_trace_width : 0 # MIRI sweep option: [14,16,18,20,22]
+
+optimize_miri_background_width : False
+miri_background_width : 0 # MIRI sweep option: [10,11,12,13,14]
+
+# Shared bad-pixel thresholds from run_optimize_niriss.yaml.
+optimize_space_outlier_threshold : True
+space_outlier_threshold : [5,6,7,8,9,10,11]
+
+optimize_time_outlier_threshold : True
+time_outlier_threshold : [5,6,7,8,9,10,11]
+
+optimize_box_size : True
+box_size : [3,4,5,6,7,8]
+
+optimize_window_size : True
+window_size : [3,5,7,9,11]
+
+
+# ===== Stage 3 Parameter To Sweep =====
+# SOSS option:    [24,26,28,30,32,34,36]
+# NIRSpec option: [4,5,6,7,8,9,10,11,12]
+# MIRI option:    [5,6,7,8,9,10]
+optimize_extract_width : True
+extract_width : [24,26,28,30,32,34,36]
+
+
+# Ad hoc optimizer modes.
+# If True, skip directly to Stage 3 using existing Stage 2 outputs and only optimize extract_width.
+optimize_extract_width_only : False
+# If True, restart from existing *badpixstep.fits outputs, rerun PCA with remove_components, then
+# continue into Stage 3 and optional extract_width optimization.
+from_pca_only : False
+# If True during a Stage-3 rerun, read the fixed extraction width from an existing first-pass
+# Stage 3 spectrum header instead of sweeping widths again.
+reuse_first_pass_extract_width : False
+first_pass_extract_method : 'box'
+
+# ===== Saturation Options =====
+# Saturation threshold in percent of full well. The dev branch default is 80.
+saturation_threshold: 80
+saturation_rescue : False
+
+
+# ========================= END OPTIMIZER CONFIG FILE =========================
