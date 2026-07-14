@@ -73,7 +73,7 @@ The four methods below are essentially different ideologies for accomplishing th
 :sup:`[4]`: Light curve estimates passed as ``soss_timeseres`` and ``soss_timeseries_o2`` in run_DMS.yaml or the ``OneOverFstep``
 
 Additionally, in all cases, the 1/f correction can be done either at the group-level (that is, before fitting the ramp) or at the integration-level (that is, after fitting the ramp).
-However, it is recommended to always perform 1/f correction at the group-level (e.g., `Carter et al. (2025) <https://ui.adsabs.harvard.edu/abs/2025jwst.rept.8975C/abstract>`_, `Radica et al. (2026) <https://ui.adsabs.harvard.edu/abs/2025jwst.rept.8975C/abstract>`_).
+However, it is recommended to always perform 1/f correction at the group-level (e.g., `Carter et al. (2025) <https://ui.adsabs.harvard.edu/abs/2025jwst.rept.8975C/abstract>`_, `Radica et al. (2026) <https://ui.adsabs.harvard.edu/abs/2026AJ....171..314R/abstract>`_).
 
 
 A Note on PCA Reconstruction
@@ -99,6 +99,15 @@ Finally, due to the nature of PCA, this step needs to be run on the entire TSO d
 for large datasets. If you run into memory issues, the auxiliary outputs from the step (i.e., the observation deeo stack) can still be produced by specifying ``skip_pca=True``. This will produce all auxiliary files, but skip the PCA component of
 the step, which will not have a major impact on the final data quality. As mentioned above, detector effects can be fit out at the light curve level, or mitigated by a judicious choice of extraction aperture
 (e.g., see Figures C1 & C2 in `Radica et al. 2023 <https://ui.adsabs.harvard.edu/abs/2023MNRAS.524..835R/abstract>`_).
+
+
+Data Quality Reports
+--------------------
+
+As of v2.5.0, exoTEDRF includes a report on the data quality as the final extension in the ``Extract1DStep`` outputs. The DQ Report extension is a 1xN array (where N is the number of extracted channels) of integer values reflecting the DQ flags for
+the pixels in that channel. Four flags are considered: 1 - Do Not Use, 2 - Saturated, 4 - Hot Pixel, 8 - High Variance Pixel. If any pixel in the aperture has a given DQ flag, the integer value is added to the DQ report for that channel. For example,
+a DQ Report value of 5 means that there are pixels in the aperture with Do Not Use, and Hot Pixel flags. Although these pixels will have been interpolated during the bad pixel correction (with the general exception of saturated pixels), these flags
+may be of use when determining whether an apparent outlying spectra channel is real, or caused by a known data issue.
 
 
 Flux Calibration
