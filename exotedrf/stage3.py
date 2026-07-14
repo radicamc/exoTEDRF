@@ -11,6 +11,7 @@ Custom JWST DMS pipeline steps for Stage 3 (1D spectral extraction).
 from astropy.io import fits
 import glob
 import numpy as np
+from numpy.polynomial import chebyshev
 import pandas as pd
 import pastasoss
 from scipy.ndimage import median_filter
@@ -966,13 +967,28 @@ def do_ccf(wave, flux, mod_flux, oversample=5):
         signal_filt = filtfilt(b, a, signal)
         return signal_filt
 
+    def continuum_normalize(wave, flux):
+        """Rough continuum normalization."""
+        mask = np.isfinite(flux)
+        for i in range(10):
+            coeffs = chebyshev.chebfit(wave[mask], flux[mask], 4)
+            continuum = chebyshev.chebval(wave, coeffs)
+            resid = flux - continuum
+            sigma = np.std(resid[mask])
+            # Reject points well below and far above the fit.
+            mask = (resid > -1.5 * sigma) & (resid < 3 * sigma) & np.isfinite(flux)
+        coeffs = chebyshev.chebfit(wave[mask], flux[mask], 4)
+        continuum = chebyshev.chebval(wave, coeffs)
+        norm_flux = flux / continuum
+        return norm_flux
+
     # Ensure wavelengths are in ascending order
     ii = np.argsort(wave)
     thiswave = wave[ii]
     thisflux = flux[ii]
     thismod = mod_flux[ii]
 
-    # Interpolte both model and data onto a finer wavelength grid.
+    # Interpolate both model and data onto a finer wavelength grid.
     if oversample != 1:
         new_wave = []
         for i in range(len(thiswave)):
@@ -992,6 +1008,9 @@ def do_ccf(wave, flux, mod_flux, oversample=5):
     thisflux = np.delete(thisflux, ii)
     thismod = np.delete(thismod, ii)
 
+    # Rough continuum normalization.
+    thisflux = continuum_normalize(new_wave, thisflux/np.nanmax(thisflux))
+    thismod = continuum_normalize(new_wave, thismod/np.nanmax(thismod))
     # Cross-correlate the model and observed stellar spectrum.
     ccf = correlate(highpass_filter(thisflux), highpass_filter(thismod))
     # Determine how many wavelength steps corresponds to the CCF peak.
@@ -1396,8 +1415,9 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
     return spectra
 
 
-def format_nirspec_spectra(datafiles, times, extract_params, target_name, detector, st_teff=None,
-                           st_logg=None, st_met=None, output_dir='./', save_results=True):
+def format_nirspec_spectra(datafiles, times, extract_params, target_name, detector,
+                           st_teff=None, st_logg=None, st_met=None, output_dir='./',
+                           save_results=True):
     """Unpack the outputs of the 1D extraction and format them into
     lightcurves at the native detector resolution.
 
@@ -1437,10 +1457,6 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
     ferr = datafiles[2]
     dq_report = datafiles[3]
 
-    # Remove any NaN pixels --- important for NIRSpec NRS1.
-    ii = np.where(np.isfinite(wave1d))[0]
-    wave1d_trim = wave1d[ii]
-
     # Now cross-correlate with stellar model.
     # If one or more of the stellar parameters are not provided, use the default solution.
     if None in [st_teff, st_logg, st_met]:
@@ -1448,6 +1464,19 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
                    msg_type='WARNING')
     else:
         fancyprint('Refining the wavelength calibration.')
+        x1d_flux = np.nansum(flux, axis=0)
+        if detector.upper() == 'NRS1':
+            # Remove non-extracted columns --- important for NIRSpec NRS1.
+            ii = np.where(wave1d >= 3.1)[0]
+            wave1d_trim = wave1d[ii]
+            x1d_flux = x1d_flux[ii]
+        else:
+            wave1d_trim = wave1d
+        # Remove any NaN pixels --- important for NIRSpec NRS1.
+        ii = np.where(np.isfinite(wave1d_trim))[0]
+        wave1d_trim = wave1d_trim[ii]
+        x1d_flux = x1d_flux[ii]
+
         # Create a grid of stellar parameters, and download PHOENIX spectra for each grid point.
         thisout = output_dir + 'phoenix_models'
         utils.verify_path(thisout)
@@ -1462,7 +1491,6 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
         mod_flux = spectres.spectres(wave1d_trim, mod_wave, mod_flux)
 
         # Cross-correlate extracted spectrum with model to refine wavelength calibration.
-        x1d_flux = np.nansum(flux, axis=0)[ii]
         wave_shift = do_ccf(wave1d_trim, x1d_flux, mod_flux, oversample=1)
         fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
         wave1d += wave_shift
