@@ -178,7 +178,6 @@ class Extract1DStep:
         allow_miri_slope : bool
             If True, allow the MIRI centroids to be sloped.
 
-
         Returns
         -------
         spectra : dict
@@ -208,6 +207,7 @@ class Extract1DStep:
                 if extract_width_soss2 is not None:
                     fancyprint('Order 2 cannot use a different width for ATOCA extraction.',
                                msg_type='WARNING')
+                fancyprint('DQ Report not available for ATOCA extraction.', msg_type='WARNING')
 
                 results = atoca_extract_soss(self.datafiles, soss_specprofile,
                                              output_dir=self.output_dir, save_results=save_results,
@@ -285,11 +285,11 @@ class Extract1DStep:
                 if self.instrument == 'NIRSPEC':
                     results = optimal_extract_nirspec(self.datafiles, deepframe, centroids,
                                                       extract_width, max_iter=opt_max_iter,
-                                                      var_thresh=opt_var_thresh)
+                                                      var_thresh=opt_var_thresh, dq_report=True)
                 else:
                     results = optimal_extract_miri(self.datafiles, deepframe, centroids,
                                                    extract_width, max_iter=opt_max_iter,
-                                                   var_thresh=opt_var_thresh)
+                                                   var_thresh=opt_var_thresh, dq_report=True)
 
                 extract_width = 'N/A'
 
@@ -455,10 +455,9 @@ def atoca_extract_soss(datafiles, specprofile, output_dir='./', save_results=Tru
             step = calwebb_spec2.extract_1d_step.Extract1dStep()
             try:
                 res = step.call(segment, output_dir=output_dir, save_results=save_results,
-                                subtract_background=False,
-                                soss_bad_pix='model', soss_width=extract_width,
-                                soss_modelname=soss_modelname, override_specprofile=specprofile,
-                                soss_estimate=soss_estimate)
+                                subtract_background=False, soss_bad_pix='model',
+                                soss_width=extract_width, soss_modelname=soss_modelname,
+                                override_specprofile=specprofile, soss_estimate=soss_estimate)
                 results.append(res)
                 # Note that this segment was extracted correctly.
                 extracted.append(i)
@@ -645,6 +644,8 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
 
     datafiles = np.atleast_1d(datafiles)
     det = utils.get_nrs_detector_name(datafiles[0])
+    subarray = utils.get_soss_subarray(datafiles[0])
+    grating = utils.get_nrs_grating(datafiles[0])
     dqcube = None
     # Get flux and errors to extract.
     for i, file in enumerate(datafiles):
@@ -677,18 +678,7 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
         # Extract with a variety of widths and find the one that minimizes the white light curve
         # scatter.
         scatter = []
-        if det == 'nrs1':
-            grating = utils.get_nrs_grating(datafiles[0])
-            if grating == 'G395H':
-                xstart = 500  # Trace starts at pixel ~500 for G395M
-            elif grating == 'G395M':
-                xstart = 200  # Trace starts at pixel ~200 for G395M
-            elif grating == 'PRISM':
-                xstart = 14  # Trace starts at pixel ~14 for PRISM
-            else:
-                raise ValueError('Unknown NIRSpec grating used...')
-        else:
-            xstart = 0
+        xstart = utils.get_nrs_trace_start(det, subarray, grating)
         for w in tqdm(range(1, 12)):
             flux = do_box_extraction(cube, ecube, y1, width=w, progress=False,
                                      extract_start=xstart)[0]
@@ -713,9 +703,6 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
     # ===== Extraction ======
     # Do the extraction.
     fancyprint('Performing simple aperture extraction.')
-    det = utils.get_nrs_detector_name(datafiles[0])
-    subarray = utils.get_soss_subarray(datafiles[0])
-    grating = utils.get_nrs_grating(datafiles[0])
     xstart = utils.get_nrs_trace_start(det, subarray, grating)
     flux, ferr, dq_rep = do_box_extraction(cube, ecube, y1, width=extract_width,
                                            extract_start=xstart, dq_report=dq_report,
@@ -1019,7 +1006,7 @@ def do_ccf(wave, flux, mod_flux, oversample=5):
 
 
 def do_optimal_extraction(cube, deepframe, ymin=0, ymax=None, xmin=0, xmax=None, max_iter=25,
-                          var_thresh=25):
+                          var_thresh=25, dq_report=False, dq_cube=None):
     """Optimally extract stellar spectra following the Horne 1986 algorithm.
 
     Parameters
@@ -1040,6 +1027,10 @@ def do_optimal_extraction(cube, deepframe, ymin=0, ymax=None, xmin=0, xmax=None,
         Maximum number of outlier rejection iterations to do.
     var_thresh : int
         Variance threshold for a pixel to be considered an outlier.
+    dq_report : bool
+        If True, return a report of relevant DQ flags in each aperture.
+    dq_cube : array-like(int)
+        DQ flag cube.
 
     Returns
     -------
@@ -1047,6 +1038,8 @@ def do_optimal_extraction(cube, deepframe, ymin=0, ymax=None, xmin=0, xmax=None,
         Optimally extracted flux.
     var_opt : ndarray(float)
         Variance in optimally extracted flux.
+    dq : np.array(int)
+        DQ report.
     """
 
     nint, dimy, dimx = np.shape(cube)
@@ -1082,7 +1075,7 @@ def do_optimal_extraction(cube, deepframe, ymin=0, ymax=None, xmin=0, xmax=None,
         var[:, ymin[xx]:ymax[xx], x] += (np.abs(flux[:, None, x] * prof[None, ymin[xx]:ymax[xx], x] + 0)) / 1
 
     # Optimal extraction - Step 8.
-    f_opt, var_opt = extract_optimal(prof, cube, var, ymin=ymin, ymax=ymax, xmin=xmin, xmax=xmax)
+    f_opt, var_opt, _ = extract_optimal(prof, cube, var, ymin=ymin, ymax=ymax, xmin=xmin, xmax=xmax)
 
     # Loop steps 6 - 8, iteratively clipped outliers.
     fancyprint('Doing iterative outlier clipping.')
@@ -1111,8 +1104,8 @@ def do_optimal_extraction(cube, deepframe, ymin=0, ymax=None, xmin=0, xmax=None,
         var[var == 0] = np.inf
 
         # Do optimal extraction.
-        f_opt, var_opt = extract_optimal(prof, cube, var, ymin=ymin, ymax=ymax, xmin=xmin,
-                                         xmax=xmax)
+        f_opt, var_opt, dq = extract_optimal(prof, cube, var, ymin=ymin, ymax=ymax, xmin=xmin,
+                                             xmax=xmax, dq_report=dq_report, dq_cube=dq_cube)
 
         # Break if we've hit a floor in the number of clipped pixels but haven't exceeded the
         # maximum iteration count.
@@ -1124,10 +1117,11 @@ def do_optimal_extraction(cube, deepframe, ymin=0, ymax=None, xmin=0, xmax=None,
             fancyprint('All outliers masked.')
             break
 
-    return f_opt, np.sqrt(var_opt)
+    return f_opt, np.sqrt(var_opt), dq
 
 
-def extract_optimal(prof, data, var, ymin=0, ymax=None, xmin=0, xmax=None):
+def extract_optimal(prof, data, var, ymin=0, ymax=None, xmin=0, xmax=None, dq_report=False,
+                    dq_cube=None):
     """Perform the optimal extraction following formula in Step 8 of Horne 1986.
 
     Parameters
@@ -1146,6 +1140,10 @@ def extract_optimal(prof, data, var, ymin=0, ymax=None, xmin=0, xmax=None):
         Minimum column number to extract.
     xmax : int, None
         Maximum column number to extract.
+    dq_report : bool
+        If True, return a report of relevant DQ flags in each aperture.
+    dq_cube : array-like(int)
+        DQ flag cube.
 
     Returns
     -------
@@ -1153,6 +1151,8 @@ def extract_optimal(prof, data, var, ymin=0, ymax=None, xmin=0, xmax=None):
         Optimally extracted flux.
     var_opt : ndarray(float)
         Variance in optimally extracted flux.
+    dq : np.array(int)
+        DQ report.
     """
 
     nint, dimy, dimx = np.shape(data)
@@ -1174,6 +1174,7 @@ def extract_optimal(prof, data, var, ymin=0, ymax=None, xmin=0, xmax=None):
         v = var[:, ymin:ymax, xmin:xmax]
         f_opt[:, xmin:xmax] = np.nansum(p * d / v, axis=1) / np.nansum(p ** 2 / v, axis=1)
         var_opt[:, xmin:xmax] = np.nansum(p, axis=1) / np.nansum(p ** 2 / v, axis=1)
+
     # For non-constant y-bounds.
     else:
         xdim_trim = prof[:, xmin:xmax].shape[1]
@@ -1187,7 +1188,34 @@ def extract_optimal(prof, data, var, ymin=0, ymax=None, xmin=0, xmax=None):
             f_opt[:, x] = np.nansum(p * d / v, axis=1) / np.nansum(p ** 2 / v, axis=1)
             var_opt[:, x] = np.nansum(p, axis=1) / np.nansum(p ** 2 / v, axis=1)
 
-    return f_opt, var_opt
+    if dq_report is True:
+        dq = np.zeros(dimx)
+        # Unpack relevant DQ flags.
+        hot_pix = utils.get_dq_flag_metrics(dq_cube[10], ['HOT', 'WARM'])
+        dnu_pix = utils.get_dq_flag_metrics(dq_cube[10], ['DO_NOT_USE'])
+        sat_pix = utils.get_dq_flag_metrics(dq_cube[10], ['SATURATED'])
+        var_pix = utils.get_dq_flag_metrics(dq_cube[10], ['HIGH_VARIANCE'])
+
+        # Populate the DQ report.
+        for x in range(xmin, xmax):
+            if len(ymin) == 1:
+                low_whole, up_whole = ymin[0], ymax[0]
+            else:
+                xx = x - xmin
+                low_whole, up_whole = ymin[xx], ymax[xx]
+
+            if np.any(dnu_pix[low_whole:up_whole, x]):
+                dq[x] += 1
+            if np.any(sat_pix[low_whole:up_whole, x]):
+                dq[x] += 2
+            if np.any(hot_pix[low_whole:up_whole, x]):
+                dq[x] += 4
+            if np.any(var_pix[low_whole:up_whole, x]):
+                dq[x] += 8
+    else:
+        dq = -1*np.ones(dimx)
+
+    return f_opt, var_opt, dq
 
 
 def flux_calibrate(spectrum_file):
@@ -1361,7 +1389,7 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
     # Pack the stellar spectra and save to file if requested.
     data = [wave1d, np.abs(half_width), flux_clip, ferr, times, dq_report]
     names = ['Wave', 'Wave Err', 'Flux', 'Flux Err', 'Time', 'DQ Report']
-    units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD_TDB', '']
+    units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD_TDB', '1-DNU, 2-SAT, 4-HOT, 8-VAR']
     spectra = utils.save_extracted_spectra(filename, data, names, units, header_dict,
                                            header_comments, save_results=save_results)
 
@@ -1457,7 +1485,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
     # Pack the stellar spectra and save to file if requested.
     data = [wave1d, np.abs(half_width), flux_clip, ferr, times, dq_report]
     names = ['Wave', 'Wave Err', 'Flux', 'Flux Err', 'Time', 'DQ Report']
-    units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD_TDB', '']
+    units = ['Micron', 'Micron', 'e/s', 'e/s', 'MJD_TDB', '1-DNU, 2-SAT, 4-HOT, 8-VAR']
     spectra = utils.save_extracted_spectra(filename, data, names, units, header_dict,
                                            header_comments, save_results=save_results)
 
@@ -1537,7 +1565,7 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
                 ferr_o2 = np.concatenate([ferr_o2, segment[2]['FLUX_ERROR']])
         # Create 1D wavelength axes from the 2D wavelength solution.
         wave1d_o1, wave1d_o2 = wave2d_o1[0], wave2d_o2[0]
-        # TODO: DQ report for ATOCA
+        # No DQ Report for ATOCA
         dq_rep_o1 = -1 * np.ones_like(wave1d_o1)
         dq_rep_o2 = -1 * np.ones_like(wave1d_o2)
 
@@ -1594,6 +1622,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     flux_o2 = flux_o2[:, ::-1]
     ferr_o1 = ferr_o1[:, ::-1]
     ferr_o2 = ferr_o2[:, ::-1]
+    dq_rep_o1 = dq_rep_o1[::-1]
+    dq_rep_o2 = dq_rep_o2[::-1]
 
     # Clip remaining 5-sigma outliers.
     flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1)
@@ -1619,7 +1649,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
              'Wave O2', 'Wave Err O2', 'Flux O2', 'Flux Err O2', 'Time',
              'DQ Report O1', 'DQ Report O2']
     units = ['Micron', 'Micron', 'DN/s', 'DN/s',
-             'Micron', 'Micron', 'DN/s', 'DN/s', 'MJD_TDB', '', '']
+             'Micron', 'Micron', 'DN/s', 'DN/s', 'MJD_TDB', '1-DNU, 2-SAT, 4-HOT, 8-VAR',
+             '1-DNU, 2-SAT, 4-HOT, 8-VAR']
     spectra = utils.save_extracted_spectra(filename, data, names, units, header_dict,
                                            header_comments, save_results=save_results)
 
@@ -1801,7 +1832,7 @@ def get_wave_soss(datafile):
 
 
 def optimal_extract_miri(datafiles, deepframe, centroids, extract_width=None, max_iter=25,
-                         var_thresh=25):
+                         var_thresh=25, dq_report=False):
     """Perform am optimal extraction on MIRI.
 
     Parameters
@@ -1818,6 +1849,8 @@ def optimal_extract_miri(datafiles, deepframe, centroids, extract_width=None, ma
         Maximum number of outlier rejection iterations to perform during extraction.
     var_thresh : int
         Variance threshold for a pixel to be flagged as an outlier.
+    dq_report : bool
+        If True, return a report of relevant DQ flags in each aperture.
 
     Returns
     -------
@@ -1834,15 +1867,22 @@ def optimal_extract_miri(datafiles, deepframe, centroids, extract_width=None, ma
     """
 
     datafiles = np.atleast_1d(datafiles)
+    dqcube = None
     # Get flux to extract.
     for i, file in enumerate(datafiles):
         if isinstance(file, str):
             data = fits.getdata(file)
+            if dq_report is True:
+                dq = fits.getdata(file, 3)
         else:
             with utils.open_filetype(file) as datamodel:
                 data = datamodel.data
+                if dq_report is True:
+                    dq = datamodel.dq
         if i == 0:
             cube = data
+            if dq_report is True:
+                dqcube = dq
         else:
             cube = np.concatenate([cube, data])
 
@@ -1861,21 +1901,20 @@ def optimal_extract_miri(datafiles, deepframe, centroids, extract_width=None, ma
     # ===== Extraction ======
     # Do the extraction.
     fancyprint('Performing optimal extraction.')
-    flux, ferr = do_optimal_extraction(cube.transpose(0, 2, 1), deepframe.transpose(1, 0), ymin,
-                                       ymax, xmin=int(np.min(y1)), xmax=int(np.max(y1)+1),
-                                       max_iter=max_iter, var_thresh=var_thresh)
+    flux, ferr, dq_rep = do_optimal_extraction(cube.transpose(0, 2, 1), deepframe.transpose(1, 0),
+                                               ymin, ymax, xmin=int(np.min(y1)),
+                                               xmax=int(np.max(y1)+1), max_iter=max_iter,
+                                               var_thresh=var_thresh, dq_report=dq_report,
+                                               dq_cube=dqcube)
 
     # Get default 2D wavelength solution.
     wave = get_wave_miri(datafiles[0], centroids, cube.shape[0], cube.shape[1])
-
-    # TODO: Implement DQ report.
-    dq_rep = np.ones_like(dimx)*-1
 
     return wave, flux, ferr, dq_rep, extract_width
 
 
 def optimal_extract_nirspec(datafiles, deepframe, centroids, extract_width=None, max_iter=25,
-                            var_thresh=25):
+                            var_thresh=25, dq_report=False):
     """Perform am optimal extraction on NIRSpec.
 
     Parameters
@@ -1892,6 +1931,8 @@ def optimal_extract_nirspec(datafiles, deepframe, centroids, extract_width=None,
         Maximum number of outlier rejection iterations to perform during extraction.
     var_thresh : int
         Variance threshold for a pixel to be flagged as an outlier.
+    dq_report : bool
+        If True, return a report of relevant DQ flags in each aperture.
 
     Returns
     -------
@@ -1906,15 +1947,22 @@ def optimal_extract_nirspec(datafiles, deepframe, centroids, extract_width=None,
     """
 
     datafiles = np.atleast_1d(datafiles)
+    dqcube = None
     # Get flux to extract.
     for i, file in enumerate(datafiles):
         if isinstance(file, str):
             data = fits.getdata(file)
+            if dq_report is True:
+                dq = fits.getdata(file, 3)
         else:
             with utils.open_filetype(file) as datamodel:
                 data = datamodel.data
+                if dq_report is True:
+                    dq = datamodel.dq
         if i == 0:
             cube = data
+            if dq_report is True:
+                dqcube = dq
         else:
             cube = np.concatenate([cube, data])
 
@@ -1937,14 +1985,12 @@ def optimal_extract_nirspec(datafiles, deepframe, centroids, extract_width=None,
     subarray = utils.get_soss_subarray(datafiles[0])
     grating = utils.get_nrs_grating(datafiles[0])
     xstart = utils.get_nrs_trace_start(det, subarray, grating)
-    flux, ferr = do_optimal_extraction(cube, deepframe, ymin, ymax, xmin=xstart, max_iter=max_iter,
-                                       var_thresh=var_thresh)
+    flux, ferr, dq_rep = do_optimal_extraction(cube, deepframe, ymin, ymax, xmin=xstart,
+                                               max_iter=max_iter, var_thresh=var_thresh,
+                                               dq_report=dq_report, dq_cube=dqcube)
 
     # Get default 2D wavelength solution.
     wave = get_wave_nirspec(datafiles[0], centroids, cube.shape[0], cube.shape[2])
-
-    # TODO: Implement DQ report.
-    dq_rep = np.ones_like(dimx)*-1
 
     return wave, flux, ferr, dq_rep
 
