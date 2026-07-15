@@ -598,7 +598,7 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
     flux, ferr, dq_rep = do_box_extraction(cube.transpose(0, 2, 1), ecube.transpose(0, 2, 1), x1,
                                            width=extract_width, extract_start=int(np.min(y1)),
                                            extract_end=int(np.max(y1)), dq_report=dq_report,
-                                           dq_cube=dqcube)
+                                           dq_cube=dqcube.transpose(0, 2, 1))
 
     # Get default 2D wavelength solution.
     wave = get_wave_miri(datafiles[0], centroids, cube.shape[0], cube.shape[1])
@@ -1933,7 +1933,7 @@ def optimal_extract_miri(datafiles, deepframe, centroids, extract_width=None, ma
                                                ymin, ymax, xmin=int(np.min(y1)),
                                                xmax=int(np.max(y1)+1), max_iter=max_iter,
                                                var_thresh=var_thresh, dq_report=dq_report,
-                                               dq_cube=dqcube)
+                                               dq_cube=dqcube.transpose(0, 2, 1))
 
     # Get default 2D wavelength solution.
     wave = get_wave_miri(datafiles[0], centroids, cube.shape[0], cube.shape[1])
