@@ -116,6 +116,23 @@ def fit_lightcurves(config):
     if config['observing_mode'] != 'NIRISS/SOSS':
         config['orders'] = [1]
 
+    # Make sure certain quantities are arrays.
+    pl_letters = np.atleast_1d(config['planet_letter'])
+    assert len(pl_letters) == config['num_pl']
+    lc_model_types = np.atleast_1d(config['lc_model_type'])
+    if len(lc_model_types) == 1 and config['num_pl'] > 1:
+        lc_model_types = np.repeat(lc_model_types, config['num_pl'])
+    else:
+        assert len(lc_model_types) == config['num_pl']
+
+    # Will transits, or eclipses be fit?
+    # Currently all planets in a dataset need to be fit either as transits or eclipses, but not a
+    # mix of both, I think...
+    transit = False
+    for mod_type in lc_model_types:
+        if 'transit' in mod_type:
+            transit = True
+
     for order in config['orders']:
         # === Set Up Priors and Fit Parameters ===
         if config['observing_mode'] == 'NIRISS/SOSS':
@@ -185,7 +202,7 @@ def fit_lightcurves(config):
             priors[param]['value'] = hyperp
 
         # If a transit, will fit be asymmetric?
-        if 'transit' in config['lc_model_type'] and 'rp2_p1_inst' in priors.keys():
+        if transit is True and 'rp2_p1_inst' in priors.keys():
             asymmetric = True
         else:
             asymmetric = False
@@ -198,7 +215,7 @@ def fit_lightcurves(config):
                 break
 
         # For transit fits, calculate LD coefficients from stellar models.
-        if 'transit' in config['lc_model_type'] and config['ld_fit_type'] != 'free':
+        if transit is True and config['ld_fit_type'] != 'free':
             calculate = True
             # Convert wave and wave_err to wavebin edges.
             wave_low, wave_up = wave - wave_err, wave + wave_err
@@ -282,7 +299,7 @@ def fit_lightcurves(config):
             # For transit only; update the LD prior for this bin if available.
             # For prior: set prior width to 0.2 around the model value - based on findings of
             # Patel & Espinoza 2022.
-            if 'transit' in config['lc_model_type'] and config['ld_fit_type'] != 'free':
+            if transit is True and config['ld_fit_type'] != 'free':
                 if config['ld_model_type'] in ['quadratic-kipping', 'power2']:
                     low_lim = 0.0
                 else:
@@ -319,28 +336,6 @@ def fit_lightcurves(config):
                         prior_dict[thisbin]['u4_inst']['distribution'] = dist
                         prior_dict[thisbin]['u4_inst']['value'] = vals4
 
-        # Get information about custom light curve model, if being used.
-        if 'custom' in config['lc_model_type']:
-            if config['custom_lc_model'] is None:
-                # No custom light curve function passed, raise error.
-                raise AttributeError('Light curve model type is custom, but no custom model '
-                                     'passed.')
-            elif isinstance(config['custom_lc_model'], str):
-                try:
-                    custom_lc_function = getattr(model, config['custom_lc_model'])
-                except AttributeError:
-                    all_models = utils.get_exouprf_built_in_models(model)
-                    raise AttributeError('exoUPRF has no built-in light curve model {0}. Available '
-                                         'models are: {1}'.format(config['custom_lc_model'],
-                                                                  all_models))
-            else:
-                thistype = type(config['custom_lc_model'])
-                raise ValueError('Object passed to custom_lc_model of type {} is not a string or '
-                                 'None.'.format(thistype))
-        else:
-            # No custom light curve function to be used, all is good.
-            custom_lc_function = None
-
         # === Do the Fit ===
         # Fit each light curve
         if config['observing_mode'].split('/')[0].upper() == 'NIRSPEC':
@@ -351,10 +346,10 @@ def fit_lightcurves(config):
                                              order=thisorder, output_dir=outdir,
                                              nthreads=config['ncores'], fit_suffix=fit_suffix,
                                              observing_mode=config['observing_mode'],
-                                             lc_model_type=config['lc_model_type'],
+                                             lc_model_type=lc_model_types,
                                              ld_model=config['ld_model_type'],
-                                             custom_lc_function=custom_lc_function,
-                                             debug=config['debug'], force_redo=config['force_redo'])
+                                             num_pl=config['num_pl'], debug=config['debug'],
+                                             force_redo=config['force_redo'])
 
         # === Summarize Fit Results ===
         # Loop over results for each wavebin, extract best-fitting parameters and make summary
@@ -363,7 +358,6 @@ def fit_lightcurves(config):
         data = np.ones((nints, nbins)) * np.nan
         models = np.ones((5, nints, nbins)) * np.nan
         residuals = np.ones((nints, nbins)) * np.nan
-        order_results = {'dppm': [], 'dppm_err': [], 'wave': wave, 'wave_err': wave_err}
 
         # Set order specific labelling text.
         if config['observing_mode'].upper() == 'NIRISS/SOSS':
@@ -373,137 +367,142 @@ def fit_lightcurves(config):
         else:
             order_txt = 'LRS'
 
-        if asymmetric is True:
-            order_results['dppm2'] = []
-            order_results['dppm2_err'] = []
-        for i, wavebin in enumerate(fit_results.keys()):
-            # Make note if something went wrong with this bin.
-            skip = False
-            if fit_results[wavebin] is None:
-                skip = True
+        order_dict = {}
+        # Loop over all planets considered.
+        for pl in range(config['num_pl']):
+            pl_results = {'dppm': [], 'dppm_err': [], 'wave': wave, 'wave_err': wave_err}
 
-            # Pack best fit Rp/R* into a dictionary. Append NaNs if the bin was skipped.
-            if skip is True:
-                order_results['dppm'].append(np.nan)
-                order_results['dppm_err'].append(np.nan)
-                if asymmetric is True:
-                    order_results['dppm2'].append(np.nan)
-                    order_results['dppm2_err'].append(np.nan)
-            # If not skipped, append median and 1-sigma bounds.
-            else:
-                this_result = fit_results[wavebin].get_results_from_fit()
-                if 'transit' in config['lc_model_type']:
-                    md = this_result['rp_p1_inst']['median']
-                    up = this_result['rp_p1_inst']['up_1sigma']
-                    lw = this_result['rp_p1_inst']['low_1sigma']
-                    order_results['dppm'].append((md**2) * 1e6)
-                    err_low = (md**2 - (md - lw)**2) * 1e6
-                    err_up = ((up + md)**2 - md**2) * 1e6
+            if asymmetric is True:
+                pl_results['dppm2'] = []
+                pl_results['dppm2_err'] = []
+            for i, wavebin in enumerate(fit_results.keys()):
+                # Make note if something went wrong with this bin.
+                skip = False
+                if fit_results[wavebin] is None:
+                    skip = True
+
+                # Pack best fit Rp/R* into a dictionary. Append NaNs if the bin was skipped.
+                if skip is True:
+                    pl_results['dppm'].append(np.nan)
+                    pl_results['dppm_err'].append(np.nan)
+                    if asymmetric is True:
+                        pl_results['dppm2'].append(np.nan)
+                        pl_results['dppm2_err'].append(np.nan)
+                # If not skipped, append median and 1-sigma bounds.
+                else:
+                    this_result = fit_results[wavebin].get_results_from_fit()
+                    if transit is True:
+                        md = this_result['rp_p{}_inst'.format(pl+1)]['median']
+                        up = this_result['rp_p{}_inst'.format(pl+1)]['up_1sigma']
+                        lw = this_result['rp_p{}_inst'.format(pl+1)]['low_1sigma']
+                        pl_results['dppm'].append((md**2) * 1e6)
+                        err_low = (md**2 - (md - lw)**2) * 1e6
+                        err_up = ((up + md)**2 - md**2) * 1e6
+                        # For asymmetric fits.
+                        if asymmetric is True:
+                            md = this_result['rp2_p{}_inst'.format(pl+1)]['median']
+                            up = this_result['rp2_p{}_inst'.format(pl+1)]['up_1sigma']
+                            lw = this_result['rp2_p{}_inst'.format(pl+1)]['low_1sigma']
+                            pl_results['dppm2'].append((md**2) * 1e6)
+                            err2_low = (md**2 - (md - lw)**2) * 1e6
+                            err2_up = ((up + md)**2 - md**2) * 1e6
+                    else:
+                        md = this_result['fp_p{}_inst'.format(pl+1)]['median']
+                        up = this_result['fp_p{}_inst'.format(pl+1)]['up_1sigma']
+                        lw = this_result['fp_p{}_inst'.format(pl+1)]['low_1sigma']
+                        pl_results['dppm'].append(md * 1e6)
+                        err_low = (md**2 - (md - lw)**2) * 1e6
+                        err_up = ((up + md)**2 - md**2) * 1e6
+                    pl_results['dppm_err'].append(np.max([err_up, err_low]))
                     # For asymmetric fits.
                     if asymmetric is True:
-                        md = this_result['rp2_p1_inst']['median']
-                        up = this_result['rp2_p1_inst']['up_1sigma']
-                        lw = this_result['rp2_p1_inst']['low_1sigma']
-                        order_results['dppm2'].append((md**2) * 1e6)
-                        err2_low = (md**2 - (md - lw)**2) * 1e6
-                        err2_up = ((up + md)**2 - md**2) * 1e6
-                else:
-                    md = this_result['fp_p1_inst']['median']
-                    up = this_result['fp_p1_inst']['up_1sigma']
-                    lw = this_result['fp_p1_inst']['low_1sigma']
-                    order_results['dppm'].append(md * 1e6)
-                    err_low = (md**2 - (md - lw)**2) * 1e6
-                    err_up = ((up + md)**2 - md**2) * 1e6
-                order_results['dppm_err'].append(np.max([err_up, err_low]))
-                # For asymmetric fits.
-                if asymmetric is True:
-                    order_results['dppm2_err'].append(np.max([err2_up, err2_low]))
+                        pl_results['dppm2_err'].append(np.max([err2_up, err2_low]))
 
-            # Summarize fits and make plots if necessary.
-            if skip is False:
-                # Get dictionary of best-fitting parameters from fit.
-                param_dict = fit_results[wavebin].get_param_dict_from_fit()
-                # Calculate best-fitting light curve model.
-                thislm, thisgp = None, None
-                if config['lm_file'] is not None:
-                    thislm = {'inst': data_dict[wavebin]['lm_parameters']}
-                if config['gp_file'] is not None:
-                    thisgp = {'inst': data_dict[wavebin]['GP_parameters']}
-                thislcmod = {'inst': {'p1': config['lc_model_type']}}
-                thislcfunc = {'inst': {'p1': custom_lc_function}}
-                result = model.LightCurveModel(
-                    input_parameters=param_dict,
-                    t={'inst': data_dict[wavebin]['times']},
-                    linear_regressors=thislm, gp_regressors=thisgp,
-                    observations={'inst': {'flux': data_dict[wavebin]['flux']}},
-                    ld_model=config['ld_model_type'], silent=True,
-                    lc_model_type=thislcmod, lc_model_functions=thislcfunc
-                )
-                result.compute_lightcurves()
-
-                # Plot transit model and residuals.
-                scatter = param_dict['sigma_inst']['value']
-                dists = np.array(config['dists'])
-                nfit = len(dists[dists != 'fixed'])
-                t0_loc = np.where(np.array(config['params']) == 't0_p1')[0][0]
-                if config['dists'][t0_loc] == 'fixed':
-                    t0 = config['values'][t0_loc]
-                else:
-                    t0 = param_dict['t0_p1']['value']
-
-                # Get systematics and transit models.
-                transit_model = result.flux['inst']
-                systematics = None
-                gp_model, lm_model = None, None
-                if config['lm_file'] is not None or config['gp_file'] is not None or use_parametric is True:
-                    systematics = np.zeros_like(transit_model)
+                # Summarize fits and make plots if necessary.
+                if skip is False and pl == 0:
+                    # Get dictionary of best-fitting parameters from fit.
+                    param_dict = fit_results[wavebin].get_param_dict_from_fit()
+                    # Calculate best-fitting light curve model.
+                    thislm, thisgp = None, None
                     if config['lm_file'] is not None:
-                        lm_model = result.flux_decomposed['inst']['lm']['total']
-                        systematics += lm_model
+                        thislm = {'inst': data_dict[wavebin]['lm_parameters']}
                     if config['gp_file'] is not None:
-                        gp_model = result.flux_decomposed['inst']['gp']['total']
-                        systematics += gp_model
-                    if use_parametric is True:
-                        parametric_model = result.flux_decomposed['inst']['parametric']['total']
-                        systematics += parametric_model
-
-                if config['do_plots'] is True:
-                    plotfile = outdir + 'speclightcurve{0}/{1}_bin{2}_FitResult.pdf'.format(
-                        fit_suffix, order_txt, i
+                        thisgp = {'inst': data_dict[wavebin]['GP_parameters']}
+                    lc_mod_dict = {}
+                    for pl2 in range(config['num_pl']):
+                        lc_mod_dict['p{}'.format(pl2+1)] = lc_model_types[pl2]
+                    thislcmod = {'inst': lc_mod_dict}
+                    result = model.LightCurveModel(
+                        input_parameters=param_dict,
+                        t={'inst': data_dict[wavebin]['times']},
+                        linear_regressors=thislm, gp_regressors=thisgp,
+                        observations={'inst': {'flux': data_dict[wavebin]['flux']}},
+                        ld_model=config['ld_model_type'], silent=True,
+                        lc_model_type=thislcmod
                     )
-                    make_lightcurve_plot(t=(t - t0) * 24, data=norm_flux[:, i], model=transit_model,
-                                         scatter=scatter, errors=norm_err[:, i],
-                                         outpdf=plotfile,
-                                         title='bin {0} | {1:.3f}µm'.format(i, wave[i]),
-                                         systematics=systematics, nfit=nfit, nbin=int(len(t) / 35))
-                    # Corner plot for fit.
-                    if config['include_corner'] is True:
-                        plotfile = outdir + 'speclightcurve{0}/{1}_bin{2}_Corner.pdf'.format(
-                            fit_suffix, order_txt, i
-                        )
-                        posterior_names = []
-                        for param in prior_dict[wavebin].keys():
-                            dist = prior_dict[wavebin][param]['distribution']
-                            if dist != 'fixed':
-                                if param in formatted_names.keys():
-                                    posterior_names.append(formatted_names[param])
-                                else:
-                                    posterior_names.append(param)
-                        fit_results[wavebin].make_corner_plot(labels=posterior_names,
-                                                              outpdf=plotfile)
+                    result.compute_lightcurves()
 
-                data[:, i] = norm_flux[:, i]
-                models[0, :, i] = transit_model
-                if systematics is not None:
-                    models[1, :, i] = systematics
-                if gp_model is not None:
-                    models[2, :, i] = gp_model
-                if use_parametric is True:
-                    models[3, :, i] = parametric_model
-                models[4, :, i] = norm_flux[:, i]
-                residuals[:, i] = norm_flux[:, i] - transit_model
+                    # Plot transit model and residuals.
+                    scatter = param_dict['sigma_inst']['value']
+                    dists = np.array(config['dists'])
+                    nfit = len(dists[dists != 'fixed'])
+                    t0_loc = np.where(np.array(config['params']) == 't0_p1')[0][0]
+                    if config['dists'][t0_loc] == 'fixed':
+                        t0 = config['values'][t0_loc]
+                    else:
+                        t0 = param_dict['t0_p1']['value']
 
-        results_dict['order {}'.format(order)] = order_results
+                    # Get systematics and transit models.
+                    transit_model = result.flux['inst']
+                    systematics = None
+                    gp_model, lm_model = None, None
+                    if config['lm_file'] is not None or config['gp_file'] is not None or use_parametric is True:
+                        systematics = np.zeros_like(transit_model)
+                        if config['lm_file'] is not None:
+                            lm_model = result.flux_decomposed['inst']['lm']['total']
+                            systematics += lm_model
+                        if config['gp_file'] is not None:
+                            gp_model = result.flux_decomposed['inst']['gp']['total']
+                            systematics += gp_model
+                        if use_parametric is True:
+                            parametric_model = result.flux_decomposed['inst']['parametric']['total']
+                            systematics += parametric_model
+
+                    if config['do_plots'] is True:
+                        plotfile = outdir + 'speclightcurve{0}/{1}_bin{2}_FitResult.pdf'.format(fit_suffix, order_txt, i)
+                        make_lightcurve_plot(t=(t - t0) * 24, data=norm_flux[:, i],
+                                             model=transit_model, scatter=scatter,
+                                             errors=norm_err[:, i], outpdf=plotfile,
+                                             title='bin {0} | {1:.3f}µm'.format(i, wave[i]),
+                                             systematics=systematics, nfit=nfit, nbin=int(len(t) / 35))
+                        # Corner plot for fit.
+                        if config['include_corner'] is True:
+                            plotfile = outdir + 'speclightcurve{0}/{1}_bin{2}_Corner.pdf'.format(fit_suffix, order_txt, i)
+                            posterior_names = []
+                            for param in prior_dict[wavebin].keys():
+                                dist = prior_dict[wavebin][param]['distribution']
+                                if dist != 'fixed':
+                                    if param in formatted_names.keys():
+                                        posterior_names.append(formatted_names[param])
+                                    else:
+                                        posterior_names.append(param)
+                            fit_results[wavebin].make_corner_plot(labels=posterior_names,
+                                                                  outpdf=plotfile)
+
+                    data[:, i] = norm_flux[:, i]
+                    models[0, :, i] = transit_model
+                    if systematics is not None:
+                        models[1, :, i] = systematics
+                    if gp_model is not None:
+                        models[2, :, i] = gp_model
+                    if use_parametric is True:
+                        models[3, :, i] = parametric_model
+                    models[4, :, i] = norm_flux[:, i]
+                    residuals[:, i] = norm_flux[:, i] - transit_model
+
+                order_dict['p{}'.format(pl+1)] = pl_results
+
+            results_dict['order {}'.format(order)] = order_dict
 
         # Save best-fitting light curve models.
         filename = outdir + 'speclightcurve{0}/_models_{1}.npy'.format(fit_suffix, order_txt)
@@ -529,78 +528,85 @@ def fit_lightcurves(config):
     fancyprint('Writing spectrum to file.')
     for order in ['1', '2']:
         if 'order ' + order not in results_dict.keys():
-            if asymmetric is True:
-                order_results = {'dppm': [], 'dppm_err': [],'dppm2': [], 'dppm2_err': [],
-                                 'wave': [], 'wave_err': []}
-            else:
-                order_results = {'dppm': [], 'dppm_err': [], 'wave': [], 'wave_err': []}
-            results_dict['order ' + order] = order_results
+            results_dict['order {}'.format(order)] = {}
+            for pl in range(config['num_pl']):
+                if asymmetric is True:
+                    order_results = {'dppm': [], 'dppm_err': [], 'dppm2': [], 'dppm2_err': [],
+                                     'wave': [], 'wave_err': []}
+                else:
+                    order_results = {'dppm': [], 'dppm_err': [], 'wave': [], 'wave_err': []}
+                results_dict['order {}'.format(order)]['p{}'.format(pl+1)] = order_results
 
-    # Concatenate transit depths, wavelengths, and associated errors from both orders.
-    depths = np.concatenate([results_dict['order 2']['dppm'], results_dict['order 1']['dppm']])
-    errors = np.concatenate([results_dict['order 2']['dppm_err'],
-                             results_dict['order 1']['dppm_err']])
-    waves = np.concatenate([results_dict['order 2']['wave'], results_dict['order 1']['wave']])
-    wave_errors = np.concatenate([results_dict['order 2']['wave_err'],
-                                  results_dict['order 1']['wave_err']])
-    orders = np.concatenate([2 * np.ones_like(results_dict['order 2']['dppm']),
-                             np.ones_like(results_dict['order 1']['dppm'])]).astype(int)
-    if asymmetric is True:
-        depths2 = np.concatenate([results_dict['order 2']['dppm2'],
-                                  results_dict['order 1']['dppm2']])
-        errors2 = np.concatenate([results_dict['order 2']['dppm2_err'],
-                                  results_dict['order 1']['dppm2_err']])
-    else:
-        depths2, errors2 = None, None
+    # Save spectra for each planet.
+    for pl in range(config['num_pl']):
+        pll = 'p{}'.format(pl+1)
+        # Concatenate transit depths, wavelengths, and associated errors from both orders.
+        depths = np.concatenate([results_dict['order 2'][pll]['dppm'],
+                                 results_dict['order 1'][pll]['dppm']])
+        errors = np.concatenate([results_dict['order 2'][pll]['dppm_err'],
+                                 results_dict['order 1'][pll]['dppm_err']])
+        waves = np.concatenate([results_dict['order 2'][pll]['wave'],
+                                results_dict['order 1'][pll]['wave']])
+        wave_errors = np.concatenate([results_dict['order 2'][pll]['wave_err'],
+                                      results_dict['order 1'][pll]['wave_err']])
+        orders = np.concatenate([2 * np.ones_like(results_dict['order 2'][pll]['dppm']),
+                                 np.ones_like(results_dict['order 1'][pll]['dppm'])]).astype(int)
+        if asymmetric is True:
+            depths2 = np.concatenate([results_dict['order 2'][pll]['dppm2'],
+                                      results_dict['order 1'][pll]['dppm2']])
+            errors2 = np.concatenate([results_dict['order 2'][pll]['dppm2_err'],
+                                      results_dict['order 1'][pll]['dppm2_err']])
+        else:
+            depths2, errors2 = None, None
 
-    # Get target/reduction metadata.
-    infile_header = fits.getheader(config['infile'], 0)
-    extract_type = infile_header['METHOD']
-    target = infile_header['TARGET'] + config['planet_letter']
-    if 'transit' in config['lc_model_type']:
-        spec_type = 'transmission'
-    else:
-        spec_type = 'emission'
-    inst = '_'
-    for chunk in config['observing_mode'].split('/'):
-        inst += '{}_'.format(chunk)
-    if config['observing_mode'][-1] == 'H':
-        inst += '{}_'.format(config['detector'])
-    filename = target + inst + spec_type + '_spectrum' + fit_suffix + '.csv'
-    # Get fit metadata.
-    # Include fixed parameter values.
-    fit_metadata = '#\n# Fit Metadata\n'
-    for param, dist, value in zip(config['params'], config['dists'], config['values']):
-        if dist == 'fixed':
-            try:
-                fit_metadata += '# {}: {}\n'.format(formatted_names[param], value)
-            except KeyError:
-                fit_metadata += '# {}: {}\n'.format(param, value)
-    # Append info on detrending via linear models or GPs.
-    if len(config['lm_parameters']) != 0:
-        fit_metadata += '# Linear Model: '
-        for i, param in enumerate(config['lm_parameters']):
-            if i == 0:
-                fit_metadata += param
-            else:
-                fit_metadata += ', {}'.format(param)
-        fit_metadata += '\n'
-    if config['gp_parameter'] != '':
-        fit_metadata += '# Gaussian Process: '
-        fit_metadata += config['gp_parameter']
-        fit_metadata += '\n'
-    fit_metadata += '#\n'
+        # Get target/reduction metadata.
+        infile_header = fits.getheader(config['infile'], 0)
+        extract_type = infile_header['METHOD']
+        target = infile_header['TARGET'] + pl_letters[pl]
+        if transit is True:
+            spec_type = 'transmission'
+        else:
+            spec_type = 'emission'
+        inst = '_'
+        for chunk in config['observing_mode'].split('/'):
+            inst += '{}_'.format(chunk)
+        if config['observing_mode'][-1] == 'H':
+            inst += '{}_'.format(config['detector'])
+        filename = target + inst + spec_type + '_spectrum' + fit_suffix + '.csv'
+        # Get fit metadata.
+        # Include fixed parameter values.
+        fit_metadata = '#\n# Fit Metadata\n'
+        for param, dist, value in zip(config['params'], config['dists'], config['values']):
+            if dist == 'fixed':
+                try:
+                    fit_metadata += '# {}: {}\n'.format(formatted_names[param], value)
+                except KeyError:
+                    fit_metadata += '# {}: {}\n'.format(param, value)
+        # Append info on detrending via linear models or GPs.
+        if len(config['lm_parameters']) != 0:
+            fit_metadata += '# Linear Model: '
+            for i, param in enumerate(config['lm_parameters']):
+                if i == 0:
+                    fit_metadata += param
+                else:
+                    fit_metadata += ', {}'.format(param)
+            fit_metadata += '\n'
+        if config['gp_parameter'] != '':
+            fit_metadata += '# Gaussian Process: '
+            fit_metadata += config['gp_parameter']
+            fit_metadata += '\n'
+        fit_metadata += '#\n'
 
-    # Save spectrum.
-    stage4.save_transmission_spectrum(wave=waves, wave_err=wave_errors, dppm=depths,
-                                      dppm_err=errors, order=orders, outdir=outdir,
-                                      filename=filename, target=target,
-                                      extraction_type=extract_type, resolution=config['res'],
-                                      fit_meta=fit_metadata,
-                                      occultation_type=config['lc_model_type'],
-                                      observing_mode=config['observing_mode'],
-                                      asymmetric=asymmetric, dppm2=depths2, dppm2_err=errors2)
-    fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir + filename))
+        # Save spectrum.
+        stage4.save_transmission_spectrum(wave=waves, wave_err=wave_errors, dppm=depths,
+                                          dppm_err=errors, order=orders, outdir=outdir,
+                                          filename=filename, target=target,
+                                          extraction_type=extract_type, resolution=config['res'],
+                                          fit_meta=fit_metadata,
+                                          occultation_type=lc_model_types[pl],
+                                          observing_mode=config['observing_mode'],
+                                          asymmetric=asymmetric, dppm2=depths2, dppm2_err=errors2)
+        fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir + filename))
 
     # === Covariance Matrix ===
     # Get the covariance matrix for the residuals.
