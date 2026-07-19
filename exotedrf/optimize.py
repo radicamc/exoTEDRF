@@ -1335,6 +1335,84 @@ def run_stage3_for_width(stage2_inputs, cfg, centroids, deepframe, extract_width
     )
 
 
+def select_best_trial(costs, param_name='parameter'):
+    """Return the index of the first finite minimum cost.
+
+    np.argmin returns the index of a NaN if one is present, so a failed trial
+    could otherwise be selected as the winner. Non-finite costs are skipped;
+    ties keep the earliest candidate.
+    """
+    best_idx = None
+    best_cost = None
+    for idx, cost in enumerate(costs):
+        cost = float(cost)
+        if not np.isfinite(cost):
+            continue
+        if best_idx is None or cost < best_cost:
+            best_idx, best_cost = idx, cost
+    if best_idx is None:
+        raise ValueError(f'All candidate values for {param_name} produced non-finite costs.')
+    return best_idx
+
+
+def delete_checkpoint_outputs(checkpoint_name, outdir_s1, outdir_s2):
+    """Delete a checkpoint step's cached outputs so the next pipeline call
+    recomputes that step (and, lazily, everything downstream of it)."""
+    patterns = []
+    if checkpoint_name == 'OneOverFStep_grp':
+        patterns.append(f"{outdir_s1}*_oneoverfstep.fits")
+    elif checkpoint_name == 'JumpStep':
+        patterns.append(f"{outdir_s1}*_jump.fits")
+    elif checkpoint_name == 'BackgroundStep':
+        patterns.append(f"{outdir_s2}*_backgroundstep.fits")
+    elif checkpoint_name == 'BadPixStep':
+        patterns.append(f"{outdir_s2}*_badpixstep.fits")
+        # Also delete cached hot_pixels.npy to force spatial outlier
+        # redetection with new parameters (space_thresh, box_size).
+        patterns.append(f"{outdir_s2}*hot_pixels.npy")
+    deleted = 0
+    for pattern in patterns:
+        files_to_delete = glob.glob(pattern)
+        if files_to_delete:
+            fancyprint(f"Deleting {len(files_to_delete)} cached file(s) for {checkpoint_name}:")
+        for cached_file in files_to_delete:
+            fancyprint(f"  Deleting: {cached_file}")
+            os.remove(cached_file)
+            deleted += 1
+    if patterns and deleted == 0:
+        fancyprint(f"WARNING: No cached files found matching: {patterns}", msg_type='WARNING')
+
+
+def stage1_kwargs_with_winners(run_cfg):
+    """Stage 1 kwargs with the current scalar time_window forwarded to JumpStep.
+
+    time_window was previously only forwarded while it was itself being swept,
+    so later sweeps and the Phase 2 run silently fell back to the step default
+    instead of the current best (or fixed) value.
+    """
+    kwargs = dict(run_cfg.get('stage1_kwargs') or {})
+    time_window = run_cfg.get('time_window')
+    if isinstance(time_window, (int, float, np.integer, np.floating)):
+        step_kwargs = dict(kwargs.get('JumpStep') or {})
+        step_kwargs['time_window'] = time_window
+        kwargs['JumpStep'] = step_kwargs
+    return kwargs
+
+
+def stage2_kwargs_with_winners(run_cfg):
+    """Stage 2 kwargs with current scalar box_size/window_size forwarded to
+    BadPixStep (same defect and fix as stage1_kwargs_with_winners)."""
+    kwargs = dict(run_cfg.get('stage2_kwargs') or {})
+    step_kwargs = dict(kwargs.get('BadPixStep') or {})
+    for key in ('box_size', 'window_size'):
+        value = run_cfg.get(key)
+        if isinstance(value, (int, float, np.integer, np.floating)):
+            step_kwargs[key] = value
+    if step_kwargs:
+        kwargs['BadPixStep'] = step_kwargs
+    return kwargs
+
+
 def run_ad_hoc_extract_width_search(stage2_inputs, cfg, centroids, deepframe, baseline_ints,
                                     wave_range, w1, w2, name_str, base_row_values):
     """Append an ad hoc Stage 3 extraction sweep to the optimizer logs."""
@@ -1392,7 +1470,7 @@ def run_ad_hoc_extract_width_search(stage2_inputs, cfg, centroids, deepframe, ba
         if best_stage3_results is None or cost <= np.nanmin(extract_costs):
             best_stage3_results = stage3_results
 
-    best_idx = int(np.argmin(extract_costs))
+    best_idx = select_best_trial(extract_costs, 'extract_width')
     best_extract_width = extract_widths[best_idx]
     best_cost = extract_costs[best_idx]
     best_row_idx = appended_rows[best_idx]
@@ -1833,34 +1911,7 @@ def main():
 
                 # Delete cached output for the optimization step to force rerun from that step
                 if not debug_mode:
-                    step_output_pattern = None
-                    if checkpoint['name'] == 'OneOverFStep_grp':
-                        step_output_pattern = f"{outdir_s1}*_oneoverfstep.fits"
-                    elif checkpoint['name'] == 'JumpStep':
-                        step_output_pattern = f"{outdir_s1}*_jump.fits"
-                    elif checkpoint['name'] == 'BackgroundStep':
-                        step_output_pattern = f"{outdir_s2}*_backgroundstep.fits"
-                    elif checkpoint['name'] == 'BadPixStep':
-                        step_output_pattern = f"{outdir_s2}*_badpixstep.fits"
-                        # Also delete cached hot_pixels.npy to force spatial outlier
-                        # redetection with new parameters (space_thresh, box_size).
-                        hotpix_pattern = f"{outdir_s2}*hot_pixels.npy"
-                        hotpix_files = glob.glob(hotpix_pattern)
-                        if hotpix_files:
-                            fancyprint(f"Deleting {len(hotpix_files)} cached hot_pixels file(s):")
-                            for hf in hotpix_files:
-                                fancyprint(f"  Deleting: {hf}")
-                                os.remove(hf)
-
-                    if step_output_pattern:
-                        files_to_delete = glob.glob(step_output_pattern)
-                        if files_to_delete:
-                            fancyprint(f"Deleting {len(files_to_delete)} cached file(s) for {checkpoint['name']}:")
-                            for cached_file in files_to_delete:
-                                fancyprint(f"  Deleting: {cached_file}")
-                                os.remove(cached_file)
-                        else:
-                            fancyprint(f"WARNING: No cached files found matching: {step_output_pattern}", msg_type='WARNING')
+                    delete_checkpoint_outputs(checkpoint['name'], outdir_s1, outdir_s2)
 
                 # run pipeline up to (including this step)
                 if checkpoint['stage'] == 1:
@@ -1878,12 +1929,9 @@ def main():
                             else:
                                 skip_list.append(step)
 
-                    # Pass time_window parameter to JumpStep if optimizing it
-                    s1_kwargs = run_cfg.get('stage1_kwargs', {}).copy()
-                    if checkpoint['name'] == 'JumpStep' and param_name == 'time_window':
-                        if 'JumpStep' not in s1_kwargs:
-                            s1_kwargs['JumpStep'] = {}
-                        s1_kwargs['JumpStep']['time_window'] = param_value
+                    # Forward the current time_window (candidate while sweeping it,
+                    # winner/fixed value otherwise) to JumpStep.
+                    s1_kwargs = stage1_kwargs_with_winners(run_cfg)
 
                     # Run Stage 1 with force_redo=False (deleted file will trigger rerun from that step)
                     stage1_results = run_stage1(
@@ -1967,7 +2015,7 @@ def main():
                         inl_amplitude_file=run_cfg.get('inl_amplitude_file'),
                         inl_periods=run_cfg.get('inl_periods'),
 
-                        **run_cfg.get('stage1_kwargs', {})
+                        **stage1_kwargs_with_winners(run_cfg)
                     )
 
                     # Build skip list for Stage 2
@@ -1984,15 +2032,9 @@ def main():
                             else:
                                 skip_list.append(step)
 
-                    # Pass step-specific parameters if optimizing them
-                    s2_kwargs = run_cfg.get('stage2_kwargs', {}).copy()
-                    if checkpoint['name'] == 'BadPixStep':
-                        if 'BadPixStep' not in s2_kwargs:
-                            s2_kwargs['BadPixStep'] = {}
-                        if param_name == 'box_size':
-                            s2_kwargs['BadPixStep']['box_size'] = param_value
-                        if param_name == 'window_size':
-                            s2_kwargs['BadPixStep']['window_size'] = param_value
+                    # Forward the current box_size/window_size (candidate while
+                    # sweeping them, winner/fixed values otherwise) to BadPixStep.
+                    s2_kwargs = stage2_kwargs_with_winners(run_cfg)
 
                     # Run Stage 2 with force_redo=False
                     # The deleted cached file will trigger rerun from that step onward
@@ -2074,7 +2116,7 @@ def main():
                         inl_amplitude_file=run_cfg.get('inl_amplitude_file'),
                         inl_periods=run_cfg.get('inl_periods'),
 
-                        **run_cfg.get('stage1_kwargs', {})
+                        **stage1_kwargs_with_winners(run_cfg)
                     )
 
                     # Build skip list for Stage 2 based on user config
@@ -2117,7 +2159,7 @@ def main():
                         miri_background_width=run_cfg.get('miri_background_width'),
                         miri_background_method=run_cfg.get('miri_background_method'),
                         pipeline_outputs_directory=base_outdir,
-                        **run_cfg.get('stage2_kwargs', {})
+                        **stage2_kwargs_with_winners(run_cfg)
                     )
 
                     datafile = stage2_results[0]
@@ -2174,13 +2216,20 @@ def main():
                 logs.write(f"{scatter_line}\n")
                 logs.flush()
 
-            # Find best value for this parameter
-            best_idx = np.argmin(costs)
+            # Find best value for this parameter (non-finite costs cannot win)
+            best_idx = select_best_trial(costs, param_name)
             best_value = param_values[best_idx]
             best_cost = costs[best_idx]
 
             current_best[param_name] = best_value
             fancyprint(f"\n*** Best {param_name}={best_value} with cost={best_cost:.6f} ***\n")
+
+            # The cached step outputs on disk belong to the LAST value tested,
+            # not necessarily the winner. Delete them so the next pipeline call
+            # (the following sweep, or Phase 2) regenerates this checkpoint --
+            # and, lazily, its downstream caches -- with the winning value.
+            if not debug_mode and best_idx != len(param_values) - 1:
+                delete_checkpoint_outputs(checkpoint['name'], outdir_s1, outdir_s2)
 
     logf.close()
     logs.close()
@@ -2246,7 +2295,7 @@ def main():
         inl_amplitude_file=final_cfg.get('inl_amplitude_file'),
         inl_periods=final_cfg.get('inl_periods'),
 
-        **final_cfg.get('stage1_kwargs', {})
+        **stage1_kwargs_with_winners(final_cfg)
     )
 
     # Build skip list for Stage 2
@@ -2292,7 +2341,7 @@ def main():
         miri_background_width=final_cfg.get('miri_background_width'),
         miri_background_method=final_cfg.get('miri_background_method'),
         pipeline_outputs_directory=base_outdir,
-        **final_cfg.get('stage2_kwargs', {})
+        **stage2_kwargs_with_winners(final_cfg)
     )
 
     # new_stage2.run_stage2 now returns (results, deepframe), not centroids.
@@ -2379,8 +2428,8 @@ def main():
             logs.write(f"{scatter_line}\n")
             logs.flush()
 
-        # Select best extract_width
-        best_width_idx = np.argmin(extract_costs)
+        # Select best extract_width (non-finite costs cannot win)
+        best_width_idx = select_best_trial(extract_costs, 'extract_width')
         best_extract_width = extract_widths[best_width_idx]
         best_extract_cost = extract_costs[best_width_idx]
 
