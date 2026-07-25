@@ -36,6 +36,45 @@ def _parse_width(width):
     return float(lower_width), float(upper_width)
 
 
+def last_scoreable_group(dq):
+    """Index of the last group that still has usable pixels.
+
+    Optimizer trials taken before RampFit are scored on a single group of the
+    ramp, with every DQ-flagged pixel NaN-ed out. Normally that is the final
+    group, but a group whose DQ is set for EVERY pixel leaves nothing to
+    extract: the aperture is entirely NaN and `cost_function` returns NaN for
+    both its terms, so the whole sweep collapses.
+
+    MIRI hits this on every exposure, because DQInitStep flags the first and
+    last MIRI group DO_NOT_USE (stage1.py, flag_first/last_miri_frame). Only
+    the stage-1 checkpoints score a 4D product, so for MIRI this silently
+    disabled the `time_jump_threshold` and `time_window` sweeps.
+
+    Walking back to the last group that is not fully flagged restores a
+    meaningful comparison and is a no-op for SOSS/NIRSpec, whose final group
+    is not flagged wholesale.
+
+    Parameters
+    dq : array
+        4D group DQ cube, (nint, ngroup, y, x).
+
+    Returns
+    group : int
+        Group index to mask and score. Falls back to -1 if every group is
+        fully flagged.
+    """
+    ngroup = dq.shape[1]
+    for group in range(ngroup - 1, -1, -1):
+        if not np.all(dq[:, group] > 0):
+            if group != ngroup - 1:
+                fancyprint(f'  Final group is fully DQ-flagged; scoring group '
+                           f'{group} of {ngroup} instead.')
+            return group
+    fancyprint('  Every group is fully DQ-flagged; scoring the final group, '
+               'which will yield a non-finite cost.', msg_type='WARNING')
+    return -1
+
+
 def apply_dq_flags(datafiles):
     """
     Load data and apply DQ flags by NaN-ing out bad pixels.
@@ -49,8 +88,12 @@ def apply_dq_flags(datafiles):
         Flux with bad pixels as NaN
     is_4d : bool
         True if pre-RampFit (4D), False if post (3D)
+    group : int
+        For 4D input, the group whose DQ was used for the mask and which the
+        caller must therefore score (see last_scoreable_group). -1 for 3D.
     """
     datafiles = np.atleast_1d(datafiles)
+    group = None
 
     # get flux and DQ (errors not needed for optimization)
     for i, file in enumerate(datafiles):
@@ -81,9 +124,21 @@ def apply_dq_flags(datafiles):
                     dq = np.transpose(dq, (3, 2, 1, 0))
                     fancyprint(f'  After transpose: dq.shape={dq.shape}')
 
-                # take last group for mask
-                dq_for_mask = dq[:, -1, :, :]
-                fancyprint(f'  Took last group: dq_for_mask.shape={dq_for_mask.shape}')
+                # Take the last group that still has usable pixels for the
+                # mask. This is the final group except where DQ flags an
+                # entire group (MIRI's first/last frame), which would leave
+                # nothing to extract and make every trial cost NaN.
+                segment_group = last_scoreable_group(dq)
+                if group is None:
+                    group = segment_group
+                elif segment_group != group:
+                    fancyprint(f'  Segment {i} would score group '
+                               f'{segment_group} but segment 0 scored group '
+                               f'{group}; keeping group {group} so all '
+                               'segments are comparable.',
+                               msg_type='WARNING')
+                dq_for_mask = dq[:, group, :, :]
+                fancyprint(f'  Took group {group}: dq_for_mask.shape={dq_for_mask.shape}')
 
                 # boolean mask - anything non-zero flag is bad
                 bad_pixels = (dq_for_mask > 0).astype(bool)
@@ -135,7 +190,8 @@ def apply_dq_flags(datafiles):
         else:
             cube = np.concatenate([cube, data])
 
-    return cube, is_4d
+    # 3D input (or 4D input with no DQ at all) keeps the historical -1.
+    return cube, is_4d, (-1 if group is None else group)
 
 
 def do_box_extraction_nanaware(cube, ypos, width, extract_start=0, extract_end=None, progress=True):
@@ -255,13 +311,15 @@ def extract_at_step(datafile, instrument, extract_width, centroids, baseline_int
 
     # load with flags applied
     fancyprint(f'  Loading data with DQ flags...')
-    cube, is_4d = apply_dq_flags([datafile])
+    cube, is_4d, group = apply_dq_flags([datafile])
     fancyprint(f'  Loaded: cube.shape={cube.shape}, is_4d={is_4d}')
 
-    # convert 4D to 3D if needed
+    # convert 4D to 3D if needed. Score the same group apply_dq_flags built
+    # the mask from, so a wholly-flagged final group (MIRI) does not leave an
+    # all-NaN image behind.
     if is_4d:
-        fancyprint(f'  4D data detected: {cube.shape} -> taking last group')
-        cube = cube[:, -1, :, :]
+        fancyprint(f'  4D data detected: {cube.shape} -> taking group {group}')
+        cube = cube[:, group, :, :]
         fancyprint(f'  Now 3D: cube.shape={cube.shape}')
 
     assert cube.ndim == 3, f"Expected 3D after conversion, got {cube.ndim}D with shape {cube.shape}"
@@ -272,7 +330,9 @@ def extract_at_step(datafile, instrument, extract_width, centroids, baseline_int
         centroids = {}
         deepstack = utils.make_baseline_stack_general(datafiles=[datafile], baseline_ints=baseline_ints)
         if np.ndim(deepstack) == 3:
-            deepstack = deepstack[-1]
+            # Trace the same group that is being scored (identical to the old
+            # behaviour whenever the final group is usable).
+            deepstack = deepstack[group]
 
         if instrument == 'NIRISS':
             from jwst.pipeline import calwebb_spec2
