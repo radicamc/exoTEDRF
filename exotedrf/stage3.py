@@ -1361,34 +1361,6 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
     if st_teff is not None or st_logg is not None or st_met is not None:
         fancyprint('Wavelength calibration not implemented for MIRI.', msg_type='WARNING')
         fancyprint('Using the default wavelength solution.', msg_type='WARNING')
-    # Remove any NaN pixels --- important for NIRSpec NRS1.
-    # ii = np.where(np.isfinite(wave1d))[0]
-    # wave1d_trim = wave1d[ii]
-
-    # Now cross-correlate with stellar model --- skip for MIRI for now.
-    # if None in [st_teff, st_logg, st_met]:
-    #     fancyprint('Stellar parameters not provided. Using default wavelength solution.',
-    #                msg_type='WARNING')
-    # else:
-    #     fancyprint('Refining the wavelength calibration.')
-    #     # Create a grid of stellar parameters, and download PHOENIX spectra for each grid point.
-    #     thisout = output_dir + 'phoenix_models'
-    #     utils.verify_path(thisout)
-    #     res = utils.download_stellar_spectra(st_teff, st_logg, st_met, outdir=thisout)
-    #     wave_file, flux_files = res
-    #     # Interpolate model grid to correct stellar parameters.
-    #     # Reverse direction of both arrays since SOSS is extracted red to blue.
-    #     mod_flux = utils.interpolate_stellar_model_grid(flux_files, st_teff, st_logg, st_met)
-    #     mod_wave = fits.getdata(wave_file) / 1e4
-    #
-    #     # Bin model down to data wavelengths.
-    #     mod_flux = spectres.spectres(wave1d_trim, mod_wave, mod_flux)
-    #
-    #     # Cross-correlate extracted spectrum with model to refine wavelength calibration.
-    #     x1d_flux = np.nansum(flux, axis=0)[ii]
-    #     wave_shift = do_ccf(wave1d_trim, x1d_flux, mod_flux, oversample=1)
-    #     fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
-    #     wave1d += wave_shift
 
     # Clip remaining 3-sigma outliers.
     flux_clip = utils.sigma_clip_lightcurves(flux, window=11, thresh=3)
