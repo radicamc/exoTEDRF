@@ -5,6 +5,13 @@ exoTEDRF: the EXOplanet Transit and Eclipse Data Reduction Framework!
 
 **exoTEDRF** (formerly supreme-SPOON) is an end-to-end pipeline for JWST exoplanet time series observations.
 
+.. attention::
+    There is a known package dependency conflict (with numpy and stdatamodels) affecting the installation of exoTEDRF.
+
+    This causes pip to fall back on v2.3.1 which will trigger additional errors when trying to use pipeline functionalities which did not exist yet at that time.
+
+    In the mean time, a workaround is to install from GitHub as outlined `here <https://github.com/radicamc/exoTEDRF/issues/58>`_. This will allow 2.4.X versions of exoTEDRF to be installed properly.
+
 Data analysis is a challenging process that is encountered by all observational studies. Ensuring that the resulting
 atmosphere spectra are robust against particular choices made in the reduction process is critical, especially as we push to characterize the atmospheres of small rocky planets.
 The modularity and tunability of **exoTEDRF** make it easy to run multiple reductions of a given dataset, and therefore robustly ascertain whether the spectral features driving atmosphere inferences are robust, or sensitive to the peculiarities of a given reduction.
