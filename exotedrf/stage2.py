@@ -687,8 +687,8 @@ class BadPixStep:
         # Get instrument.
         self.instrument = utils.get_instrument_name(self.datafiles[0])
 
-    def run(self, space_thresh=15, time_thresh=10, box_size=5, window_size=5, save_results=True,
-            force_redo=False, do_plot=False, show_plot=False):
+    def run(self, space_thresh=15, time_thresh=10, box_size=5, window_size=5, median_high_variance=False,
+            save_results=True, force_redo=False, do_plot=False, show_plot=False):
         """Method to run the step.
 
         Parameters
@@ -701,6 +701,9 @@ class BadPixStep:
             Size of box around each pixel to test for spatial outliers.
         window_size : int
             Size of temporal window around each pixel to text for deviations. Must be odd.
+        median_high_variance : bool
+            If True, set residual high-variance pixels to the stack median. Should be avoided in
+            datasets with massive saturation.
         save_results : bool
             If True, save results.
         force_redo : bool
@@ -749,7 +752,8 @@ class BadPixStep:
                                           save_results=save_results, fileroot=self.fileroots[i],
                                           space_thresh=space_thresh, time_thresh=time_thresh,
                                           box_size=box_size, window_size=window_size,
-                                          do_plot=do_plot, show_plot=show_plot, to_flag=to_flag)
+                                          do_plot=do_plot, show_plot=show_plot, to_flag=to_flag,
+                                          median_high_variance=median_high_variance)
                 res, to_flag = step_results
             results.append(res)
 
@@ -1148,7 +1152,7 @@ def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', 
 
 def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5, window_size=5,
                output_dir='./', save_results=True, fileroot=None, do_plot=False, show_plot=False,
-               to_flag=None):
+               to_flag=None, median_high_variance=False):
     """Identify and correct outlier pixels remaining in the dataset, using both a spatial and
     temporal approach. First, find spatial outlier pixels in the median stack and correct them in
     each integration via the median of a box of surrounding pixels. Then flag outlier pixels in the
@@ -1181,6 +1185,9 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
         If True, show the step diagnostic plot instead of/in addition to saving it to file.
     to_flag : array-like(int)
         Map of pixels to interpolate.
+    median_high_variance : bool
+        If True, set residual high-variance pixels to the stack median. Should be avoided in
+        datasets with massive saturation.
 
     Returns
     -------
@@ -1278,10 +1285,9 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
                         otherpix[j, i] = 1
 
         # Combine all flagged pixel maps.
-        badpix = (hotpix.astype(bool) | nanpix.astype(bool) |
-                  otherpix.astype(bool))
+        badpix = (hotpix.astype(bool) | nanpix.astype(bool) | otherpix.astype(bool))
         badpix = badpix.astype(int)
-        fancyprint('{0} hot, {1} nan, and {2} deviant pixels identified.'
+        fancyprint('{0} DQ flagged, {1} nan, and {2} deviant pixels identified.'
                    .format(int(np.sum(hotpix)), int(np.sum(nanpix)), int(np.sum(otherpix))))
 
     # If a bad pixel map is passed, just use that.
@@ -1292,33 +1298,72 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
     # Replace the flagged pixels in each integration.
     fancyprint('Doing pixel replacement...')
     for i in tqdm(range(nint)):
-        newdata[i], thisdq = utils.do_replacement(newdata[i], badpix, dq=np.ones_like(newdata[i]),
-                                                  xbox_size=xbox_size, ybox_size=ybox_size)
-        # Set DQ flags for these pixels to zero (use the pixel).
-        thisdq = ~thisdq.astype(bool)
-        newdq[:, thisdq] = 0
+        newdata[i] = utils.do_replacement(newdata[i], badpix, dq=np.ones_like(newdata[i]),
+                                          xbox_size=xbox_size, ybox_size=ybox_size)[0]
 
     # ===== Temporal Outlier Flagging =====
     fancyprint('Starting temporal outlier flagging...')
-    # Median filter the data.
-    cube_filt = median_filter(newdata, (window_size, 1, 1))
-    if instrument == 'NIRISS':
-        cube_filt[:2] = np.median(cube_filt[2:7], axis=0)
-        cube_filt[-2:] = np.median(cube_filt[-8:-3], axis=0)
-    else:
-        cube_filt[:5] = np.median(cube_filt[5:15], axis=0)
-        cube_filt[-5:] = np.median(cube_filt[-16:-6], axis=0)
-    # Check along the time axis for outlier pixels.
-    std_dev = bn.nanmedian(np.abs(0.5*(newdata[0:-2] + newdata[2:]) - newdata[1:-1]), axis=0)
-    std_dev = np.where(std_dev == 0, np.nanmedian(std_dev), std_dev)
-    scale = np.abs(newdata - cube_filt) / std_dev
-    ii = np.where((scale > time_thresh))
-    fancyprint('{} outliers detected.'.format(len(ii[0])))
-    # Replace the flagged pixels in each integration.
-    fancyprint('Doing pixel replacement...')
-    newdata[ii] = cube_filt[ii]
-    newdq[ii] = 0
+    for niter in range(2):
+        # Median filter the data.
+        cube_filt = median_filter(newdata, (window_size, 1, 1))
 
+        if instrument == 'NIRISS':
+            cube_filt[:2] = np.median(cube_filt[2:7], axis=0)
+            cube_filt[-2:] = np.median(cube_filt[-8:-3], axis=0)
+        else:
+            cube_filt[:5] = np.median(cube_filt[5:15], axis=0)
+            cube_filt[-5:] = np.median(cube_filt[-16:-6], axis=0)
+        # Check along the time axis for outlier pixels.
+        # Calculate standard deviation along the time axis.
+        if niter == 0:
+            std_dev = bn.nanmedian(np.abs(0.5*(newdata[0:-2] + newdata[2:]) - newdata[1:-1]), axis=0)
+        else:
+            # Don't ask why.
+            std_dev = np.nanstd(newdata, axis=0)
+        std_dev = np.where(std_dev == 0, np.nanmedian(std_dev), std_dev)
+        # Interpolate massive outliers in std dev. This can happen for saturated, DNU pixels, etc.
+        # Use the same procedure as spatial pixel flagging.
+        std_flags = np.zeros_like(std_dev)
+        # Loop over std dev frame and flag deviant pixels.
+        for i in range(5, dimx - 5):
+            for j in range(ymax):
+                xbox_size_i = box_size
+                box_prop = utils.get_interp_box(std_dev, xbox_size_i, ybox_size, i, j)
+                # Ensure that the median and std dev extracted are good.
+                # If not, increase the box size until they are.
+                while np.any(np.isnan(box_prop)):
+                    xbox_size_i += 1
+                    box_prop = utils.get_interp_box(std_dev, xbox_size_i, ybox_size, i, j)
+                med, std = box_prop[0], box_prop[1]
+
+                # If pixel is too deviant flag it.
+                if np.abs(std_dev[j, i] - med) >= (space_thresh * std):
+                    std_flags[j, i] = 1
+        std_dev = utils.do_replacement(std_dev, std_flags, dq=np.ones_like(std_dev),
+                                       xbox_size=xbox_size, ybox_size=ybox_size)[0]
+        # Do pixel flagging and replacement.
+        if niter == 0:
+            # First time around do normal replacement of deviant pixels with the surrounding median.
+            # Subtract filtered cube and normalize by std dev.
+            scale = np.abs(newdata - cube_filt) / std_dev
+            ii = np.where((scale > time_thresh))
+            fancyprint('{} outliers detected.'.format(len(ii[0])))
+            # Replace the flagged pixels in each integration.
+            fancyprint('Doing pixel replacement...')
+            newdata[ii] = cube_filt[ii]
+        else:
+            # Second time is to catch remaining high-variance pixels (likely saturated). that
+            # escape the above correction. Just replce them with the deepstack value.
+            # This shouldn't be a problem for isolated pixels, but should be avoided if there is
+            # e.g., massive saturation in the dataset.
+            fancyprint('{} remaining high-variance pixels detected.'.format(int(np.nansum(std_flags))))
+            stack = bn.nanmedian(newdata, axis=0)
+            newdq[:, std_flags.astype(bool)] += 2**32  # Add a DQ flag.
+            if median_high_variance is True:
+                fancyprint('Doing pixel replacement...')
+                newdata[:, std_flags.astype(bool)] = stack[std_flags.astype(bool)]
+
+    # ===== Final Checks =====
     # Lastly, do a final check for any remaining invalid flux or error values.
     ii = np.where(np.isnan(newdata))
     newdata[ii] = cube_filt[ii]
