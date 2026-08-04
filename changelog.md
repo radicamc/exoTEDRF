@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ### [X.X.X] -- 20XX-XX-XX
 #### Added
 - New SOSS-only Stage 1 pipeline step to correct the ADC INL effect identified by Dholakia et al. (2026).
+- DQ report extansion added to all optimal or box extraction Stage 3 products.
 
 ### [2.4.3] -- 2026-05-29
 #### Added
