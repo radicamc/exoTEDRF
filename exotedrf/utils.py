@@ -1737,7 +1737,7 @@ def scatter_normalize_cube(cube, window=5):
     return scale, cube_filt
 
 
-def sigma_clip_lightcurves(flux, thresh=5, window=5):
+def sigma_clip_lightcurves(flux, thresh=10, window=10):
     """Sigma clip outliers in time from final lightcurves.
 
     Parameters
@@ -1757,6 +1757,41 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
 
     flux_clipped = np.copy(flux)
     nints, nwaves = np.shape(flux)
+
+    # First find and interpolate remaining high variance channels.
+    # Get sactter in each wavelength channel.
+    scatter = np.nanmedian(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)
+    scatter = np.where(scatter == 0, np.inf, scatter)
+    scatter_filt = median_filter(scatter, window)
+    diff = scatter - scatter_filt
+    std_dev = np.nanmedian(np.abs(0.5 * (diff[0:-2] + diff[2:]) - diff[1:-1]), axis=0)
+    # Find channels with larger than expected scatter.
+    ii = np.where(np.abs(diff) / std_dev >= thresh)[0]
+
+    # Interpolate or mask these channels.
+    # TODO: add to pixel report.
+    chunks = np.split(ii, np.where(np.diff(ii) != 1)[0] + 1)
+    interp_count, mask_count = 0, 0
+    for chunk in chunks:
+        low = np.nanmax([np.nanmin(chunk) - 1, 0])
+        up = np.nanmin([np.nanmax(chunk) + 1, nwaves])
+        ll = len(chunk)
+        # If chunks are small, linearly interpolate them.
+        if ll < 10:
+            w = 1 / (ll + 1)
+            for i in range(ll):
+                flux_clipped[:, chunk[i]] = np.average([flux[:, low], flux[:, up]],
+                                                       weights=[w*(i+1), 1-w*(i+1)], axis=0)
+                interp_count += 1
+        # If large, mask them.
+        else:
+            for i in range(ll):
+                flux_clipped[:, chunk[i]] = np.nan
+                mask_count += 1
+
+    fancyprint('{0} channels interplated and {1} masked.'.format(interp_count, mask_count))
+
+    # Now clip individual pixels.
     flux_filt = median_filter(flux, (window, 1))
     ii = window // 2
     flux_filt[:ii] = np.median(flux_filt[ii:(ii+window)], axis=0)
@@ -1770,7 +1805,7 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
     # Replace outliers.
     flux_clipped[ii] = flux_filt[ii]
 
-    fancyprint('{0} pixels clipped ({1:.3f}%)'.format(len(ii[0]), len(ii[0])/nints/nwaves*100))
+    fancyprint('{0} pixels clipped ({1:.3f}%).'.format(len(ii[0]), len(ii[0])/nints/nwaves*100))
 
     return flux_clipped
 

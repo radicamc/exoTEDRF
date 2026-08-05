@@ -1243,7 +1243,7 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
     #     wave1d += wave_shift
 
     # Clip remaining 3-sigma outliers.
-    flux_clip = utils.sigma_clip_lightcurves(flux, window=11, thresh=3)
+    flux_clip = utils.sigma_clip_lightcurves(flux, window=10, thresh=10)
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
@@ -1339,8 +1339,8 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
         fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
         wave1d += wave_shift
 
-    # Clip remaining 3-sigma outliers.
-    flux_clip = utils.sigma_clip_lightcurves(flux, window=11, thresh=3)
+    # Clip remaining outliers.
+    flux_clip = utils.sigma_clip_lightcurves(flux, window=10, thresh=10)
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
@@ -1495,8 +1495,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     ferr_o2 = ferr_o2[:, ::-1]
 
     # Clip remaining 5-sigma outliers.
-    flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1)
-    flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2)
+    flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1, thresh=10, window=10)
+    flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2, thresh=10, window=10)
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
