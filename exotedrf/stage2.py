@@ -1598,7 +1598,7 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_
     cube2[ii] = med
 
     # Do PCA.
-    pca = PCA(n_components=n_components)
+    pca = PCA(n_components=n_components, svd_solver="arpack")
     pca.fit(cube2.transpose())
 
     # Get PCA results.
@@ -1607,11 +1607,11 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_
 
     # Reproject PCs onto data.
     projection = pca.transform(cube2.transpose())
-    projection = np.reshape(projection, (dimy, dimx, n_components))
 
     if do_plot is True:
         # Do plot.
-        plotting.make_pca_plot(pcs, var, projection.transpose(2, 0, 1), outfile=outfile,
+        projection_plot = np.reshape(projection, (dimy, dimx, n_components))
+        plotting.make_pca_plot(pcs, var, projection_plot.transpose(2, 0, 1), outfile=outfile,
                                show_plot=show_plot)
 
     # Reconstruct input data using extracted PCs.
