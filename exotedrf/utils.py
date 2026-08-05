@@ -395,7 +395,8 @@ def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_f
         outfile.write('# File Contents: Edgetrigger trace centroids\n')
         outfile.write('# File Creation Date: {}\n'.format(
             datetime.utcnow().replace(microsecond=0).isoformat()))
-        outfile.write('# File Author: MCR\n')
+        username = os.environ.get('USER') or os.environ.get('USERNAME')
+        outfile.write('# File Author: {}\n'.format(username))
         df.to_csv(outfile, index=False)
         outfile.close()
         fancyprint('Centroids saved to {}'.format(outfile_name))
@@ -452,7 +453,8 @@ def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
         outfile.write('# File Contents: Edgetrigger trace centroids\n')
         outfile.write('# File Creation Date: {}\n'.format(
             datetime.utcnow().replace(microsecond=0).isoformat()))
-        outfile.write('# File Author: MCR\n')
+        username = os.environ.get('USER') or os.environ.get('USERNAME')
+        outfile.write('# File Author: {}\n'.format(username))
         df.to_csv(outfile, index=False)
         outfile.close()
         fancyprint('Centroids saved to {}'.format(outfile_name))
@@ -528,7 +530,8 @@ def get_centroids_soss(deepframe, tracetable, subarray, save_results=True, save_
         outfile.write('# File Contents: Edgetrigger trace centroids\n')
         outfile.write('# File Creation Date: {}\n'.format(
             datetime.utcnow().replace(microsecond=0).isoformat()))
-        outfile.write('# File Author: MCR\n')
+        username = os.environ.get('USER') or os.environ.get('USERNAME')
+        outfile.write('# File Author: {}\n'.format(username))
         df.to_csv(outfile, index=False)
         outfile.close()
         fancyprint('Centroids saved to {}'.format(outfile_name))
@@ -556,7 +559,7 @@ def get_default_header():
                    'Inst': 'NIRISS/SOSS',
                    'Date': (datetime.utcnow().replace(microsecond=0).isoformat()),
                    'Pipeline': 'exoTEDRF',
-                   'Author': 'MCR',
+                   'Author': os.environ.get('USER') or os.environ.get('USERNAME'),
                    'Contents': None,
                    'Method': 'Box Extraction',
                    'Width': 25}
