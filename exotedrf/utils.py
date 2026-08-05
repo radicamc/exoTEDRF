@@ -960,6 +960,36 @@ def get_soss_tracetable(subarray, outdir):
     return tracetable
 
 
+def get_soss_wavemap(subarray, outdir):
+    """Download the appropriate wavemap reference file for SOSS.
+
+    Parameters
+    ----------
+    subarray : str
+        SOSS subarray identifier.
+    outdir : str
+        Directory to which to save file.
+
+    Returns
+    -------
+    wavemap : str
+        Path to wavemap reference file.
+    """
+
+    # Get the correct wavemap file for the subarray being used.
+    if subarray == 'SUBSTRIP96':
+        filename = 'jwst_niriss_wavemap_0020.fits'
+    else:
+        filename = 'jwst_niriss_wavemap_0022.fits'
+    # Files hosted on GitHub,
+    url = 'https://raw.githubusercontent.com/radicamc/exoTEDRF/main/files/'
+    # Download the reference file.
+    download_ref_file(filename, url, outdir)
+    wavemap = outdir + filename
+
+    return wavemap
+
+
 def get_stellar_param_grid(st_teff, st_logg, st_met):
     """Given a set of stellar parameters, determine the neighbouring grid points based on the
     PHOENIX grid steps.

@@ -13,7 +13,7 @@ import glob
 import numpy as np
 import os
 import pandas as pd
-import pastasoss
+# import pastasoss  # removing for now due to numpy version inconsistency with jwst v3.0.0
 from scipy.ndimage import median_filter
 from scipy.signal import butter, filtfilt, correlate
 import spectres
@@ -376,8 +376,7 @@ def specprofilestep(datafiles, empirical=True, output_dir='./'):
     outdir = os.environ['CRDS_PATH'] + '/references/jwst/niriss/'
     tracetable = utils.get_soss_tracetable(subarray, outdir)
     # Get the most up to date 2D wavemap file.
-    step = calwebb_spec2.extract_1d_step.Extract1dStep()
-    wavemap = step.get_reference_file(datafiles[0], 'wavemap')
+    wavemap = utils.get_soss_wavemap(subarray, outdir)
 
     # Create a new deepstack but using all integrations, not just the baseline.
     for i, file in enumerate(datafiles):
@@ -815,7 +814,8 @@ def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_pl
             flux_o1, ferr_o1 = do_box_extraction(cube, ecube, y, width=width)
 
     # Get default wavelength solution.
-    wave_o1, wave_o2 = get_wave_soss(datafiles[0])
+    outdir = os.environ['CRDS_PATH'] + '/references/jwst/niriss/'
+    wave_o1, wave_o2 = get_wave_soss(datafiles[0], outdir)
 
     return wave_o1, flux_o1, ferr_o1, wave_o2, flux_o2, ferr_o2, soss_width
 
@@ -1474,21 +1474,24 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
 
     # Refine wavelength solution.
     if use_pastasoss is True:
+        msg = 'PASTASOSS currently unvailable due to numpy dependency conflict with jwst v3.0.0.' \
+              'Falling back on the default wavelength solution.'
+        fancyprint(msg, msg_type='WARNING')
         # Use PASTASOSS to predict wavelength solution from pupil wheel position.
         # Note that PASTASOSS only predicts positions and thus wavelengths for order 2 bluewards of
         # ~0.9µm. Therefore, the whole frame cannot be extracted for order 2. PASTASOSS also does
         # not take into account any TA inaccuracies resulting in the position of the target trace
         # not being in the center of the frame - which will effect the resulting wavelength
         # solution.
-        fancyprint('Using PASTASOSS to predict wavelength solution.')
-        wave1d_o1 = pastasoss.get_soss_traces(pwcpos=pwcpos, order='1', interp=True).wavelength
-        soln_o2 = pastasoss.get_soss_traces(pwcpos=pwcpos, order='2', interp=True)
-        xpos_o2, wave1d_o2 = soln_o2.x.astype(int), soln_o2.wavelength
-        # Trim extracted quantities to match shapes of pastasoss quantities.
-        flux_o1 = flux_o1[:, 4:-4]
-        ferr_o1 = ferr_o1[:, 4:-4]
-        flux_o2 = flux_o2[:, xpos_o2]
-        ferr_o2 = ferr_o2[:, xpos_o2]
+        # fancyprint('Using PASTASOSS to predict wavelength solution.')
+        # wave1d_o1 = pastasoss.get_soss_traces(pwcpos=pwcpos, order='1', interp=True).wavelength
+        # soln_o2 = pastasoss.get_soss_traces(pwcpos=pwcpos, order='2', interp=True)
+        # xpos_o2, wave1d_o2 = soln_o2.x.astype(int), soln_o2.wavelength
+        # # Trim extracted quantities to match shapes of pastasoss quantities.
+        # flux_o1 = flux_o1[:, 4:-4]
+        # ferr_o1 = ferr_o1[:, 4:-4]
+        # flux_o2 = flux_o2[:, xpos_o2]
+        # ferr_o2 = ferr_o2[:, xpos_o2]
 
     # Cross-correlate with stellar model.
     # If one or more of the stellar parameters are not provided, use the existing wavelength
@@ -1705,13 +1708,15 @@ def get_wave_nirspec(datafile, centroids, nint, nwave):
     return wave
 
 
-def get_wave_soss(datafile):
+def get_wave_soss(datafile, outdir):
     """Get the default NIRISS wavelngth solution.
 
     Parameters
     ----------
     datafile : str
         Datafile from the observation.
+    outdir : str
+        Directory to which to save wavemap reference file.
 
     Returns
     -------
@@ -1721,8 +1726,10 @@ def get_wave_soss(datafile):
         2D wavelength solution for order 2
     """
 
-    step = calwebb_spec2.extract_1d_step.Extract1dStep()
-    wavemap = step.get_reference_file(datafile, 'wavemap')
+    subarray = utils.get_soss_subarray(datafile)
+    # Get the correct tracetable file for the subarray being used.
+    wavemap = utils.get_soss_wavemap(subarray, outdir)
+
     # Remove 20 pixel padding that is there for some reason.
     wave_o1 = np.mean(fits.getdata(wavemap, 1)[20:-20, 20:-20], axis=0)
     wave_o2 = np.mean(fits.getdata(wavemap, 2)[20:-20, 20:-20], axis=0)
