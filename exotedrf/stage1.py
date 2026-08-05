@@ -23,7 +23,6 @@ import warnings
 
 from jwst import datamodels
 from jwst.pipeline import calwebb_detector1
-from jwst.pipeline import calwebb_spec2
 
 import exotedrf.stage2 as stage2
 from exotedrf import utils, plotting
@@ -886,8 +885,10 @@ class OneOverFStep:
                         if self.instrument == 'NIRISS':
                             # Define the readout setup.
                             subarray = utils.get_soss_subarray(self.datafiles[0])
-                            step = calwebb_spec2.extract_1d_step.Extract1dStep()
-                            tracetable = step.get_reference_file(self.datafiles[0], 'spectrace')
+                            # Download the reference file.
+                            outdir = os.environ['CRDS_PATH'] + '/references/jwst/niriss/'
+                            tracetable = utils.get_soss_tracetable(subarray, outdir)
+                            # Get centroids.
                             cens = utils.get_centroids_soss(thisdeep, tracetable, subarray,
                                                             save_results=False)
                             self.centroids['xpos'] = cens[0][0]

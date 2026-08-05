@@ -15,9 +15,11 @@ import glob
 import numpy as np
 import os
 import pandas as pd
+import requests
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import median_filter
 from scipy.optimize import least_squares
+import shutil
 import warnings
 import yaml
 
@@ -123,6 +125,48 @@ def do_replacement(frame, badpix_map, dq=None, xbox_size=5, ybox_size=0):
                 dq_out[j, i] = 0
 
     return frame_out, dq_out
+
+
+def download_ref_file(filename, origin, destination):
+    """Download reference files (from crds or elsewhere).
+
+    Parameters
+    ----------
+    filename : str
+        Name of the file to download.
+    origin : str
+        Url at which the file is located.
+    destination : str
+        Path to directory to which to save the downloaded file.
+    """
+
+    # Append slashes if necessary.
+    if origin[-1] != '/':
+        origin += '/'
+    if destination[-1] != '/':
+        destination += '/'
+
+    # Construct file location and destination.
+    url = f'{origin}/{filename}'
+
+    # If file already exists, don't need to re-download.
+    if os.path.exists(destination + filename):
+        fancyprint(f'file {destination + filename} already exists', msg_type='WARNING')
+        return None
+
+    # Download file and move to desired location.
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(filename, 'wb') as f:
+            f.write(response.content)
+            if destination != './':
+                shutil.move(f'./{filename}', destination)
+            fancyprint(f'Downloaded {filename} and saved to {destination}')
+
+    else:
+        raise ValueError(f'Failed to download: {response.status_code}')
+
+    return None
 
 
 def download_stellar_spectra(st_teff, st_logg, st_met, outdir, silent=False):
@@ -884,6 +928,36 @@ def get_soss_subarray(datafile):
             subarray = d.meta.subarray.name.upper()
 
     return subarray
+
+
+def get_soss_tracetable(subarray, outdir):
+    """Download the appropriate tracetable reference file for SOSS.
+
+    Parameters
+    ----------
+    subarray : str
+        SOSS subarray identifier.
+    outdir : str
+        Directory to which to save file.
+
+    Returns
+    -------
+    tracetable : str
+        Path to tracetable reference file.
+    """
+
+    # Get the correct tracetable file for the subarray being used.
+    if subarray == 'SUBSTRIP96':
+        filename = 'jwst_niriss_spectrace_0022.fits'
+    else:
+        filename = 'jwst_niriss_spectrace_0023.fits'
+    # Files hosted on GitHub,
+    url = 'https://raw.githubusercontent.com/radicamc/exoTEDRF/main/files/'
+    # Download the reference file.
+    download_ref_file(filename, url, outdir)
+    tracetable = outdir + filename
+
+    return tracetable
 
 
 def get_stellar_param_grid(st_teff, st_logg, st_met):

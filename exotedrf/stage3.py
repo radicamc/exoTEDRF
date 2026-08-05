@@ -11,6 +11,7 @@ Custom JWST DMS pipeline steps for Stage 3 (1D spectral extraction).
 from astropy.io import fits
 import glob
 import numpy as np
+import os
 import pandas as pd
 import pastasoss
 from scipy.ndimage import median_filter
@@ -369,8 +370,11 @@ def specprofilestep(datafiles, empirical=True, output_dir='./'):
     datafiles = np.atleast_1d(datafiles)
 
     # Get the most up to date trace table file.
-    step = calwebb_spec2.extract_1d_step.Extract1dStep()
-    tracetable = step.get_reference_file(datafiles[0], 'spectrace')
+
+    subarray = utils.get_soss_subarray(datafiles[0])
+    # Get the correct tracetable file for the subarray being used.
+    outdir = os.environ['CRDS_PATH'] + '/references/jwst/niriss/'
+    tracetable = utils.get_soss_tracetable(subarray, outdir)
     # Get the most up to date 2D wavemap file.
     step = calwebb_spec2.extract_1d_step.Extract1dStep()
     wavemap = step.get_reference_file(datafiles[0], 'wavemap')
@@ -1907,9 +1911,9 @@ def trace_spectrum(datafiles, deepframe, output_dir='./', save_results=True, fil
     instrument = utils.get_instrument_name(datafiles[0])
     if instrument == 'NIRISS':
         subarray = utils.get_soss_subarray(datafiles[0])
-        # Get the most up to date trace table file.
-        step = calwebb_spec2.extract_1d_step.Extract1dStep()
-        tracetable = step.get_reference_file(datafiles[0], 'spectrace')
+        # Get the correct tracetable file for the subarray being used.
+        outdir = os.environ['CRDS_PATH'] + '/references/jwst/niriss/'
+        tracetable = utils.get_soss_tracetable(subarray, outdir)
         # Get centroids via the edgetrigger method.
         save_filename = output_dir + fileroot_noseg
         centroids = utils.get_centroids_soss(deepframe, tracetable, subarray,
