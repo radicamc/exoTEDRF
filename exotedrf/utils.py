@@ -371,7 +371,7 @@ def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_f
         # centroids.
         except TypeError:
             cens = apl.get_centroids_edgetrigger(deepframe[::-1].T[:, 26:250], mode='mean',
-                                                 poly_order=1, halfwidth=2)
+                                                 poly_order=2, halfwidth=2)
 
     # Unflip/transpose the X and Y coordinates.
     x1, y1 = cens[1], dimy - (26+cens[0])
@@ -1775,7 +1775,7 @@ def sigma_clip_lightcurves(flux, thresh=10, window=10):
     interp_count, mask_count = 0, 0
     for chunk in chunks:
         low = np.nanmax([np.nanmin(chunk) - 1, 0])
-        up = np.nanmin([np.nanmax(chunk) + 1, nwaves])
+        up = np.nanmin([np.nanmax(chunk) + 1, nwaves - 1])
         ll = len(chunk)
         # If chunks are small, linearly interpolate them.
         if ll < 10:

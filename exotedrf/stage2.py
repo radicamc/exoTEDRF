@@ -87,20 +87,27 @@ class AssignWCSStep:
             # If no output files are detected, run the step.
             else:
                 if self.instrument == 'NIRSPEC':
-                    jwst.assign_wcs.nirspec.nrs_wcs_set_input = partial(
-                        jwst.assign_wcs.nirspec.nrs_wcs_set_input,
-                        wavelength_range=[6e-08, 6e-06]
-                    )
                     # Edit slit parameters so wavelength solution can be correctly calculated.
-                    slit_y_low, slit_y_high = -50, 50
+                    # Make detector bounding box as wide as possible so nothing is ever clipped.
+                    jwst.assign_wcs.nirspec.generate_compound_bbox = partial(
+                        jwst.assign_wcs.nirspec.generate_compound_bbox,
+                        wavelength_range=[6e-08, 6e-06],
+                    )
+                    slit_y_low, slit_y_high = -50, 50  # These may not actually do anything anymore.
                 else:
                     slit_y_low, slit_y_high = -0.55, 0.55
                 step = calwebb_spec2.assign_wcs_step.AssignWcsStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 slit_y_low=slit_y_low, slit_y_high=slit_y_high, **kwargs)
+
+                # Also add the sourcetype here: always "POINT" for a TSO.
+                fancyprint('Setting TSO srctype to "POINT"')
+                res.meta.target.source_type = 'POINT'
+
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
+                    res.save(current_name)  # Save to file to save srctype change.
                     if expected_file != current_name:
                         res.close()
                         os.rename(current_name, expected_file)
@@ -177,155 +184,6 @@ class Extract2DStep:
                 step = calwebb_spec2.extract_2d_step.Extract2dStep()
                 res = step.call(segment, output_dir=self.output_dir,
                                 save_results=save_results, **kwargs)
-                # Verify that filename is correct.
-                if save_results is True:
-                    current_name = self.output_dir + res.meta.filename
-                    if expected_file != current_name:
-                        res.close()
-                        os.rename(current_name, expected_file)
-                        thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
-                        thisfile.writeto(expected_file, overwrite=True)
-                    res = expected_file
-            results.append(res)
-
-        return results
-
-
-class SourceTypeStep:
-    """Wrapper around default calwebb_spec2 Source Type Determination step.
-    """
-
-    def __init__(self, input_data, output_dir='./'):
-        """Step initializer.
-
-        Parameters
-        ----------
-        input_data : array-like(str), array-like(datamodel)
-            List of paths to input data or the input data itself.
-        output_dir : str
-            Path to directory to which to save outputs.
-        """
-
-        # Set up easy attributes.
-        self.tag = 'sourcetypestep.fits'
-        self.output_dir = output_dir
-
-        # Unpack input data files.
-        self.datafiles = utils.sort_datamodels(input_data)
-        self.fileroots = utils.get_filename_root(self.datafiles)
-
-    def run(self, save_results=True, force_redo=False, **kwargs):
-        """Method to run the step.
-
-        Parameters
-        ----------
-        save_results : bool
-            If True, save results.
-        force_redo : bool
-            If True, run step even if output files are detected.
-        kwargs : dict
-            Keyword arguments for calwebb_spec2.srctype_step.SourceTypeStep.
-
-        Returns
-        -------
-        results : list(datamodel)
-            Input data files processed through the step.
-        """
-
-        results = []
-        all_files = glob.glob(self.output_dir + '*')
-        for i, segment in enumerate(self.datafiles):
-            # If an output file for this segment already exists, skip the step.
-            expected_file = self.output_dir + self.fileroots[i] + self.tag
-            if expected_file in all_files and force_redo is False:
-                fancyprint('File {} already exists.'.format(expected_file))
-                fancyprint('Skipping Source Type Determination Step.')
-                res = expected_file
-            # If no output files are detected, run the step.
-            else:
-                step = calwebb_spec2.srctype_step.SourceTypeStep()
-                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
-                                **kwargs)
-                # Verify that filename is correct.
-                if save_results is True:
-                    current_name = self.output_dir + res.meta.filename
-                    if expected_file != current_name:
-                        res.close()
-                        os.rename(current_name, expected_file)
-                        thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
-                        thisfile.writeto(expected_file, overwrite=True)
-                    res = expected_file
-            results.append(res)
-
-        return results
-
-
-class WaveCorrStep:
-    """Wrapper around default calwebb_spec2 Wavelength Correction step.
-    """
-
-    def __init__(self, input_data, output_dir='./'):
-        """Step initializer.
-
-        Parameters
-        ----------
-        input_data : array-like(str), array-like(datamodel)
-            List of paths to input data or the input data itself.
-        output_dir : str
-            Path to directory to which to save outputs.
-        """
-
-        # Set up easy attributes.
-        self.tag = 'wavecorrstep.fits'
-        self.output_dir = output_dir
-
-        # Unpack input data files.
-        self.datafiles = utils.sort_datamodels(input_data)
-        self.fileroots = utils.get_filename_root(self.datafiles)
-
-        # Get instrument.
-        self.instrument = utils.get_instrument_name(self.datafiles[0])
-
-    def run(self, save_results=True, force_redo=False, **kwargs):
-        """Method to run the step.
-
-        Parameters
-        ----------
-        save_results : bool
-            If True, save results.
-        force_redo : bool
-            If True, run step even if output files are detected.
-        kwargs : dict
-            Keyword arguments for calwebb_spec2.wavecorr_step.WavecorrStep.
-
-        Returns
-        -------
-        results : list(datamodel)
-            Input data files processed through the step.
-        """
-
-        # Only run for NIRSpec observations.
-        if self.instrument != 'NIRSPEC':
-            fancyprint('Wavelength correction only necessary for NIRSpec.')
-            fancyprint('Skipping Wavelength Correction Step.')
-            return self.datafiles
-
-        results = []
-        all_files = glob.glob(self.output_dir + '*')
-        for i, segment in enumerate(self.datafiles):
-            # If an output file for this segment already exists, skip the step.
-            expected_file = self.output_dir + self.fileroots[i] + self.tag
-            if expected_file in all_files and force_redo is False:
-                fancyprint('File {} already exists.'.format(expected_file))
-                fancyprint('Skipping Wavelength Correction Step.')
-                res = expected_file
-            # If no output files are detected, run the step.
-            else:
-                step = calwebb_spec2.wavecorr_step.WavecorrStep()
-                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
-                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -1730,42 +1588,6 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
             step_kwargs = {}
         step = AssignWCSStep(results, output_dir=outdir)
         results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
-
-    # ===== Extract 2D Step =====
-    # Default DMS step.
-    if 'Extract2DStep' not in skip_steps:
-        if 'NIRSPEC' in mode.upper():
-            if 'Extract2DStep' in kwargs.keys():
-                step_kwargs = kwargs['Extract2DStep']
-            else:
-                step_kwargs = {}
-            step = Extract2DStep(results, output_dir=outdir)
-            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
-        else:
-            fancyprint('Extract2DStep not supported for {}.'.format(mode), msg_type='WARNING')
-
-    # ===== Source Type Determination Step =====
-    # Default DMS step.
-    if 'SourceTypeStep' not in skip_steps:
-        if 'SourceTypeStep' in kwargs.keys():
-            step_kwargs = kwargs['SourceTypeStep']
-        else:
-            step_kwargs = {}
-        step = SourceTypeStep(results, output_dir=outdir)
-        results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
-
-    # ===== Wavelength Correction Step =====
-    # Default DMS step.
-    if 'WaveCorrStep' not in skip_steps:
-        if 'NIRSPEC' in mode.upper():
-            if 'WaveCorrStep' in kwargs.keys():
-                step_kwargs = kwargs['WaveCorrStep']
-            else:
-                step_kwargs = {}
-            step = WaveCorrStep(results, output_dir=outdir)
-            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
-        else:
-            fancyprint('WaveCorrStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Flat Field Correction Step =====
     # Default DMS step.
