@@ -833,8 +833,9 @@ def get_nrs_detector_name(datafile):
 
     from jwst import datamodels
     if isinstance(datafile, str):
-        with fits.open(datafile) as file:
-            detector = file[0].header['DETECTOR'].lower()
+        detector = fits.getheader(datafile)['DETECTOR'].lower()
+    elif isinstance(datafile, fits.hdu.hdulist.HDUList):
+        detector = datafile[0].header['DETECTOR'].upper()
     else:
         with datamodels.open(datafile) as d:
             detector = d.meta.instrument.detector.lower()
