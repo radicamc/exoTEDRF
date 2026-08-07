@@ -17,7 +17,7 @@ setup(name='exotedrf',
                         'corner', 'jwst', 'matplotlib', 'more_itertools', 'numpy',
                         'pandas', 'ray', 'scikit-learn', 'scipy', 'spectres', 'requests', 'tqdm',
                         'pastasoss', 'pyyaml'],
-      extras_require={'stage4': ['exotedrf', 'exouprf==1.1.1', 'exotic_ld', 'h5py'],
+      extras_require={'stage4': ['exotedrf', 'exouprf', 'exotic_ld', 'h5py'],
                       'webbpsf': ['exotedrf', 'webbpsf>=1.1.1']},
       classifiers=[
         'Development Status :: 3 - Alpha',
