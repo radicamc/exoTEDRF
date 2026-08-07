@@ -309,7 +309,7 @@ def calculate_residual_covariance(model_files):
 
 @ray.remote
 def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins, lc_model_type, ld_model,
-             model_function, debug=False, force_redo=False):
+             num_pl, debug=False, force_redo=False):
     """Functional wrapper around run_uporf to make it compatible for multiprocessing with ray.
     """
 
@@ -332,14 +332,14 @@ def fit_data(data_dictionary, priors, output_dir, bin_no, num_bins, lc_model_typ
         linear_regressors = {'inst': data_dictionary['lm_parameters']}
 
     fit_results = run_uporf(priors, t, flux, output_dir, gp_regressors, linear_regressors,
-                            lc_model_type, ld_model, model_function, debug, force_redo)
+                            lc_model_type, ld_model, num_pl, debug, force_redo)
 
     return fit_results
 
 
 def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthreads=4,
                     observing_mode='NIRISS/SOSS', lc_model_type='transit', ld_model='quadratic',
-                    custom_lc_function=None, debug=False, force_redo=False):
+                    num_pl=1, debug=False, force_redo=False):
     """Wrapper about both the exoUPRF and ray libraries to parallelize exoUPRF's light curve
     fitting functionality.
 
@@ -359,12 +359,12 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
         Number of cores to use for multiprocessing.
     observing_mode : str
         Instrument identifier for data being fit.
-    lc_model_type : str
-        exoUPRF light curve model identifier.
+    lc_model_type : array-like[str]
+        exoUPRF light curve model identifiers.
     ld_model : str
         Limb darkening model identifier.
-    custom_lc_function : func, None
-        Custom light curve function call, if being used.
+    num_pl : int
+        Number of planets to fit.
     debug : bool
         If True, always break when encountering an error.
     force_redo : bool
@@ -402,8 +402,8 @@ def fit_lightcurves(data_dict, prior_dict, order, output_dir, fit_suffix, nthrea
         all_fits.append(fit_data.remote(data_dict[keyname], prior_dict[keyname],
                                         output_dir=outdir, bin_no=num_bins[i],
                                         num_bins=len(num_bins), lc_model_type=lc_model_type,
-                                        ld_model=ld_model, model_function=custom_lc_function,
-                                        debug=debug, force_redo=force_redo))
+                                        ld_model=ld_model, num_pl=num_pl, debug=debug,
+                                        force_redo=force_redo))
     # Run the fits.
     ray_results = ray.get(all_fits)
 
@@ -538,7 +538,7 @@ def read_ld_coefs(filename, wavebin_low, wavebin_up):
 
 
 def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, lc_model_type,
-              ld_model, model_function, debug=False, force_redo=False):
+              ld_model, num_pl=1, debug=False, force_redo=False):
     """Wrapper around the lightcurve fitting functionality of the exoUPRF package.
 
     Parameters
@@ -555,12 +555,12 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, 
         GP regressors to fit, if any.
     linear_regressors : dict
         Linear model regressors, if any.
-    lc_model_type : str
+    lc_model_type : list[str]
         exoUPRF light curve model identifier.
     ld_model : str
         Limb darkening model identifier.
-    model_function : func, None
-        Function call for custom light curve model, if being used.
+    num_pl : int
+        Number of planets to fit.
     debug : bool
         If True, always break when encountering an error.
     force_redo : bool
@@ -573,18 +573,15 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, 
     """
 
     if np.all(np.isfinite(flux['inst']['flux'])):
+        mod_type_dict = {}
         # Load in all priors and data to be fit.
-        lc_model = {'inst': {'p1': lc_model_type}}
-        # Create dictionary for custom light curve function if being used.
-        if model_function is not None:
-            model_call = {'inst': {'p1': model_function}}
-        else:
-            model_call = None
+        for pl in range(num_pl):
+            mod_type_dict['p{}'.format(pl+1)] = lc_model_type[pl]
+        lc_model = {'inst': mod_type_dict}
 
         dataset = fit.Dataset(input_parameters=priors, t=time, ld_model=ld_model,
                               lc_model_type=lc_model, linear_regressors=linear_regressors,
-                              gp_regressors=gp_regressors, observations=flux, silent=True,
-                              custom_lc_functions=model_call)
+                              gp_regressors=gp_regressors, observations=flux, silent=True)
 
         # Run the fit.
         try:

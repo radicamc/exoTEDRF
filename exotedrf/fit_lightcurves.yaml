@@ -26,13 +26,12 @@ orders : [1, 2]
 fit_suffix : ''
 # Integrations of ingress and egress.
 baseline_ints : [50, -50]
+# Number of planets to include in fit.
+num_pl : 1
 # Type of light curve model: 'transit' or 'eclipse'.
 # Other exoUPRF models can also be supported, see the exoUPRF documentation for more info.
+# If fitting multiple planets, pass a list of model identifiers.
 lc_model_type : 'transit'
-# String of function call for a custom light curve model, if not a simple transit or eclipe.
-# Note: if using a custom light curve model, either 'custom-transit' or 'custom-eclipse' must be passed to
-# lc_model_type.
-custom_lc_model : None
 # If True, make summary plots.
 do_plots : True
 # If True, also make corner plot for each bin.
@@ -45,6 +44,7 @@ res : 'pixel'
 # Alternatively, number of pixel columns to bin before light curve fitting
 npix : None
 # Planet identifier.
+# If fitting multiple planets pass of list of identifiers.
 planet_letter : 'b'
 # If True, run light curve fitting in debugging mode (i.e., don't catch errors).
 debug : False
