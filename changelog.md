@@ -6,6 +6,22 @@ All notable changes to this project will be documented in this file.
 - New SOSS-only Stage 1 pipeline step to correct the ADC INL effect identified by Dholakia et al. (2026).
 - DQ report extansion added to all optimal or box extraction Stage 3 products.
 
+### [2.5.0] -- 2026-08-07
+#### Added
+- Upgrade compatible jwst version to v3.0.0.
+- Upgrade python compatibility to 3.13.14.
+- Refractor wavelength solution calculation for NIRSpec
+- More robust clipping of bad wavelength channels.
+- Fix installation bug due to mismatching crds, numpy, and jwst versions.
+- Updates to robustness of ATOCA extraction.
+- Host more reference files on GitHub.
+- Integrate source identification into AssignWCSStep.
+- Synchronize flux calibration tutorials with new code updates.
+
+#### Removed
+- Redundant SourceType step from Stage2.
+- WaveCorrStep and ResetStep from NIRSpec and MIRI workflows respectively.
+
 ### [2.4.3] -- 2026-05-29
 #### Added
 - Synchronize saturation definition with the JWST ETC. Saturation threshold now defaults to 80% of full well.

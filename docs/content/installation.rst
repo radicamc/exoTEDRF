@@ -27,6 +27,10 @@ If you plan on using ExoTiC-LD to derive limb darkening coefficients, you will a
 See the `ExoTiC-LD documentation <https://exotic-ld.readthedocs.io/en/latest/views/installation.html>`_ for information on how to do this.
 Moreover, if you intend to use the power2 limb darkening law (recommended) you will need to install the GitHub version of ExoTiC-LD as this functionality is not yet available via pip.
 
+.. attention::
+    At time of writing the pip installable version of ExoTiC-LD is using a deprecated call to pkg_resources, which will throw an error when ExoTiC-LD is imported.
+    This is fixed on the GitHub version, so it is recommended to install from GitHub (>=3.2.2) in all cases.
+
 
 Alternatively, **exoTEDRF** can be grabbed from GitHub (inlcludes all pipeline stages as well as tutorial notebooks, etc.) via:
 
@@ -38,5 +42,5 @@ Alternatively, **exoTEDRF** can be grabbed from GitHub (inlcludes all pipeline s
 
 
 .. note::
-    **exoTEDRF** is currently compatible with python 3.10.4 and v1.17.1 of the `STScI JWST pipeline <https://github.com/spacetelescope/jwst>`_. If you wish to run a
+    **exoTEDRF** is currently compatible with python 3.13.14 and v3.0.0 of the `STScI JWST pipeline <https://github.com/spacetelescope/jwst>`_. If you wish to run a
     different version of jwst, certain functionalities of **exoTEDRF** may not work.

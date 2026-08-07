@@ -359,16 +359,18 @@ def make_decontamination_plot(results, models, outfile=None, show_plot=True):
     models = np.atleast_1d(models)
     for i, model in enumerate(models):
         if i == 0:
-            order1 = fits.getdata(model, 2)
-            order2 = fits.getdata(model, 3)
+            order1 = fits.getdata(model, 1)
+            order2 = fits.getdata(model, 2)
+            order3 = fits.getdata(model, 3)
         else:
-            order1 = np.concatenate([order1, fits.getdata(model, 2)])
-            order2 = np.concatenate([order2, fits.getdata(model, 3)])
+            order1 = np.concatenate([order1, fits.getdata(model, 1)])
+            order2 = np.concatenate([order2, fits.getdata(model, 2)])
+            order3 = np.concatenate([order3, fits.getdata(model, 3)])
 
     ints = np.random.randint(0, np.shape(cube)[0], 9)
     to_plot, to_write = [], []
     for i in ints:
-        to_plot.append((cube[i] - order1[i] - order2[i]) / ecube[i])
+        to_plot.append((cube[i] - order1[i] - order2[i] - order3[i]) / ecube[i])
         to_write.append('({0})'.format(i))
     kwargs = {'vmin': -5, 'vmax': 5}
     nine_panel_plot(to_plot, to_write, outfile=outfile, show_plot=show_plot, **kwargs)

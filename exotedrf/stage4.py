@@ -647,7 +647,7 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, fi
     """
 
     # Pack the quantities into a dictionary.
-    dd = {'wave': wave, 'wave_err': wave_err, 'dppm': dppm, 'dppm_err': dppm_err}
+    dd = {'wave': wave, 'wave_err': np.abs(wave_err), 'dppm': dppm, 'dppm_err': dppm_err}
     if asymmetric is True:
         dd['dppm2'] = dppm2
         dd['dppm2_err'] = dppm2_err

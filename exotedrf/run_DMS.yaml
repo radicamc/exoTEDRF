@@ -19,7 +19,6 @@ filter_detector : 'CLEAR'
 DQInitStep : 'run'
 INLCorrStep : 'run'        # SOSS only
 EmiCorrStep : 'skip'       # MIRI only
-ResetStep : 'skip'         # MIRI only
 SuperBiasStep : 'run'      # SOSS/NIRSpec only
 RefPixStep : 'run'         # SOSS only
 DarkCurrentStep : 'skip'   # SOSS/NIRSpec only
@@ -77,9 +76,6 @@ stage1_kwargs : {}
 # ===== Stage 2 Input Files & Parameters =====
 # List of stage 2 steps to run or skip.
 AssignWCSStep : 'run'
-Extract2DStep : 'skip'     # NIRSpec only
-SourceTypeStep: 'run'
-WaveCorrStep : 'skip'      # NIRSpec only
 FlatFieldStep : 'run'      # SOSS/MIRI only
 BackgroundStep : 'run'     # SOSS/MIRI only
 OneOverFStep_int : 'skip'  # SOSS/NIRSpec only
