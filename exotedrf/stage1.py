@@ -27,7 +27,7 @@ from jwst.pipeline import calwebb_detector1
 import exotedrf.stage2 as stage2
 from exotedrf import utils, plotting
 from exotedrf.utils import fancyprint
-from exotedrf.extra_functions import download_ref_file
+from exotedrf.utils import download_ref_file
 
 
 class DQInitStep:
