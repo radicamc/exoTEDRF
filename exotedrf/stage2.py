@@ -1078,7 +1078,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
 
     # Initialize starting loop variables.
     newdata = np.copy(cube)
-    newdq = np.copy(dq_cube)
+    newdq = np.copy(dq_cube).astype(np.uint64)  # Needed to prevent overflow error from new flags.
     nint, dimy, dimx = np.shape(newdata)
 
     # ===== Spatial Outlier Flagging ======
