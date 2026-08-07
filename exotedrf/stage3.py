@@ -331,8 +331,9 @@ class Extract1DStep:
                                               use_pastasoss=use_pastasoss)
             elif self.instrument == 'NIRSPEC':
                 detector = utils.get_nrs_detector_name(self.datafiles[0])
+                grating = utils.get_nrs_grating(self.datafiles[0])
                 spectra = format_nirspec_spectra(results, times, extract_params, self.pl_name,
-                                                 detector, st_teff, st_logg, st_met,
+                                                 detector, grating, st_teff, st_logg, st_met,
                                                  output_dir=self.output_dir,
                                                  save_results=save_results)
             else:
@@ -928,6 +929,8 @@ def do_ccf(wave, flux, mod_flux, oversample=5):
     -------
     shift_wave : float
         Wavelength shift between the model and extracted spectrum in microns.
+    shift_steps : int
+        Pixel shift between the model and extracted spectrum.
     """
 
     def highpass_filter(signal, order=3, freq=0.05):
@@ -990,7 +993,7 @@ def do_ccf(wave, flux, mod_flux, oversample=5):
     # And get the wavelength shift.
     shift_wave = -1*shift_steps*np.median(np.diff(new_wave))
 
-    return shift_wave
+    return shift_wave, shift_steps
 
 
 def do_optimal_extraction(cube, deepframe, ymin=0, ymax=None, xmin=0, xmax=None, max_iter=25,
@@ -1357,7 +1360,7 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
     return spectra
 
 
-def format_nirspec_spectra(datafiles, times, extract_params, target_name, detector,
+def format_nirspec_spectra(datafiles, times, extract_params, target_name, detector, grating,
                            st_teff=None, st_logg=None, st_met=None, output_dir='./',
                            save_results=True):
     """Unpack the outputs of the 1D extraction and format them into
@@ -1379,6 +1382,8 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
         Name of the target.
     detector : str
         Detector name.
+    grating : str
+        Grating name.
     st_teff : float, None
         Stellar effective temperature.
     st_logg : float, None
@@ -1409,7 +1414,12 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
         x1d_flux = np.nansum(flux, axis=0)
         if detector.upper() == 'NRS1':
             # Remove non-extracted columns --- important for NIRSpec NRS1.
-            ii = np.where(wave1d >= 3.1)[0]
+            if 'G395' in grating.upper():
+                ii = np.where(wave1d >= 3.1)[0]
+            elif 'G235' in grating.upper():
+                ii = np.where(wave1d >= 1.8)[0]
+            else:
+                ii = np.where(wave1d >= 1.0)[0]
             wave1d_trim = wave1d[ii]
             x1d_flux = x1d_flux[ii]
         else:
@@ -1433,8 +1443,8 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
         mod_flux = spectres.spectres(wave1d_trim, mod_wave, mod_flux)
 
         # Cross-correlate extracted spectrum with model to refine wavelength calibration.
-        wave_shift = do_ccf(wave1d_trim, x1d_flux, mod_flux, oversample=1)
-        fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
+        wave_shift, pix_shift = do_ccf(wave1d_trim, x1d_flux, mod_flux, oversample=1)
+        fancyprint('Found a wavelength shift of {}um ({} pixels)'.format(wave_shift, pix_shift))
         wave1d += wave_shift
 
     # Clip remaining outliers.
@@ -1584,8 +1594,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
 
         # Cross-correlate extracted spectrum with model to refine wavelength calibration.
         x1d_flux = np.nansum(flux_o1, axis=0)
-        wave_shift = do_ccf(wave1d_o1, x1d_flux, mod_flux)
-        fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
+        wave_shift, pix_shift = do_ccf(wave1d_o1, x1d_flux, mod_flux)
+        fancyprint('Found a wavelength shift of {}um ({} pixels)'.format(wave_shift, pix_shift))
         wave1d_o1 += wave_shift
         wave1d_o2 += wave_shift
 
