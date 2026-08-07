@@ -1791,7 +1791,7 @@ def sigma_clip_lightcurves(flux, thresh=10, window=10):
                 flux_clipped[:, chunk[i]] = np.nan
                 mask_count += 1
 
-    fancyprint('{0} channels interplated and {1} masked.'.format(interp_count, mask_count))
+    fancyprint('{0} channels interpolated and {1} masked.'.format(interp_count, mask_count))
 
     # Now clip individual pixels.
     flux_filt = median_filter(flux, (window, 1))
