@@ -11,8 +11,9 @@ Custom JWST DMS pipeline steps for Stage 3 (1D spectral extraction).
 from astropy.io import fits
 import glob
 import numpy as np
+import os
 import pandas as pd
-import pastasoss
+# import pastasoss  # removing for now due to numpy version inconsistency with jwst v3.0.0
 from scipy.ndimage import median_filter
 from scipy.signal import butter, filtfilt, correlate
 import spectres
@@ -22,6 +23,7 @@ from tqdm import tqdm
 from applesoss import applesoss
 
 from jwst import datamodels
+from jwst.assign_wcs.nirspec import nrs_wcs_set_input
 from jwst.pipeline import calwebb_spec2
 
 from exotedrf import utils, plotting
@@ -143,8 +145,7 @@ class Extract1DStep:
 
     def run(self, extract_width=40, extract_width_soss2=None, soss_specprofile=None, centroids=None,
             save_results=True, force_redo=False, do_plot=False, show_plot=False, deepframe=None,
-            use_pastasoss=False, soss_estimate=None, opt_max_iter=25, opt_var_thresh=25,
-            allow_miri_slope=False):
+            use_pastasoss=False, opt_max_iter=25, opt_var_thresh=25, allow_miri_slope=False):
         """Method to run the step.
 
         Parameters
@@ -169,8 +170,6 @@ class Extract1DStep:
             Path to file containing a median stack of the observations.
         use_pastasoss : bool
             If True, use pastasoss to esimate trace positions and wavelength solution.
-        soss_estimate : str, None
-            Path to file containing the soss_estimate for atoca extractions.
         opt_max_iter : int
             Maximum number of outlier rejection iterations to perform during optimal extraction.
         opt_var_thresh : int
@@ -211,8 +210,7 @@ class Extract1DStep:
 
                 results = atoca_extract_soss(self.datafiles, soss_specprofile,
                                              output_dir=self.output_dir, save_results=save_results,
-                                             extract_width=extract_width, fileroots=self.fileroots,
-                                             soss_estimate=soss_estimate)
+                                             extract_width=extract_width, fileroots=self.fileroots)
 
             # Option 2: Simple aperture extraction - any instrument.
             elif self.extract_method == 'box':
@@ -369,11 +367,13 @@ def specprofilestep(datafiles, empirical=True, output_dir='./'):
     datafiles = np.atleast_1d(datafiles)
 
     # Get the most up to date trace table file.
-    step = calwebb_spec2.extract_1d_step.Extract1dStep()
-    tracetable = step.get_reference_file(datafiles[0], 'spectrace')
+
+    subarray = utils.get_soss_subarray(datafiles[0])
+    # Get the correct tracetable file for the subarray being used.
+    outdir = os.environ['CRDS_PATH'] + '/references/jwst/niriss/'
+    tracetable = utils.get_soss_tracetable(subarray, outdir)
     # Get the most up to date 2D wavemap file.
-    step = calwebb_spec2.extract_1d_step.Extract1dStep()
-    wavemap = step.get_reference_file(datafiles[0], 'wavemap')
+    wavemap = utils.get_soss_wavemap(subarray, outdir)
 
     # Create a new deepstack but using all integrations, not just the baseline.
     for i, file in enumerate(datafiles):
@@ -413,8 +413,8 @@ def specprofilestep(datafiles, empirical=True, output_dir='./'):
     return filename
 
 
-def atoca_extract_soss(datafiles, specprofile, output_dir='./', save_results=True, extract_width=40,
-                       soss_estimate=None, fileroots=None):
+def atoca_extract_soss(datafiles, specprofile, fileroots, output_dir='./', save_results=True,
+                       extract_width=40):
     """Perform an extraction of SOSS observations using the ATOCA algorithm.
 
     Parameters
@@ -429,9 +429,7 @@ def atoca_extract_soss(datafiles, specprofile, output_dir='./', save_results=Tru
         If True, save results to file.
     extract_width : int
         Full extraction width, in pixels.
-    soss_estimate : str, None
-        Path to soss estimate file.
-    fileroots : array-like(str), None
+    fileroots : array-like(str)
         Filename roots.
 
     Returns
@@ -441,61 +439,30 @@ def atoca_extract_soss(datafiles, specprofile, output_dir='./', save_results=Tru
     """
 
     results = []
-    to_extract = {}
-    first_time = True
-    for i, file in enumerate(datafiles):
-        to_extract['{}'.format(i)] = file
-    while len(to_extract) != 0:
-        extracted = []
-        for i in to_extract.keys():
-            segment = to_extract[i]
-            # Initialize extraction parameters for ATOCA.
-            soss_modelname = fileroots[int(i)][:-1]
-            # Perform the extraction.
-            step = calwebb_spec2.extract_1d_step.Extract1dStep()
-            try:
-                res = step.call(segment, output_dir=output_dir, save_results=save_results,
-                                subtract_background=False,
-                                soss_bad_pix='model', soss_width=extract_width,
-                                soss_modelname=soss_modelname, override_specprofile=specprofile,
-                                soss_estimate=soss_estimate)
-                results.append(res)
-                # Note that this segment was extracted correctly.
-                extracted.append(i)
-                # The first time that an extraction is successful, create a soss_estimate if one
-                # does not already exist.
-                if first_time is True and soss_estimate is None:
-                    atoca_spectra = output_dir + fileroots[int(i)] + 'AtocaSpectra.fits'
-                    soss_estimate = get_soss_estimate(atoca_spectra, output_dir=output_dir)
-                    first_time = False
-            # When using ATOCA, sometimes a very specific error pops up when an initial estimate of
-            # the stellar spectrum cannot be obtained. This is needed to establish the wavelength
-            # grid (which has a varying resolution to better capture sharp features in stellar
-            # spectra). In these cases, the SOSS estimate provides information to create a
-            # wavelength grid.
-            except Exception as err:
-                if str(err) == '(m>k) failed for hidden m: fpcurf0:m=0':
-                    # If every segment has been tested and none work, just fail.
-                    if int(i) == len(datafiles) and len(extracted) == 0:
-                        fancyprint('No segments could be properly extracted.', msg_type='Error')
-                        raise err
-                    # If there's still hope, then just skip this segment for now and move onto the
-                    # next one.
-                    else:
-                        fancyprint('Initial flux estimate failed, and no soss estimate provided. '
-                                   'Moving to next segment.', msg_type='WARNING')
-                        continue
-                # If any other error pops up, raise it.
-                else:
-                    raise err
-        # Remove the extracted segments from the list of ones to extract.
-        for seg in extracted:
-            to_extract.pop(seg)
+    tag = 'extract1dstep.fits'
+    for i, segment in enumerate(datafiles):
+        # Initialize extraction parameters for ATOCA.
+        soss_modelname = fileroots[i][:-1]
+        # Perform the extraction.
+        step = calwebb_spec2.extract_1d_step.Extract1dStep()
+        res = step.call(segment, output_dir=output_dir, save_results=save_results,
+                        subtract_background=False, soss_bad_pix='model',
+                        soss_width=extract_width, soss_modelname=soss_modelname,
+                        override_specprofile=specprofile, soss_estimate=None)
 
-    # Sort the segments in chronological order, in case they were processed out of order.
-    seg_nums = [seg.meta.exposure.segment_number for seg in results]
-    ii = np.argsort(seg_nums)
-    results = np.array(results)[ii]
+        # Verify that filename is correct.
+        if save_results is True:
+            current_name = output_dir + res.meta.filename
+            expected_file = output_dir + fileroots[i] + tag
+            if expected_file != current_name:
+                res.close()
+                os.rename(current_name, expected_file)
+                thisfile = fits.open(expected_file)
+                thisfile[0].header['FILENAME'] = fileroots[i] + tag
+                thisfile.writeto(expected_file, overwrite=True)
+            res = expected_file
+
+        results.append(res)
 
     return results
 
@@ -811,7 +778,8 @@ def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_pl
             flux_o1, ferr_o1 = do_box_extraction(cube, ecube, y, width=width)
 
     # Get default wavelength solution.
-    wave_o1, wave_o2 = get_wave_soss(datafiles[0])
+    outdir = os.environ['CRDS_PATH'] + '/references/jwst/niriss/'
+    wave_o1, wave_o2 = get_wave_soss(datafiles[0], outdir)
 
     return wave_o1, flux_o1, ferr_o1, wave_o2, flux_o2, ferr_o2, soss_width
 
@@ -1246,37 +1214,9 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
     if st_teff is not None or st_logg is not None or st_met is not None:
         fancyprint('Wavelength calibration not implemented for MIRI.', msg_type='WARNING')
         fancyprint('Using the default wavelength solution.', msg_type='WARNING')
-    # Remove any NaN pixels --- important for NIRSpec NRS1.
-    # ii = np.where(np.isfinite(wave1d))[0]
-    # wave1d_trim = wave1d[ii]
-
-    # Now cross-correlate with stellar model --- skip for MIRI for now.
-    # if None in [st_teff, st_logg, st_met]:
-    #     fancyprint('Stellar parameters not provided. Using default wavelength solution.',
-    #                msg_type='WARNING')
-    # else:
-    #     fancyprint('Refining the wavelength calibration.')
-    #     # Create a grid of stellar parameters, and download PHOENIX spectra for each grid point.
-    #     thisout = output_dir + 'phoenix_models'
-    #     utils.verify_path(thisout)
-    #     res = utils.download_stellar_spectra(st_teff, st_logg, st_met, outdir=thisout)
-    #     wave_file, flux_files = res
-    #     # Interpolate model grid to correct stellar parameters.
-    #     # Reverse direction of both arrays since SOSS is extracted red to blue.
-    #     mod_flux = utils.interpolate_stellar_model_grid(flux_files, st_teff, st_logg, st_met)
-    #     mod_wave = fits.getdata(wave_file) / 1e4
-    #
-    #     # Bin model down to data wavelengths.
-    #     mod_flux = spectres.spectres(wave1d_trim, mod_wave, mod_flux)
-    #
-    #     # Cross-correlate extracted spectrum with model to refine wavelength calibration.
-    #     x1d_flux = np.nansum(flux, axis=0)[ii]
-    #     wave_shift = do_ccf(wave1d_trim, x1d_flux, mod_flux, oversample=1)
-    #     fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
-    #     wave1d += wave_shift
 
     # Clip remaining 3-sigma outliers.
-    flux_clip = utils.sigma_clip_lightcurves(flux, window=11, thresh=3)
+    flux_clip = utils.sigma_clip_lightcurves(flux, window=10, thresh=10)
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
@@ -1287,6 +1227,7 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
     header_dict['Contents'] = 'Full resolution stellar spectra'
     header_dict['Method'] = extract_params['method']
     header_dict['Width'] = extract_params['extract_width']
+    header_dict['Inst'] = 'MIRI/LRS'
     # Calculate the limits of each wavelength bin.
     half_width = make_bins(wave1d)[1] / 2
 
@@ -1371,8 +1312,8 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
         fancyprint('Found a wavelength shift of {}um'.format(wave_shift))
         wave1d += wave_shift
 
-    # Clip remaining 3-sigma outliers.
-    flux_clip = utils.sigma_clip_lightcurves(flux, window=11, thresh=3)
+    # Clip remaining outliers.
+    flux_clip = utils.sigma_clip_lightcurves(flux, window=10, thresh=10)
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
@@ -1383,6 +1324,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
     header_dict['Contents'] = 'Full resolution stellar spectra'
     header_dict['Method'] = extract_params['method']
     header_dict['Width'] = extract_params['extract_width']
+    header_dict['Inst'] = 'NIRSpec/BOTS'
     # Calculate the limits of each wavelength bin.
     half_width = make_bins(wave1d)[1] / 2
 
@@ -1452,39 +1394,42 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
         for i, file in enumerate(datafiles):
             segment = utils.unpack_atoca_spectra(file)
             if i == 0:
-                wave2d_o1 = segment[1]['WAVELENGTH']
-                flux_o1 = segment[1]['FLUX']
-                ferr_o1 = segment[1]['FLUX_ERROR']
-                wave2d_o2 = segment[2]['WAVELENGTH']
-                flux_o2 = segment[2]['FLUX']
-                ferr_o2 = segment[2]['FLUX_ERROR']
+                wave2d_o1 = segment[1]['WAVELENGTH'][0]
+                flux_o1 = segment[1]['FLUX'][0]
+                ferr_o1 = segment[1]['FLUX_ERROR'][0]
+                wave2d_o2 = segment[2]['WAVELENGTH'][0]
+                flux_o2 = segment[2]['FLUX'][0]
+                ferr_o2 = segment[2]['FLUX_ERROR'][0]
             else:
-                wave2d_o1 = np.concatenate([wave2d_o1, segment[1]['WAVELENGTH']])
-                flux_o1 = np.concatenate([flux_o1, segment[1]['FLUX']])
-                ferr_o1 = np.concatenate([ferr_o1, segment[1]['FLUX_ERROR']])
-                wave2d_o2 = np.concatenate([wave2d_o2, segment[2]['WAVELENGTH']])
-                flux_o2 = np.concatenate([flux_o2, segment[2]['FLUX']])
-                ferr_o2 = np.concatenate([ferr_o2, segment[2]['FLUX_ERROR']])
+                wave2d_o1 = np.concatenate([wave2d_o1, segment[1]['WAVELENGTH'][0]])
+                flux_o1 = np.concatenate([flux_o1, segment[1]['FLUX'][0]])
+                ferr_o1 = np.concatenate([ferr_o1, segment[1]['FLUX_ERROR'][0]])
+                wave2d_o2 = np.concatenate([wave2d_o2, segment[2]['WAVELENGTH'][0]])
+                flux_o2 = np.concatenate([flux_o2, segment[2]['FLUX'][0]])
+                ferr_o2 = np.concatenate([ferr_o2, segment[2]['FLUX_ERROR'][0]])
         # Create 1D wavelength axes from the 2D wavelength solution.
         wave1d_o1, wave1d_o2 = wave2d_o1[0], wave2d_o2[0]
 
     # Refine wavelength solution.
     if use_pastasoss is True:
+        msg = 'PASTASOSS currently unvailable due to numpy dependency conflict with jwst v3.0.0.' \
+              'Falling back on the default wavelength solution.'
+        fancyprint(msg, msg_type='WARNING')
         # Use PASTASOSS to predict wavelength solution from pupil wheel position.
         # Note that PASTASOSS only predicts positions and thus wavelengths for order 2 bluewards of
         # ~0.9µm. Therefore, the whole frame cannot be extracted for order 2. PASTASOSS also does
         # not take into account any TA inaccuracies resulting in the position of the target trace
         # not being in the center of the frame - which will effect the resulting wavelength
         # solution.
-        fancyprint('Using PASTASOSS to predict wavelength solution.')
-        wave1d_o1 = pastasoss.get_soss_traces(pwcpos=pwcpos, order='1', interp=True).wavelength
-        soln_o2 = pastasoss.get_soss_traces(pwcpos=pwcpos, order='2', interp=True)
-        xpos_o2, wave1d_o2 = soln_o2.x.astype(int), soln_o2.wavelength
-        # Trim extracted quantities to match shapes of pastasoss quantities.
-        flux_o1 = flux_o1[:, 4:-4]
-        ferr_o1 = ferr_o1[:, 4:-4]
-        flux_o2 = flux_o2[:, xpos_o2]
-        ferr_o2 = ferr_o2[:, xpos_o2]
+        # fancyprint('Using PASTASOSS to predict wavelength solution.')
+        # wave1d_o1 = pastasoss.get_soss_traces(pwcpos=pwcpos, order='1', interp=True).wavelength
+        # soln_o2 = pastasoss.get_soss_traces(pwcpos=pwcpos, order='2', interp=True)
+        # xpos_o2, wave1d_o2 = soln_o2.x.astype(int), soln_o2.wavelength
+        # # Trim extracted quantities to match shapes of pastasoss quantities.
+        # flux_o1 = flux_o1[:, 4:-4]
+        # ferr_o1 = ferr_o1[:, 4:-4]
+        # flux_o2 = flux_o2[:, xpos_o2]
+        # ferr_o2 = ferr_o2[:, xpos_o2]
 
     # Cross-correlate with stellar model.
     # If one or more of the stellar parameters are not provided, use the existing wavelength
@@ -1523,8 +1468,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     ferr_o2 = ferr_o2[:, ::-1]
 
     # Clip remaining 5-sigma outliers.
-    flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1)
-    flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2)
+    flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1, thresh=10, window=10)
+    flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2, thresh=10, window=10)
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
@@ -1689,7 +1634,14 @@ def get_wave_nirspec(datafile, centroids, nint, nwave):
 
     # Get default 2D wavelength solution.
     with datamodels.open(datafile) as d:
-        wave2d = d.wavelength
+        if isinstance(d, datamodels.SlitModel):
+            wave2d = d.wavelength
+        else:
+            slit_wcs = nrs_wcs_set_input(d, 'S1600A1')  # Slit should always be S1600A1
+            _, dimy, dimx = d.data.shape
+            x, y = np.meshgrid(np.arange(dimx), np.arange(dimy))
+            wave2d = slit_wcs(x, y)[2]
+
     # Get 1D wavelengths at the locations of the trace centroids.
     wave1d = np.ones(nwave) * np.nan
     x1, y1 = centroids['xpos'].values, centroids['ypos'].values
@@ -1701,13 +1653,15 @@ def get_wave_nirspec(datafile, centroids, nint, nwave):
     return wave
 
 
-def get_wave_soss(datafile):
-    """Get the default NIRISS wavelngth solution.
+def get_wave_soss(datafile, outdir):
+    """Get the default NIRISS wavelength solution.
 
     Parameters
     ----------
     datafile : str
         Datafile from the observation.
+    outdir : str
+        Directory to which to save wavemap reference file.
 
     Returns
     -------
@@ -1717,8 +1671,10 @@ def get_wave_soss(datafile):
         2D wavelength solution for order 2
     """
 
-    step = calwebb_spec2.extract_1d_step.Extract1dStep()
-    wavemap = step.get_reference_file(datafile, 'wavemap')
+    subarray = utils.get_soss_subarray(datafile)
+    # Get the correct tracetable file for the subarray being used.
+    wavemap = utils.get_soss_wavemap(subarray, outdir)
+
     # Remove 20 pixel padding that is there for some reason.
     wave_o1 = np.mean(fits.getdata(wavemap, 1)[20:-20, 20:-20], axis=0)
     wave_o2 = np.mean(fits.getdata(wavemap, 2)[20:-20, 20:-20], axis=0)
@@ -1907,9 +1863,9 @@ def trace_spectrum(datafiles, deepframe, output_dir='./', save_results=True, fil
     instrument = utils.get_instrument_name(datafiles[0])
     if instrument == 'NIRISS':
         subarray = utils.get_soss_subarray(datafiles[0])
-        # Get the most up to date trace table file.
-        step = calwebb_spec2.extract_1d_step.Extract1dStep()
-        tracetable = step.get_reference_file(datafiles[0], 'spectrace')
+        # Get the correct tracetable file for the subarray being used.
+        outdir = os.environ['CRDS_PATH'] + '/references/jwst/niriss/'
+        tracetable = utils.get_soss_tracetable(subarray, outdir)
         # Get centroids via the edgetrigger method.
         save_filename = output_dir + fileroot_noseg
         centroids = utils.get_centroids_soss(deepframe, tracetable, subarray,

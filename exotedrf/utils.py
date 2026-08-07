@@ -15,9 +15,11 @@ import glob
 import numpy as np
 import os
 import pandas as pd
+import requests
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import median_filter
 from scipy.optimize import least_squares
+import shutil
 import warnings
 import yaml
 
@@ -123,6 +125,48 @@ def do_replacement(frame, badpix_map, dq=None, xbox_size=5, ybox_size=0):
                 dq_out[j, i] = 0
 
     return frame_out, dq_out
+
+
+def download_ref_file(filename, origin, destination):
+    """Download reference files (from crds or elsewhere).
+
+    Parameters
+    ----------
+    filename : str
+        Name of the file to download.
+    origin : str
+        Url at which the file is located.
+    destination : str
+        Path to directory to which to save the downloaded file.
+    """
+
+    # Append slashes if necessary.
+    if origin[-1] != '/':
+        origin += '/'
+    if destination[-1] != '/':
+        destination += '/'
+
+    # Construct file location and destination.
+    url = f'{origin}/{filename}'
+
+    # If file already exists, don't need to re-download.
+    if os.path.exists(destination + filename):
+        fancyprint(f'file {destination + filename} already exists', msg_type='WARNING')
+        return None
+
+    # Download file and move to desired location.
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(filename, 'wb') as f:
+            f.write(response.content)
+            if destination != './':
+                shutil.move(f'./{filename}', destination)
+            fancyprint(f'Downloaded {filename} and saved to {destination}')
+
+    else:
+        raise ValueError(f'Failed to download: {response.status_code}')
+
+    return None
 
 
 def download_stellar_spectra(st_teff, st_logg, st_met, outdir, silent=False):
@@ -327,7 +371,7 @@ def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_f
         # centroids.
         except TypeError:
             cens = apl.get_centroids_edgetrigger(deepframe[::-1].T[:, 26:250], mode='mean',
-                                                 poly_order=1, halfwidth=2)
+                                                 poly_order=2, halfwidth=2)
 
     # Unflip/transpose the X and Y coordinates.
     x1, y1 = cens[1], dimy - (26+cens[0])
@@ -351,7 +395,8 @@ def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_f
         outfile.write('# File Contents: Edgetrigger trace centroids\n')
         outfile.write('# File Creation Date: {}\n'.format(
             datetime.utcnow().replace(microsecond=0).isoformat()))
-        outfile.write('# File Author: MCR\n')
+        username = os.environ.get('USER') or os.environ.get('USERNAME')
+        outfile.write('# File Author: {}\n'.format(username))
         df.to_csv(outfile, index=False)
         outfile.close()
         fancyprint('Centroids saved to {}'.format(outfile_name))
@@ -408,7 +453,8 @@ def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
         outfile.write('# File Contents: Edgetrigger trace centroids\n')
         outfile.write('# File Creation Date: {}\n'.format(
             datetime.utcnow().replace(microsecond=0).isoformat()))
-        outfile.write('# File Author: MCR\n')
+        username = os.environ.get('USER') or os.environ.get('USERNAME')
+        outfile.write('# File Author: {}\n'.format(username))
         df.to_csv(outfile, index=False)
         outfile.close()
         fancyprint('Centroids saved to {}'.format(outfile_name))
@@ -484,7 +530,8 @@ def get_centroids_soss(deepframe, tracetable, subarray, save_results=True, save_
         outfile.write('# File Contents: Edgetrigger trace centroids\n')
         outfile.write('# File Creation Date: {}\n'.format(
             datetime.utcnow().replace(microsecond=0).isoformat()))
-        outfile.write('# File Author: MCR\n')
+        username = os.environ.get('USER') or os.environ.get('USERNAME')
+        outfile.write('# File Author: {}\n'.format(username))
         df.to_csv(outfile, index=False)
         outfile.close()
         fancyprint('Centroids saved to {}'.format(outfile_name))
@@ -512,7 +559,7 @@ def get_default_header():
                    'Inst': 'NIRISS/SOSS',
                    'Date': (datetime.utcnow().replace(microsecond=0).isoformat()),
                    'Pipeline': 'exoTEDRF',
-                   'Author': 'MCR',
+                   'Author': os.environ.get('USER') or os.environ.get('USERNAME'),
                    'Contents': None,
                    'Method': 'Box Extraction',
                    'Width': 25}
@@ -786,8 +833,9 @@ def get_nrs_detector_name(datafile):
 
     from jwst import datamodels
     if isinstance(datafile, str):
-        with fits.open(datafile) as file:
-            detector = file[0].header['DETECTOR'].lower()
+        detector = fits.getheader(datafile)['DETECTOR'].lower()
+    elif isinstance(datafile, fits.hdu.hdulist.HDUList):
+        detector = datafile[0].header['DETECTOR'].upper()
     else:
         with datamodels.open(datafile) as d:
             detector = d.meta.instrument.detector.lower()
@@ -884,6 +932,66 @@ def get_soss_subarray(datafile):
             subarray = d.meta.subarray.name.upper()
 
     return subarray
+
+
+def get_soss_tracetable(subarray, outdir):
+    """Download the appropriate tracetable reference file for SOSS.
+
+    Parameters
+    ----------
+    subarray : str
+        SOSS subarray identifier.
+    outdir : str
+        Directory to which to save file.
+
+    Returns
+    -------
+    tracetable : str
+        Path to tracetable reference file.
+    """
+
+    # Get the correct tracetable file for the subarray being used.
+    if subarray == 'SUBSTRIP96':
+        filename = 'jwst_niriss_spectrace_0022.fits'
+    else:
+        filename = 'jwst_niriss_spectrace_0023.fits'
+    # Files hosted on GitHub,
+    url = 'https://raw.githubusercontent.com/radicamc/exoTEDRF/main/files/'
+    # Download the reference file.
+    download_ref_file(filename, url, outdir)
+    tracetable = outdir + filename
+
+    return tracetable
+
+
+def get_soss_wavemap(subarray, outdir):
+    """Download the appropriate wavemap reference file for SOSS.
+
+    Parameters
+    ----------
+    subarray : str
+        SOSS subarray identifier.
+    outdir : str
+        Directory to which to save file.
+
+    Returns
+    -------
+    wavemap : str
+        Path to wavemap reference file.
+    """
+
+    # Get the correct wavemap file for the subarray being used.
+    if subarray == 'SUBSTRIP96':
+        filename = 'jwst_niriss_wavemap_0020.fits'
+    else:
+        filename = 'jwst_niriss_wavemap_0022.fits'
+    # Files hosted on GitHub,
+    url = 'https://raw.githubusercontent.com/radicamc/exoTEDRF/main/files/'
+    # Download the reference file.
+    download_ref_file(filename, url, outdir)
+    wavemap = outdir + filename
+
+    return wavemap
 
 
 def get_stellar_param_grid(st_teff, st_logg, st_met):
@@ -1630,7 +1738,7 @@ def scatter_normalize_cube(cube, window=5):
     return scale, cube_filt
 
 
-def sigma_clip_lightcurves(flux, thresh=5, window=5):
+def sigma_clip_lightcurves(flux, thresh=10, window=10):
     """Sigma clip outliers in time from final lightcurves.
 
     Parameters
@@ -1650,6 +1758,41 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
 
     flux_clipped = np.copy(flux)
     nints, nwaves = np.shape(flux)
+
+    # First find and interpolate remaining high variance channels.
+    # Get sactter in each wavelength channel.
+    scatter = np.nanmedian(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)
+    scatter = np.where(scatter == 0, np.inf, scatter)
+    scatter_filt = median_filter(scatter, window)
+    diff = scatter - scatter_filt
+    std_dev = np.nanmedian(np.abs(0.5 * (diff[0:-2] + diff[2:]) - diff[1:-1]), axis=0)
+    # Find channels with larger than expected scatter.
+    ii = np.where(np.abs(diff) / std_dev >= thresh)[0]
+
+    # Interpolate or mask these channels.
+    # TODO: add to pixel report.
+    chunks = np.split(ii, np.where(np.diff(ii) != 1)[0] + 1)
+    interp_count, mask_count = 0, 0
+    for chunk in chunks:
+        low = np.nanmax([np.nanmin(chunk) - 1, 0])
+        up = np.nanmin([np.nanmax(chunk) + 1, nwaves - 1])
+        ll = len(chunk)
+        # If chunks are small, linearly interpolate them.
+        if ll < 10:
+            w = 1 / (ll + 1)
+            for i in range(ll):
+                flux_clipped[:, chunk[i]] = np.average([flux[:, low], flux[:, up]],
+                                                       weights=[w*(i+1), 1-w*(i+1)], axis=0)
+                interp_count += 1
+        # If large, mask them.
+        else:
+            for i in range(ll):
+                flux_clipped[:, chunk[i]] = np.nan
+                mask_count += 1
+
+    fancyprint('{0} channels interplated and {1} masked.'.format(interp_count, mask_count))
+
+    # Now clip individual pixels.
     flux_filt = median_filter(flux, (window, 1))
     ii = window // 2
     flux_filt[:ii] = np.median(flux_filt[ii:(ii+window)], axis=0)
@@ -1663,7 +1806,7 @@ def sigma_clip_lightcurves(flux, thresh=5, window=5):
     # Replace outliers.
     flux_clipped[ii] = flux_filt[ii]
 
-    fancyprint('{0} pixels clipped ({1:.3f}%)'.format(len(ii[0]), len(ii[0])/nints/nwaves*100))
+    fancyprint('{0} pixels clipped ({1:.3f}%).'.format(len(ii[0]), len(ii[0])/nints/nwaves*100))
 
     return flux_clipped
 

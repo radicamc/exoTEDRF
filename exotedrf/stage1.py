@@ -23,7 +23,6 @@ import warnings
 
 from jwst import datamodels
 from jwst.pipeline import calwebb_detector1
-from jwst.pipeline import calwebb_spec2
 
 import exotedrf.stage2 as stage2
 from exotedrf import utils, plotting
@@ -241,89 +240,6 @@ class EmiCorrStep:
                 step = calwebb_detector1.emicorr_step.EmiCorrStep()
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 skip=False, **kwargs)
-                # Verify that filename is correct.
-                if save_results is True:
-                    current_name = self.output_dir + res.meta.filename
-                    if expected_file != current_name:
-                        res.close()
-                        os.rename(current_name, expected_file)
-                        thisfile = fits.open(expected_file)
-                        thisfile[0].header['FILENAME'] = self.fileroots[i] + self.tag
-                        thisfile.writeto(expected_file, overwrite=True)
-                    res = expected_file
-            results.append(res)
-
-        return results
-
-
-class ResetStep:
-    """Wrapper around default calwebb_detector1 reset anomaly correction step.
-    """
-
-    def __init__(self, input_data, output_dir):
-        """Step initializer.
-
-        Parameters
-        ----------
-        input_data : array-like(str), array-like(datamodel)
-            List of paths to input data or the input data itself.
-        output_dir : str
-            Path to directory to which to save outputs.
-        """
-
-        # Set up easy attributes.
-        self.tag = 'resetstep.fits'
-        self.output_dir = output_dir
-
-        # Unpack input data files.
-        self.datafiles = utils.sort_datamodels(input_data)
-        self.fileroots = utils.get_filename_root(self.datafiles)
-
-        # Get instrument.
-        self.instrument = utils.get_instrument_name(self.datafiles[0])
-
-    def run(self, save_results=True, force_redo=False, **kwargs):
-        """Method to run the step.
-
-        Parameters
-        ----------
-        save_results : bool
-            If True, save results.
-        force_redo : bool
-            If True, run step even if output files are detected.
-        kwargs : dict
-            Keyword arguments for calwebb_detector1.reset_step.ResetStep.
-
-        Returns
-        -------
-        results : list(datamodel)
-            Input data files processed through the step.
-        """
-
-        # Only run for MIRI observations.
-        if self.instrument != 'MIRI':
-            fancyprint('Reset anomaly correction only necessary for MIRI.')
-            fancyprint('Skipping Reset Anomaly Correction Step.')
-            return self.datafiles
-
-        # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
-            fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
-
-        results = []
-        all_files = glob.glob(self.output_dir + '*')
-        for i, segment in enumerate(self.datafiles):
-            # If an output file for this segment already exists, skip the step.
-            expected_file = self.output_dir + self.fileroots[i] + self.tag
-            if expected_file in all_files and force_redo is False:
-                fancyprint('File {} already exists.'.format(expected_file))
-                fancyprint('Skipping Reset Anomaly Correction Step.')
-                res = expected_file
-            # If no output files are detected, run the step.
-            else:
-                step = calwebb_detector1.reset_step.ResetStep()
-                res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
-                                **kwargs)
                 # Verify that filename is correct.
                 if save_results is True:
                     current_name = self.output_dir + res.meta.filename
@@ -886,8 +802,10 @@ class OneOverFStep:
                         if self.instrument == 'NIRISS':
                             # Define the readout setup.
                             subarray = utils.get_soss_subarray(self.datafiles[0])
-                            step = calwebb_spec2.extract_1d_step.Extract1dStep()
-                            tracetable = step.get_reference_file(self.datafiles[0], 'spectrace')
+                            # Download the reference file.
+                            outdir = os.environ['CRDS_PATH'] + '/references/jwst/niriss/'
+                            tracetable = utils.get_soss_tracetable(subarray, outdir)
+                            # Get centroids.
                             cens = utils.get_centroids_soss(thisdeep, tracetable, subarray,
                                                             save_results=False)
                             self.centroids['xpos'] = cens[0][0]
@@ -3045,19 +2963,6 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
         else:
             fancyprint('EmiCorrStep not supported for {}.'.format(mode), msg_type='WARNING')
-
-    # ===== Reset Anomaly Correction Step =====
-    # Default DMS step.
-    if 'ResetStep' not in skip_steps:
-        if mode.upper() == 'MIRI/LRS':
-            if 'ResetStep' in kwargs.keys():
-                step_kwargs = kwargs['ResetStep']
-            else:
-                step_kwargs = {}
-            step = ResetStep(results, output_dir=outdir)
-            results = step.run(save_results=save_results, force_redo=force_redo, **step_kwargs)
-        else:
-            fancyprint('ResetStep not supported for {}.'.format(mode), msg_type='WARNING')
 
     # ===== Superbias Subtraction Step =====
     # Default/Custom DMS step.
