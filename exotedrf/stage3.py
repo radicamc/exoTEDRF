@@ -146,7 +146,8 @@ class Extract1DStep:
 
     def run(self, extract_width=40, extract_width_soss2=None, soss_specprofile=None, centroids=None,
             save_results=True, force_redo=False, do_plot=False, show_plot=False, deepframe=None,
-            use_pastasoss=False, opt_max_iter=25, opt_var_thresh=25, allow_miri_slope=False):
+            use_pastasoss=False, opt_max_iter=25, opt_var_thresh=25, allow_miri_slope=False,
+            clip_thresh=10):
         """Method to run the step.
 
         Parameters
@@ -177,6 +178,8 @@ class Extract1DStep:
             Variance threshold for a pixel to be flagged as an outlier during optimal exraction.
         allow_miri_slope : bool
             If True, allow the MIRI centroids to be sloped.
+        clip_thresh : int
+            Threshold for sigma clipping.
 
         Returns
         -------
@@ -328,18 +331,18 @@ class Extract1DStep:
                 spectra = format_soss_spectra(results, times, extract_params, self.pl_name,
                                               st_teff, st_logg, st_met, pwcpos=pwcpos,
                                               output_dir=self.output_dir, save_results=save_results,
-                                              use_pastasoss=use_pastasoss)
+                                              use_pastasoss=use_pastasoss, clip_thresh=clip_thresh)
             elif self.instrument == 'NIRSPEC':
                 detector = utils.get_nrs_detector_name(self.datafiles[0])
                 grating = utils.get_nrs_grating(self.datafiles[0])
                 spectra = format_nirspec_spectra(results, times, extract_params, self.pl_name,
                                                  detector, grating, st_teff, st_logg, st_met,
                                                  output_dir=self.output_dir,
-                                                 save_results=save_results)
+                                                 save_results=save_results, clip_thresh=clip_thresh)
             else:
                 spectra = format_miri_spectra(results, times, extract_params, self.pl_name,
                                               st_teff, st_logg, st_met, output_dir=self.output_dir,
-                                              save_results=save_results)
+                                              save_results=save_results, clip_thresh=clip_thresh)
 
         return spectra
 
@@ -1292,7 +1295,8 @@ def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path, orde
 
 
 def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=None,
-                        st_logg=None, st_met=None, output_dir='./', save_results=True):
+                        st_logg=None, st_met=None, output_dir='./', save_results=True,
+                        clip_thresh=5):
     """Unpack the outputs of the 1D extraction and format them into
     lightcurves at the native detector resolution.
 
@@ -1316,6 +1320,8 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
         Stellar log surface gravity.
     st_met : float, None
         Stellar metallicity as [Fe/H].
+    clip_thresh : int
+        Threshold for sigma clipping.
 
     Returns
     -------
@@ -1335,7 +1341,7 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
         fancyprint('Using the default wavelength solution.', msg_type='WARNING')
 
     # Clip remaining 3-sigma outliers.
-    flux_clip = utils.sigma_clip_lightcurves(flux, window=10, thresh=10)
+    flux_clip = utils.sigma_clip_lightcurves(flux, window=10, thresh=clip_thresh)
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
@@ -1362,7 +1368,7 @@ def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=N
 
 def format_nirspec_spectra(datafiles, times, extract_params, target_name, detector, grating,
                            st_teff=None, st_logg=None, st_met=None, output_dir='./',
-                           save_results=True):
+                           save_results=True, clip_thresh=5):
     """Unpack the outputs of the 1D extraction and format them into
     lightcurves at the native detector resolution.
 
@@ -1390,6 +1396,8 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
         Stellar log surface gravity.
     st_met : float, None
         Stellar metallicity as [Fe/H].
+    clip_thresh : int
+        threshold for sigma clipping.
 
     Returns
     -------
@@ -1448,7 +1456,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
         wave1d += wave_shift
 
     # Clip remaining outliers.
-    flux_clip = utils.sigma_clip_lightcurves(flux, window=10, thresh=10)
+    flux_clip = utils.sigma_clip_lightcurves(flux, window=10, thresh=clip_thresh)
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
@@ -1475,7 +1483,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
 
 def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=None, st_logg=None,
                         st_met=None, pwcpos=None, output_dir='./', save_results=True,
-                        use_pastasoss=False):
+                        use_pastasoss=False, clip_thresh=5):
     """Unpack the outputs of the 1D extraction and format them into lightcurves at the native
     detector resolution.
 
@@ -1504,6 +1512,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     use_pastasoss : bool
         If True, use pastasoss package to predict wavelength solution based on pupil wheel position.
         Note that this will only allow the extraction of order 2 from 0.6 - 0.85µm.
+    clip_thresh : int
+        Threshold for sigma clipping.
 
     Returns
     -------
@@ -1610,8 +1620,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     dq_rep_o2 = dq_rep_o2[::-1]
 
     # Clip remaining 5-sigma outliers.
-    flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1, thresh=10, window=10)
-    flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2, thresh=10, window=10)
+    flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1, thresh=clip_thresh, window=10)
+    flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2, thresh=clip_thresh, window=10)
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.

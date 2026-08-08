@@ -1761,8 +1761,8 @@ def sigma_clip_lightcurves(flux, thresh=10, window=10):
     nints, nwaves = np.shape(flux)
 
     # First find and interpolate remaining high variance channels.
-    # Get sactter in each wavelength channel.
-    scatter = np.nanmedian(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)
+    # Get scatter in each wavelength channel.
+    scatter = np.nanstd(flux, axis=0)#np.nanmedian(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)
     scatter = np.where(scatter == 0, np.inf, scatter)
     scatter_filt = median_filter(scatter, window)
     diff = scatter - scatter_filt
@@ -1794,15 +1794,15 @@ def sigma_clip_lightcurves(flux, thresh=10, window=10):
     fancyprint('{0} channels interpolated and {1} masked.'.format(interp_count, mask_count))
 
     # Now clip individual pixels.
-    flux_filt = median_filter(flux, (window, 1))
+    flux_filt = median_filter(flux_clipped, (window, 1))
     ii = window // 2
     flux_filt[:ii] = np.median(flux_filt[ii:(ii+window)], axis=0)
     flux_filt[-ii:] = np.median(flux_filt[-(ii+1+window):-(ii+1)], axis=0)
 
     # Check along the time axis for outlier pixels.
-    std_dev = np.median(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)
+    std_dev = np.median(np.abs(0.5 * (flux_clipped[0:-2] + flux_clipped[2:]) - flux_clipped[1:-1]), axis=0)
     std_dev = np.where(std_dev == 0, np.inf, std_dev)
-    scale = np.abs(flux - flux_filt) / std_dev
+    scale = np.abs(flux_clipped - flux_filt) / std_dev
     ii = np.where((scale > thresh))
     # Replace outliers.
     flux_clipped[ii] = flux_filt[ii]
