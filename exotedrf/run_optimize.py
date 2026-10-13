@@ -9,7 +9,7 @@ Script to run the exoTEDRF pipeline optimizer.
 """
 
 
-from datetime import datetime
+from datetime import datetime, UTC
 import glob
 import numpy as np
 import os
@@ -422,7 +422,7 @@ def save_config(cfg):
     shutil.copy(config_file, copy_config)
     # Append time at which it was run.
     f = open(copy_config, 'a')
-    runtime = datetime.utcnow().isoformat(sep=' ', timespec='minutes')
+    runtime = datetime.now(UTC).isoformat(sep=' ', timespec='minutes')
     f.write('\nRun at {}.'.format(runtime))
     f.close()
 

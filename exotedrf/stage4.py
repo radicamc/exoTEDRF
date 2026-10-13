@@ -8,7 +8,7 @@ Created on Thurs Jul 21 18:07 2022
 Custom JWST DMS pipeline steps for Stage 4 (lightcurve fitting).
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from exotic_ld import StellarLimbDarkening
 import exouprf.fit as fit
 import numpy as np
@@ -667,7 +667,7 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, fi
     f.write('# 1D Extraction: {}\n'.format(extraction_type))
     f.write('# Spectral Resolution: {}\n'.format(resolution))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
-    f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0).isoformat()))
+    f.write('# Date: {}\n'.format(datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%s')[:-8]))
     f.write(fit_meta)
     f.write('# Column wave: Central wavelength of bin (micron)\n')
     f.write('# Column wave_err: Wavelength bin halfwidth (micron)\n')
