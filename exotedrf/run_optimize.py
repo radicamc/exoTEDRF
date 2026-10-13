@@ -111,7 +111,6 @@ _output_tag = '_' + _output_tag if _output_tag != '' else ''
 full_outdir = os.path.join(root_dir, 'pipeline_outputs_directory' + _output_tag)
 
 # Define where to store outputs for each pipeline stage
-outdir = full_outdir
 outdir_f = os.path.join(full_outdir, 'Optimizer_Files')
 outdir_s1 = os.path.join(full_outdir, 'Stage1/')
 outdir_s2 = os.path.join(full_outdir, 'Stage2/')
@@ -181,7 +180,7 @@ def cost_function(st3, obs_mode, baseline_ints, wave_range=None, w1=0.0, w2=1.0)
     baseline_ints : array-like(int)
         Integration indices defining baseline(s) for the spectral term.
     wave_range : None or [min, max]
-        If given, restrict spectral term to this wavelength range (within ±tol).
+        If given, restrict spectral term to this wavelength range.
     w1, w2 : float
         Weights for white-light and spectral terms in final cost.
 

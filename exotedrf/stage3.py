@@ -331,10 +331,12 @@ class Extract1DStep:
             # spectra.
             st_teff, st_logg, st_met = self.stellar_params
             if self.instrument == 'NIRISS':
+                subarray = utils.get_soss_subarray(self.datafiles[0])
                 spectra = format_soss_spectra(results, times, extract_params, self.pl_name,
                                               st_teff, st_logg, st_met, pwcpos=pwcpos,
                                               output_dir=self.output_dir, save_results=save_results,
-                                              use_pastasoss=use_pastasoss, clip_thresh=clip_thresh)
+                                              use_pastasoss=use_pastasoss, clip_thresh=clip_thresh,
+                                              subarray=subarray)
             elif self.instrument == 'NIRSPEC':
                 detector = utils.get_nrs_detector_name(self.datafiles[0])
                 grating = utils.get_nrs_grating(self.datafiles[0])
@@ -1445,7 +1447,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
 
 def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=None, st_logg=None,
                         st_met=None, pwcpos=None, output_dir='./', save_results=True,
-                        use_pastasoss=False, clip_thresh=5):
+                        use_pastasoss=False, clip_thresh=5, subarray='SUBSTRIP256'):
     """Unpack the outputs of the 1D extraction and format them into lightcurves at the native
     detector resolution.
 
@@ -1476,6 +1478,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
         Note that this will only allow the extraction of order 2 from 0.6 - 0.85µm.
     clip_thresh : int
         Threshold for sigma clipping.
+    subarray : str
+        SOSS subarray identifier.
 
     Returns
     -------
@@ -1484,7 +1488,6 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     """
 
     fancyprint('Formatting extracted 1d spectra.')
-    companion_data = None
     # Box and double-Gaussian extract outputs are local arrays.
     if isinstance(datafiles, dict):
         wave1d_o1 = datafiles['wave_o1']
@@ -1493,11 +1496,6 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
         wave1d_o2 = datafiles['wave_o2']
         flux_o2 = datafiles['flux_o2']
         ferr_o2 = datafiles['ferr_o2']
-        if 'flux_o1_companion' in datafiles:
-            companion_data = {'flux_o1': datafiles['flux_o1_companion'],
-                              'ferr_o1': datafiles['ferr_o1_companion'],
-                              'flux_o2': datafiles['flux_o2_companion'],
-                              'ferr_o2': datafiles['ferr_o2_companion']}
         dq_rep_o1 = datafiles.get('dq_rep_o1', -1 * np.ones_like(wave1d_o1))
         dq_rep_o2 = datafiles.get('dq_rep_o2', -1 * np.ones_like(wave1d_o2))
     elif isinstance(datafiles, tuple):
@@ -1512,8 +1510,7 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
 
     # Whereas ATOCA extract outputs are in the atoca extract1dstep format.
     else:
-        # Open the datafiles, and pack the wavelength, flux, and flux error information into data
-        # cubes.
+        # Open the datafiles, and pack the wavelength, flux, and flux error info into data cubes.
         datafiles = np.atleast_1d(datafiles)
         for i, file in enumerate(datafiles):
             segment = utils.unpack_atoca_spectra(file)
@@ -1557,15 +1554,9 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
         # ferr_o1 = ferr_o1[:, 4:-4]
         # flux_o2 = flux_o2[:, xpos_o2]
         # ferr_o2 = ferr_o2[:, xpos_o2]
-        # if companion_data is not None:
-        #     companion_data['flux_o1'] = companion_data['flux_o1'][:, 4:-4]
-        #     companion_data['ferr_o1'] = companion_data['ferr_o1'][:, 4:-4]
-        #     companion_data['flux_o2'] = companion_data['flux_o2'][:, xpos_o2]
-        #     companion_data['ferr_o2'] = companion_data['ferr_o2'][:, xpos_o2]
 
     # Cross-correlate with stellar model.
-    # If one or more of the stellar parameters are not provided, use the existing wavelength
-    # solution.
+    # If one or more of the stellar parameters are not provided, use default wavelength solution.
     if None in [st_teff, st_logg, st_met]:
         fancyprint('Stellar parameters not provided. Using default wavelength solution.',
                    msg_type='WARNING')
@@ -1600,20 +1591,13 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     ferr_o2 = ferr_o2[:, ::-1]
     dq_rep_o1 = dq_rep_o1[::-1]
     dq_rep_o2 = dq_rep_o2[::-1]
-    if companion_data is not None:
-        companion_data['flux_o1'] = companion_data['flux_o1'][:, ::-1]
-        companion_data['flux_o2'] = companion_data['flux_o2'][:, ::-1]
-        companion_data['ferr_o1'] = companion_data['ferr_o1'][:, ::-1]
-        companion_data['ferr_o2'] = companion_data['ferr_o2'][:, ::-1]
 
-    # Clip remaining 5-sigma outliers.
+    # # Clip remaining 5-sigma outliers.
     flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1, thresh=clip_thresh, window=10)
-    flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2, thresh=clip_thresh, window=10)
-    if companion_data is not None:
-        flux_o1_comp_clip = utils.sigma_clip_lightcurves(companion_data['flux_o1'],
-                                                         thresh=clip_thresh, window=10)
-        flux_o2_comp_clip = utils.sigma_clip_lightcurves(companion_data['flux_o2'],
-                                                         thresh=clip_thresh, window=10)
+    if subarray == 'SUBSTRIP256':
+        flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2, thresh=clip_thresh, window=10)
+    else:
+        flux_o2_clip = flux_o2
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
@@ -1637,12 +1621,6 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     units = ['Micron', 'Micron', 'DN/s', 'DN/s',
              'Micron', 'Micron', 'DN/s', 'DN/s', 'MJD_TDB', '1-DNU, 2-SAT, 4-HOT, 8-VAR',
              '1-DNU, 2-SAT, 4-HOT, 8-VAR']
-    if companion_data is not None:
-        data[8:8] = [flux_o1_comp_clip, companion_data['ferr_o1'],
-                     flux_o2_comp_clip, companion_data['ferr_o2']]
-        names[8:8] = ['Flux O1 Companion', 'Flux Err O1 Companion',
-                      'Flux O2 Companion', 'Flux Err O2 Companion']
-        units[8:8] = ['DN/s', 'DN/s', 'DN/s', 'DN/s']
     spectra = utils.save_extracted_spectra(filename, data, names, units, header_dict,
                                            header_comments, save_results=save_results)
 

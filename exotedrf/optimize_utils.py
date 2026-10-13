@@ -315,9 +315,6 @@ def extract_at_step(datafile, instrument, extract_width, centroids, baseline_int
     fancyprint(f'  extract_width: {extract_width}')
     if extract_step_kwargs is None:
         extract_step_kwargs = {}
-    if extract_method == 'doublegauss' and instrument != 'NIRISS':
-        raise ValueError('Optimizer-side double Gaussian extraction is currently only implemented '
-                         'for NIRISS/SOSS.')
 
     # load with flags applied
     fancyprint(f'  Loading data with DQ flags...')
@@ -1023,5 +1020,3 @@ def stitch_soss_orders(wave_o1, wave_o2, flux_o1=None, flux_o2=None, cutoff=0.85
     flux = np.concatenate([np.asarray(flux_o2, float)[:, i2],
                            np.asarray(flux_o1, float)[:, i1]], axis=1)
     return wave, flux[:, s]
-
-

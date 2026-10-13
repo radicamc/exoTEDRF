@@ -45,15 +45,20 @@ def make_lightcurve_plots(st3, baseline_ints, obs, outdir=None, name_str=None):
         Output directory for saved figures.
     """
 
-    # TODO: need to double check what will happen here with SUBSTRIP96
     if 'niriss' in obs.lower():
         wave = st3['Wave O1']
         flux = st3['Flux O1']
         wave2 = st3['Wave O2']
         flux2 = st3['Flux O2']
-        ii = np.where((wave2 >= 0.6) & (wave2 < 0.85))[0]
-        wave2 = wave2[ii]
-        flux2 = flux2[:, ii]
+        # If SUBSTRIP96, all flux2 values should be zero. None these to not appear in plots.
+        if np.nansum(flux2) == 0:
+            flux2 = None
+            wave2 = None
+        # If SUBSTRIP256, trim to only show relevant wavelengths.
+        else:
+            ii = np.where((wave2 >= 0.6) & (wave2 < 0.85))[0]
+            wave2 = wave2[ii]
+            flux2 = flux2[:, ii]
     else:
         wave = st3['Wave']
         flux = st3['Flux']
@@ -244,12 +249,8 @@ def plot_cost(name_str, outdir, table_height=0.4):
     # ======== TABLE OF BEST PARAMETERS ========
     ax_table.axis('off')
     ax_table.text(0.5, 0.65, 'Best Parameters', ha='center', va='bottom', fontsize=12)
-    table = ax_table.table(
-        cellText=best_df.values,
-        colLabels=best_df.columns,
-        cellLoc='center',
-        loc='center'
-    )
+    table = ax_table.table(cellText=best_df.values, colLabels=best_df.columns, cellLoc='center',
+                           loc='center')
     table.scale(1.0, 1.8)
     table.auto_set_font_size(False)
     for (row, col), cell in table.get_celld().items():
