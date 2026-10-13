@@ -12,15 +12,15 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import numpy as np
-import os
 import pandas as pd
-from scipy.ndimage import uniform_filter1d
+from scipy.ndimage import median_filter
 
-from exotedrf.utils import fancyprint
 from exotedrf.optimize_utils import stitch_soss_orders
+from exotedrf.plotting import make_2d_lightcurve_plot
+from exotedrf.utils import fancyprint, format_out_frames
 
 
-def make_diagnostic_plot(st3, name_str, baseline_ints, obs, filter, outdir):
+def make_lightcurve_plots(st3, baseline_ints, obs, outdir=None, name_str=None):
     """Create two diagnostic plots from Stage-3 data:
       1) Normalized white-light curve
       2) Normalized flux image with true wavelength mapping
@@ -31,7 +31,7 @@ def make_diagnostic_plot(st3, name_str, baseline_ints, obs, filter, outdir):
         Stage-3 outputs containing flux and wavelength arrays.
         For NIRISS/SOSS: requires 'Flux_O1', 'Flux_O2', 'Wave_O1', 'Wave_O2'.
         For others: requires 'Flux', 'Wave'.
-    name_str : str
+    name_str : str, None
         Identifier used in output filenames.
     baseline_ints : list[int]
         One or two integers for baseline integrations:
@@ -39,130 +39,50 @@ def make_diagnostic_plot(st3, name_str, baseline_ints, obs, filter, outdir):
             [nlow, nhigh] -> normalize by mean of medians of start and end segments
     obs : str
         Observing mode identifier.
-    filter : str
+    filter : str, None
         Filter/detector identifier.
-    outdir : str
+    outdir : str, None
         Output directory for saved figures.
     """
 
-    os.makedirs(outdir, exist_ok=True)
-
-    # ======== WAVELENGTH RANGE SELECTION BASED ON MODE/FILTER ========
-    if 'miri' in obs:
-        wave_min, wave_max = 5.0, 12.0
-    elif 'niriss' in obs:
-        wave_min, wave_max = 0.6, 2.8
-    elif 'nirspec' in obs:
-        if filter == 'nrs1':
-            wave_min, wave_max = 2.9, 3.9  # NRS1 covers lower wavelengths (~2.9-3.8 µm)
-        elif filter == 'nrs2':
-            wave_min, wave_max = 3.8, 5.0  # NRS2 covers higher wavelengths (~3.8-5.2 µm)
-        else:
-            raise ValueError(f"Unknown nirspec filter_detector: {filter}")
+    # TODO: need to double check what will happen here with SUBSTRIP96
+    if 'niriss' in obs.lower():
+        wave = st3['Wave O1']
+        flux = st3['Flux O1']
+        wave2 = st3['Wave O2']
+        flux2 = st3['Flux O2']
+        ii = np.where((wave2 >= 0.6) & (wave2 < 0.85))[0]
+        wave2 = wave2[ii]
+        flux2 = flux2[:, ii]
     else:
-        raise ValueError(f"Unknown observing_mode: {obs}")
+        wave = st3['Wave']
+        flux = st3['Flux']
+        wave2 = None
+        flux2 = None
 
-    # --- Build stitched spectrum ---
-    if 'niriss' in obs:
-        # Stitch both spectral orders onto one wavelength axis
-        wave, flux = stitch_soss_orders(st3['Wave O1'], st3['Wave O2'],
-                                        st3['Flux O1'], st3['Flux O2'])
+    # Make sure all wavelengths are valid.
+    ii = np.where(np.isfinite(wave))[0]
+    wave = wave[ii]
+    flux = flux[:, ii]
+
+    # Plot white light curve
+    plot_whitelight(flux, baseline_ints, outdir, name_str)
+
+    # Plot Spectroscopic light curves
+    base = format_out_frames(baseline_ints)
+    flux_norm = flux / np.nanmedian(flux[base], axis=0)
+    if flux2 is not None:
+        flux2_norm = flux2 / np.nanmedian(flux2[base], axis=0)
     else:
-        # Non-NIRISS: directly load single flux/wavelength arrays
-        flux = np.asarray(st3['Flux'], float)
-        wave = np.asarray(st3['Wave'], float)
+        flux2_norm = None
+    inst = obs.split('/')[0]
 
-    # --- Apply wavelength range filter ---
-    mask = np.isfinite(wave)
-    if wave_min is not None:
-        mask &= wave >= wave_min
-    if wave_max is not None:
-        mask &= wave <= wave_max
-    wave = wave[mask]
-    flux = flux[:, mask]
-
-    # --- Sort by wavelength ---
-    # mergesort preserves order for equal wavelengths (stable sort)
-    s = np.argsort(wave, kind='mergesort')
-    wave = wave[s]
-    flux = flux[:, s]
-
-    # --- Drop bad columns and enforce strictly increasing wavelengths ---
-    # Column median across time for each spectral channel
-    col_med = np.nanmedian(flux, axis=0)
-    # Keep only finite wavelengths, finite medians, and non-zero medians
-    good = np.isfinite(wave) & np.isfinite(col_med) & (col_med != 0)
-    wave = wave[good]
-    flux = flux[:, good]
-
-    # --- Collapse duplicate wavelengths ---
-    # Round wavelengths to tolerance to handle floating-point noise
-    w_round = np.round(wave, 12)
-    _, keep_idx = np.unique(w_round, return_index=True)
-    keep_idx.sort()  # keep in ascending order
-    wave = wave[keep_idx]
-    flux = flux[:, keep_idx]
-
-    # --- White-light curve ---
-    # Sum flux over all spectral channels for each integration
-    white = np.nansum(flux, axis=1)
-    if len(baseline_ints) == 1:
-        # Normalize by median of first nn integrations
-        nn = int(baseline_ints[0])
-        norm_white = white / np.median(white[:nn])
+    if name_str is not None:
+        plot_path = f'{outdir}/2D_LightCurves{name_str}.png'
     else:
-        # Normalize by mean of medians from start and end segments
-        nlow, nhigh = map(int, baseline_ints)
-        base = 0.5 * (np.median(white[:nlow]) + np.median(white[nhigh:]))
-        norm_white = white / base
+        plot_path = None
 
-    # --- Plot normalized white-light curve ---
-    plt.figure()
-    plt.plot(norm_white, 'k.', markersize=2, alpha=0.5)
-    plt.xlabel("Integration Number")
-    plt.ylabel("Normalized White Flux")
-    plt.title("Normalized White Light Curve")
-    plt.savefig(f"{outdir}/WhiteLightCurve{name_str}.png", dpi=300)
-    plt.close()
-
-    # --- Normalized flux image with true wavelength mapping ---
-    # Normalize each column by its time median (post-cleaning)
-    img = np.full_like(flux, np.nan, dtype=float)
-    img[:, :] = flux / col_med[good][keep_idx]  # safe: filtered for finite non-zero values
-
-    n_int, n_pix = img.shape
-
-    # Check if wavelength array is empty (can happen with bad extractions)
-    if wave.size == 0 or n_pix == 0:
-        fancyprint("WARNING: Wavelength array is empty, skipping diagnostic flux "
-                   "image plot", msg_type='WARNING')
-        return
-
-    # Require strictly increasing wavelength for pcolormesh bin edges
-    if not np.all(np.diff(wave) > 0):
-        fancyprint("WARNING: Wavelength not strictly increasing, skipping diagnostic flux "
-                   "image plot", msg_type='WARNING')
-        return
-
-    # Compute wavelength bin edges for pcolormesh
-    dw = np.diff(wave)
-    edges = np.empty(n_pix + 1, float)
-    edges[1:-1] = 0.5 * (wave[:-1] + wave[1:])  # midpoints
-    edges[0] = wave[0] - dw[0] / 2              # lower bound
-    edges[-1] = wave[-1] + dw[-1] / 2           # upper bound
-
-    # Integration edges for x-axis
-    x = np.arange(n_int + 1)
-
-    # Plot normalized flux image
-    plt.figure()
-    plt.pcolormesh(x, edges, img.T, shading="auto", vmin=0.98, vmax=1.02)
-    plt.xlabel("Integration Number")
-    plt.ylabel("Wavelength (µm)")
-    plt.title("Normalized Flux Image")
-    plt.colorbar(label="Relative Flux")
-    plt.savefig(f"{outdir}/2D_LightCurves{name_str}.png", dpi=300)
-    plt.close()
+    make_2d_lightcurve_plot(wave, flux_norm, wave2, flux2_norm, instrument=inst, outpdf=plot_path)
 
 
 def plot_cost(name_str, outdir, table_height=0.4):
@@ -179,15 +99,15 @@ def plot_cost(name_str, outdir, table_height=0.4):
         Direcory to which to save outputs.
     """
 
-    df = pd.read_csv(f"{outdir}/Cost_Summary{name_str}.txt",
-                     delimiter="\t", keep_default_na=False)
+    df = pd.read_csv(f'{outdir}/Cost_Summary{name_str}.txt',
+                     delimiter='\t', keep_default_na=False)
 
     # Remove rows where 'cost' is not numeric, then keep the surviving values
     # numeric so per-sweep normalization does arithmetic instead of string math.
-    df["cost"] = pd.to_numeric(df["cost"], errors="coerce")
-    df = df[df["cost"].notna()].reset_index(drop=True)
+    df['cost'] = pd.to_numeric(df['cost'], errors='coerce')
+    df = df[df['cost'].notna()].reset_index(drop=True)
     if df.empty:
-        raise ValueError(f"No finite numeric costs found in {outdir}/Cost_Summar{name_str}.txt")
+        raise ValueError(f'No finite numeric costs found in {outdir}/Cost_Summar{name_str}.txt')
 
     # Get all parameter columns (exclude 'duration_s' and 'cost' at the end)
     param_cols = df.columns[:-2]
@@ -251,10 +171,10 @@ def plot_cost(name_str, outdir, table_height=0.4):
         except Exception:
             pass
 
-        labels.append(f"{changed_param}={value}")
+        labels.append(f'{changed_param}={value}')
         last_changed_param = changed_param
 
-    df["changed_label"] = labels
+    df['changed_label'] = labels
 
     # Normalize cost and highlight best
     sweep_boundaries = [0] + sweep_lines + [len(df)]
@@ -266,7 +186,7 @@ def plot_cost(name_str, outdir, table_height=0.4):
         end = sweep_boundaries[i + 1]
 
         # Get costs for this sweep
-        sweep_costs = df.iloc[start:end]["cost"].values
+        sweep_costs = df.iloc[start:end]['cost'].values
 
         # normalize to [0, 1] within this sweep
         min_cost = np.nanmin(sweep_costs)
@@ -281,10 +201,10 @@ def plot_cost(name_str, outdir, table_height=0.4):
         normalized_costs[start:end] = normalized_sweep
 
         # highlight the best (minimum cost) in this sweep
-        min_idx = df.iloc[start:end]["cost"].idxmin()
+        min_idx = df.iloc[start:end]['cost'].idxmin()
         colors[min_idx] = 'royalblue'
 
-    best_row = df.loc[df["cost"].idxmin(), param_cols.tolist() + ["cost"]].copy()
+    best_row = df.loc[df['cost'].idxmin(), param_cols.tolist() + ['cost']].copy()
     for col in best_row.index:
         val = best_row[col]
         try:
@@ -303,7 +223,7 @@ def plot_cost(name_str, outdir, table_height=0.4):
     for x in sweep_lines:
         ax_plot.axvline(x=x - 0.5, color='gray', linestyle='--', linewidth=1)
 
-    values = [lbl.split('=', 1)[1] for lbl in df["changed_label"]]
+    values = [lbl.split('=', 1)[1] for lbl in df['changed_label']]
     ax_plot.set_xticks(range(len(df)))
     ax_plot.set_xticklabels(values, rotation=0, fontsize=8)
 
@@ -311,19 +231,19 @@ def plot_cost(name_str, outdir, table_height=0.4):
     base_y = ymin - 0.08 * (ymax - ymin)
     alt_y = ymin - 0.15 * (ymax - ymin)
     for i, (start, end) in enumerate(zip(sweep_boundaries[:-1], sweep_boundaries[1:])):
-        param_name = df.loc[start, "changed_label"].split("=", 1)[0]
+        param_name = df.loc[start, 'changed_label'].split('=', 1)[0]
         center = (start + end - 1) / 2
         y_pos = base_y if i % 2 == 0 else alt_y
-        ax_plot.text(center, y_pos, param_name, ha="center", va="top", fontsize=10)
+        ax_plot.text(center, y_pos, param_name, ha='center', va='top', fontsize=10)
 
     fig.subplots_adjust(bottom=0.30)
-    ax_plot.set_ylabel("Relative Cost (normalized per sweep)")
-    ax_plot.set_title(f"Cost by Single Parameter Sweep: {name_str}")
+    ax_plot.set_ylabel('Relative Cost (normalized per sweep)')
+    ax_plot.set_title(f'Cost by Single Parameter Sweep: {name_str}')
     ax_plot.set_ylim(-0.05, 1.05)
 
     # ======== TABLE OF BEST PARAMETERS ========
-    ax_table.axis("off")
-    ax_table.text(0.5, 0.65, "Best Parameters", ha="center", va="bottom", fontsize=12)
+    ax_table.axis('off')
+    ax_table.text(0.5, 0.65, 'Best Parameters', ha='center', va='bottom', fontsize=12)
     table = ax_table.table(
         cellText=best_df.values,
         colLabels=best_df.columns,
@@ -338,20 +258,13 @@ def plot_cost(name_str, outdir, table_height=0.4):
         else:
             cell.set_fontsize(10)  # data
 
-    fig.savefig(f"{outdir}/Cost_Summary{name_str}.png",
+    fig.savefig(f'{outdir}/Cost_Summary{name_str}.png',
                 dpi=300, bbox_inches='tight')
 
 
-# TODO: Figure out why this isn't plotting order 2.
-def plot_scatter(txtfile, rows, wave_range=None, smooth=None, spectrum_files=None, style='line',
-                 ylim=None, save_path=None, tol=0.05):
-    """Plot point-to-point (P2P) scatter vs wavelength for selected rows from a scatter table.
-
-    Overlays for each selected row:
-      1) Smoothed series using a moving-average window (`smooth`) if provided
-      2) Raw (unsmoothed) series
-
-    Photon-noise curves are intentionally excluded from this plot.
+def plot_scatter(txtfile, rows, wave_range=None, smooth=1, spectrum_files=None, ylim=None,
+                 save_path=None, tol=1e-5):
+    """Plot point-to-point scatter vs wavelength for optimizer results.
 
     Parameters
     ----------
@@ -361,16 +274,14 @@ def plot_scatter(txtfile, rows, wave_range=None, smooth=None, spectrum_files=Non
         Indices of the table rows to plot. Negative indices count from the end.
     wave_range : tuple(float, float), optional
         Wavelength range to plot (μm), with tolerance `tol`.
-    smooth : int, optional
+    smooth : int
         Window size (in pixels) for moving-average smoothing.
     spectrum_files : list[str]
         List of spectrum FITS files to retrieve wavelength axis from.
-    style : {'line', 'scatter'}
-        Plotting style.
     ylim : tuple(float, float), optional
         y-axis limits.
-    save_path : str, optional
-        If given, save the plot to this file.
+    save_path : str, None
+        Filepath to which to save plot.
     tol : float
         Allowed margin when applying wave_range filtering.
     """
@@ -388,23 +299,23 @@ def plot_scatter(txtfile, rows, wave_range=None, smooth=None, spectrum_files=Non
         if 0 <= i < n_rows:
             valid.append(i)
         else:
-            print(f"Warning: row {r} out of range, skipping.")
+            print(f'Warning: row {r} out of range, skipping.')
     if not valid:
-        raise ValueError("No valid rows to plot.")
+        raise ValueError('No valid rows to plot.')
 
     # --- Load wavelength grid to match scatter columns ---
     if not spectrum_files:
-        raise ValueError("`spectrum_files` is required to read the wavelength axis.")
+        raise ValueError('`spectrum_files` is required to read the wavelength axis.')
     with fits.open(spectrum_files[0]) as hdus:
         # Create dict mapping sanitized HDU names to HDU objects
-        name_map = {h.name.replace(" ", "_"): h
-                    for h in hdus if h.data is not None and h.name != "PRIMARY"}
+        name_map = {h.name.replace(' ', '_'): h
+                    for h in hdus if h.data is not None and h.name != 'PRIMARY'}
 
         # Special handling for NIRISS with two orders - plot separately
-        if ("Wave_O1" in name_map) and ("Wave_O2" in name_map):
+        if ('Wave_O1' in name_map) and ('Wave_O2' in name_map):
             # Scatter rows are on the stitched, wavelength-sorted axis used by cost_function.
-            wave_o1 = np.asarray(name_map["Wave_O1"].data, float)
-            wave_o2 = np.asarray(name_map["Wave_O2"].data, float)
+            wave_o1 = np.asarray(name_map['Wave_O1'].data, float)
+            wave_o2 = np.asarray(name_map['Wave_O2'].data, float)
             if wave_o1.ndim == 2:
                 wave_o1 = np.nanmedian(wave_o1, axis=0)
                 wave_o2 = np.nanmedian(wave_o2, axis=0)
@@ -422,11 +333,11 @@ def plot_scatter(txtfile, rows, wave_range=None, smooth=None, spectrum_files=Non
 
     # --- Plot for NIRISS with two orders (side-by-side subplots) ---
     if is_niriss_two_orders:
-        fig, axes = plt.subplots(1, 2, figsize=(16, 4))
+        fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
         if wave_stitched.size != n_cols:
-            raise ValueError(f"Stitched SOSS wavelength axis ({wave_stitched.size}) does not match "
-                             f"scatter columns ({n_cols}).")
+            raise ValueError(f'Stitched SOSS wavelength axis ({wave_stitched.size}) does not match '
+                             f'scatter columns ({n_cols}).')
         for idx, order_info in enumerate(orders):
             ax = axes[idx]
             order_name = order_info['name']
@@ -438,8 +349,8 @@ def plot_scatter(txtfile, rows, wave_range=None, smooth=None, spectrum_files=Non
                 mask &= (wave_stitched >= wmin - tol) & (wave_stitched <= wmax + tol)
 
             if not mask.any():
-                fancyprint(f"Warning: No finite wavelengths in {order_name} within range"
-                           f" {wave_range}", msg_type='WARNING')
+                fancyprint(f'Warning: No finite wavelengths in {order_name} within range '
+                           f'{wave_range}', msg_type='WARNING')
                 continue
 
             x = wave_stitched[mask]
@@ -450,105 +361,109 @@ def plot_scatter(txtfile, rows, wave_range=None, smooth=None, spectrum_files=Non
                 y_full = df.iloc[i, :].to_numpy(float)
                 y_raw = (y_full[mask]) * 1e6
 
-                if style == 'line':
-                    ax.plot(x, y_raw, linewidth=0.6, linestyle='-', alpha=0.5,
-                            color='grey', label="Best config (raw)" if idx == 0 else "")
-                else:
-                    ax.scatter(x, y_raw, s=3, alpha=0.8,
-                               label="Best config (raw)" if idx == 0 else "")
+                ax.plot(x, y_raw, linewidth=0.6, alpha=0.25, color='grey')
 
-                # Apply smoothing if requested
-                if smooth and smooth > 1:
-                    y_sm = uniform_filter1d(y_raw, size=smooth, mode='nearest')
-                    if style == 'line':
-                        ax.plot(x, y_sm, linewidth=1.2, linestyle='-',
-                                label=f"Best config (smoothed, window={smooth})" if idx == 0 else "")
-                    else:
-                        ax.scatter(x, y_sm, s=5,
-                                   label=f"Best config (smoothed, window={smooth})" if idx == 0 else "")
+                # Apply smoothing
+                y_sm = median_filter(y_raw, size=smooth, mode='reflect')
+                ax.plot(x, y_sm, c='royalblue')
 
-            ax.set_xlabel("Wavelength [μm]", fontsize=11)
-            ax.set_ylabel("Scatter [ppm]", fontsize=11)
-            ax.set_title(f"{order_name}", fontsize=12)
+            ax.set_xlabel('Wavelength [μm]', fontsize=12)
+            if idx == 0:
+                ax.set_ylabel('Light Curve Scatter [ppm]', fontsize=12)
             if ylim is not None:
                 ax.set_ylim(ylim)
             ax.grid(True, alpha=0.3)
-            if idx == 0:
-                ax.legend(fontsize=8)
 
-        plt.tight_layout()
-        if save_path:
-            plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        plt.close()
-        return
+        # Sync y-axes
+        low1, up1 = axes[1].get_ylim()
+        low2, up2 = axes[0].get_ylim()
+        ymax = np.max([up1, up2])
+        ymin = np.min([low1, low2])
+        axes[0].set_ylim(ymin, ymax)
+        axes[1].set_ylim(ymin, ymax)
+        axes[1].yaxis.set_major_formatter(plt.NullFormatter())
 
     # --- Plot for single-order instruments ---
-    # Sort wavelengths
-    s = np.argsort(wave_full, kind="mergesort")
-    wave_sorted = wave_full[s]
-
-    # Check size match
-    if wave_sorted.size != n_cols:
-        min_size = min(wave_sorted.size, n_cols)
-        fancyprint(
-            f"WARNING: Wavelength array size ({wave_sorted.size}) != scatter columns ({n_cols}).\n"
-            f"  Truncating to {min_size} elements.",
-            msg_type='WARNING'
-        )
-        wave_sorted = wave_sorted[:min_size]
-        s = s[:min_size]
-
-    # Build boolean mask for desired wavelength range
-    if wave_range is not None:
-        wmin, wmax = wave_range
-        mask = np.isfinite(wave_sorted) & (wave_sorted >= wmin - tol) & (wave_sorted <= wmax + tol)
     else:
-        mask = np.isfinite(wave_sorted)
-    if not mask.any():
-        raise ValueError(f"No finite wavelengths within selected range {wave_range}.")
+        # Sort wavelengths
+        s = np.argsort(wave_full, kind='mergesort')
+        wave_sorted = wave_full[s]
 
-    # Final x-axis values
-    x = wave_sorted[mask]
+        # Check size match
+        if wave_sorted.size != n_cols:
+            min_size = min(wave_sorted.size, n_cols)
+            fancyprint(
+                f'WARNING: Wavelength array size ({wave_sorted.size}) != scatter columns '
+                f'({n_cols}).\n Truncating to {min_size} elements.', msg_type='WARNING'
+            )
+            wave_sorted = wave_sorted[:min_size]
+            s = s[:min_size]
 
-    # --- Plot ---
-    plt.figure(figsize=(8, 4))
-
-    for i in valid:
-        # Extract row data and reorder columns to match wavelength order
-        y_full = df.iloc[i, :].to_numpy(float)
-        y_ord = y_full[s]
-
-        # Raw series (convert to ppm)
-        y_raw = (y_ord[mask]) * 1e6
-        if style == 'line':
-            plt.plot(x, y_raw, linewidth=0.6, linestyle='-', alpha=0.5,
-                     color='grey', label="Best Parameter configuration (raw)")
+        # Build boolean mask for desired wavelength range
+        if wave_range is not None:
+            wmin, wmax = wave_range
+            mask = np.isfinite(wave_sorted) & (wave_sorted >= wmin - tol) & (wave_sorted <= wmax + tol)
         else:
-            plt.scatter(x, y_raw, s=3, alpha=0.8,
-                        label="Best Parameter configuration (raw)")
+            mask = np.isfinite(wave_sorted)
+        if not mask.any():
+            raise ValueError(f'No finite wavelengths within selected range {wave_range}.')
 
-        # Smoothed series (moving average)
-        if smooth and int(smooth) > 1:
-            w = int(smooth)
-            kern = np.ones(w, dtype=float) / w
-            y_sm_all = np.convolve(y_ord, kern, mode='same')
-            y_sm = (y_sm_all[mask]) * 1e6
-            if style == 'line':
-                plt.plot(x, y_sm, linewidth=1.0,
-                         label=f"Best Parameter configuration (smoothed:{w})")
-            else:
-                plt.scatter(x, y_sm, s=6,
-                            label=f"Best Parameter configuration (smoothed:{w})")
+        # Final x-axis values
+        x = wave_sorted[mask]
 
-    # --- Finalize plot ---
-    plt.xlim(np.min(x), np.max(x))
-    if ylim is not None:
-        plt.ylim(ylim)
-    plt.xlabel("Wavelength (μm)")
-    plt.ylabel("Scatter (ppm)")
-    plt.legend(ncol=2, fontsize='small')
+        # --- Plot ---
+        f, ax = plt.subplots(figsize=(8, 4))
+
+        for i in valid:
+            # Extract row data and reorder columns to match wavelength order
+            y_full = df.iloc[i, :].to_numpy(float)
+            y_ord = y_full[s]
+
+            # Raw series (convert to ppm)
+            y_raw = (y_ord[mask]) * 1e6
+            plt.plot(x, y_raw, linewidth=0.6, alpha=0.5)
+
+            # Smoothed series (moving average)
+            if smooth and int(smooth) > 1:
+                w = int(smooth)
+                kern = np.ones(w, dtype=float) / w
+                y_sm_all = np.convolve(y_ord, kern, mode='same')
+                y_sm = (y_sm_all[mask]) * 1e6
+                plt.plot(x, y_sm)
+
+        # --- Finalize plot ---
+        ax.set_xlim(np.min(x), np.max(x))
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        ax.set_xlabel('Wavelength [μm]', fontsize=12)
+        ax.set_ylabel('Light Curve Scatter [ppm]', fontsize=12)
+        ax.grid(True, alpha=0.3)
+
+    # Save or display figure.
     plt.tight_layout()
-    if save_path:
-        plt.savefig(save_path, bbox_inches='tight', dpi=300)
-        print(f"Figure saved to {save_path}")
-    plt.show()
+    if save_path is not None:
+        plt.savefig(save_path, bbox_inches='tight')
+        plt.close()
+    else:
+        plt.show()
+
+
+def plot_whitelight(flux, baseline_ints, outdir, name_str):
+    """Make a plot of the transit white light curve.
+    """
+
+    # Sum flux over all spectral channels for each integration
+    white = np.nansum(flux, axis=1)
+    base = format_out_frames(baseline_ints)
+    norm_white = white / np.nanmedian(white[base])
+
+    # --- Plot normalized white-light curve ---
+    plt.figure()
+    plt.errorbar(np.arange(len(norm_white)), norm_white, c='black', mfc='white', fmt='o', ms=3)
+    plt.xlabel('Integration Number', fontsize=12)
+    plt.ylabel('Normalized White Flux', fontsize=12)
+    if name_str is not None:
+        plt.savefig(f'{outdir}/WhiteLightCurve{name_str}.png')
+        plt.close()
+    else:
+        plt.show()
