@@ -178,8 +178,4 @@ w1 : 0.0
 w2 : 1.0
 # For optimization; wavelength range to optimize over. If None, use instrument defaults.
 wave_range : None
-# If True, skip directly to Stage 3 and optimize extract_width.
-optimize_extract_width_only : False
-# If True, rerun only PCA with remove_components, then continue to Stage 3 and optimize extract_width.
-from_pca_only : False
 # ========================= END OPTIMIZER CONFIG FILE =========================

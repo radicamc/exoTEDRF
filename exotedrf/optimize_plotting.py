@@ -20,7 +20,8 @@ from exotedrf.plotting import make_2d_lightcurve_plot
 from exotedrf.utils import fancyprint, format_out_frames
 
 
-def make_lightcurve_plots(st3, baseline_ints, obs, outdir=None, name_str=None):
+def make_lightcurve_plots(st3, baseline_ints, instrument, wave_range, outdir=None, name_str=None,
+                          filter=None):
     """Create two diagnostic plots from Stage-3 data:
       1) Normalized white-light curve
       2) Normalized flux image with true wavelength mapping
@@ -37,15 +38,17 @@ def make_lightcurve_plots(st3, baseline_ints, obs, outdir=None, name_str=None):
         One or two integers for baseline integrations:
             [nn] -> normalize by median of first nn integrations
             [nlow, nhigh] -> normalize by mean of medians of start and end segments
-    obs : str
-        Observing mode identifier.
+    instrument : str
+        Instrument identifier.
+    wave_range : list[float]
+        Wavelength range to plot.
     filter : str, None
         Filter/detector identifier.
     outdir : str, None
         Output directory for saved figures.
     """
 
-    if 'niriss' in obs.lower():
+    if instrument.lower() == 'niriss':
         wave = st3['Wave O1']
         flux = st3['Flux O1']
         wave2 = st3['Wave O2']
@@ -64,6 +67,10 @@ def make_lightcurve_plots(st3, baseline_ints, obs, outdir=None, name_str=None):
         flux = st3['Flux']
         wave2 = None
         flux2 = None
+        # Trim wavelengths to appropriate bounds.
+        ii = np.where((wave >= wave_range[0]) & (wave < wave_range[1]))[0]
+        wave = wave[ii]
+        flux = flux[:, ii]
 
     # Make sure all wavelengths are valid.
     ii = np.where(np.isfinite(wave))[0]
@@ -71,7 +78,7 @@ def make_lightcurve_plots(st3, baseline_ints, obs, outdir=None, name_str=None):
     flux = flux[:, ii]
 
     # Plot white light curve
-    plot_whitelight(flux, baseline_ints, outdir, name_str)
+    plot_whitelight(flux, baseline_ints, outdir, name_str, filter)
 
     # Plot Spectroscopic light curves
     base = format_out_frames(baseline_ints)
@@ -80,39 +87,42 @@ def make_lightcurve_plots(st3, baseline_ints, obs, outdir=None, name_str=None):
         flux2_norm = flux2 / np.nanmedian(flux2[base], axis=0)
     else:
         flux2_norm = None
-    inst = obs.split('/')[0]
 
     if name_str is not None:
-        plot_path = f'{outdir}/2D_LightCurves{name_str}.png'
+        if instrument == 'nirspec':
+            assert filter is not None
+            plot_path = f'{outdir}/2D_LightCurves_{filter}{name_str}.png'
+        else:
+            plot_path = f'{outdir}/2D_LightCurves{name_str}.png'
     else:
         plot_path = None
 
-    make_2d_lightcurve_plot(wave, flux_norm, wave2, flux2_norm, instrument=inst, outpdf=plot_path)
+    make_2d_lightcurve_plot(wave, flux_norm, wave2, flux2_norm, instrument=instrument,
+                            outpdf=plot_path)
 
 
-def plot_cost(name_str, outdir, table_height=0.4):
+def plot_cost(cost_file, plot_file, table_height=0.4):
     """Reads a tab-delimited cost file, detects parameter sweeps, highlights
     the best parameter set(s), and produces a figure showing cost trends.
 
     Parameters
     ----------
-    name_str : str
-        Identifier used to find the cost file (Cost_<name_str>.txt).
+    cost_file : str
+        Path to cost file.
     table_height : float
         Fraction of the figure height to allocate to the table display.
-    outdir : str
-        Direcory to which to save outputs.
+    plot_file : str
+        Plot file path.
     """
 
-    df = pd.read_csv(f'{outdir}/Cost_Summary{name_str}.txt',
-                     delimiter='\t', keep_default_na=False)
+    df = pd.read_csv(cost_file, delimiter='\t', keep_default_na=False)
 
     # Remove rows where 'cost' is not numeric, then keep the surviving values
     # numeric so per-sweep normalization does arithmetic instead of string math.
     df['cost'] = pd.to_numeric(df['cost'], errors='coerce')
     df = df[df['cost'].notna()].reset_index(drop=True)
     if df.empty:
-        raise ValueError(f'No finite numeric costs found in {outdir}/Cost_Summar{name_str}.txt')
+        raise ValueError(f'No finite numeric costs found in {cost_file}.')
 
     # Get all parameter columns (exclude 'duration_s' and 'cost' at the end)
     param_cols = df.columns[:-2]
@@ -243,7 +253,7 @@ def plot_cost(name_str, outdir, table_height=0.4):
 
     fig.subplots_adjust(bottom=0.30)
     ax_plot.set_ylabel('Relative Cost (normalized per sweep)')
-    ax_plot.set_title(f'Cost by Single Parameter Sweep: {name_str}')
+    ax_plot.set_title(f'Cost by Single Parameter Sweep')
     ax_plot.set_ylim(-0.05, 1.05)
 
     # ======== TABLE OF BEST PARAMETERS ========
@@ -259,8 +269,7 @@ def plot_cost(name_str, outdir, table_height=0.4):
         else:
             cell.set_fontsize(10)  # data
 
-    fig.savefig(f'{outdir}/Cost_Summary{name_str}.png',
-                dpi=300, bbox_inches='tight')
+    fig.savefig(plot_file, dpi=300, bbox_inches='tight')
 
 
 def plot_scatter(txtfile, rows, wave_range=None, smooth=1, spectrum_files=None, ylim=None,
@@ -449,7 +458,7 @@ def plot_scatter(txtfile, rows, wave_range=None, smooth=1, spectrum_files=None, 
         plt.show()
 
 
-def plot_whitelight(flux, baseline_ints, outdir, name_str):
+def plot_whitelight(flux, baseline_ints, outdir, name_str, filter):
     """Make a plot of the transit white light curve.
     """
 
@@ -464,7 +473,10 @@ def plot_whitelight(flux, baseline_ints, outdir, name_str):
     plt.xlabel('Integration Number', fontsize=12)
     plt.ylabel('Normalized White Flux', fontsize=12)
     if name_str is not None:
-        plt.savefig(f'{outdir}/WhiteLightCurve{name_str}.png')
+        if filter is not None:
+            plt.savefig(f'{outdir}/WhiteLightCurve_{filter}{name_str}.png')
+        else:
+            plt.savefig(f'{outdir}/WhiteLightCurve{name_str}.png')
         plt.close()
     else:
         plt.show()
