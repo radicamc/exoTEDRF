@@ -1088,13 +1088,18 @@ def run_optimizer(cfg, input_files):
                           instrument=instrument, outdir=outdir_f, filter=filter,
                           wave_range=wave_range)
 
-    #  Scatter plot of the final Stage 3 spectrum.
+    # Plot the spectroscopic scatter in the extracted spectrum.
     _, final_scatter = cost_function(stage3_results, baseline_ints=baseline_ints,
                                      wave_range=wave_range, w1=w1, w2=w2, instrument=instrument)
     outfile = os.path.join(outdir_f, f'LightCurve_Scatter_Final{name_str}.txt')
     with open(outfile, 'w') as f:
         f.write(' '.join(f'{x:.10g}' for x in final_scatter) + '\n')
-    specfile = opt_utils.find_stage3_spectrum_file(final_cfg['extract_method'], outdir_s3)
+    if instrument == 'nirspec':
+        nrs_detector = filter
+    else:
+        nrs_detector = None
+    specfile = opt_utils.find_stage3_spectrum_file(final_cfg['extract_method'], outdir_s3,
+                                                   nrs_detector=nrs_detector)
     if instrument == 'nirspec':
         plot_file_path = '{}/Scatter_Plot_{}{}.png'.format(outdir_f, filter, name_str)
     else:

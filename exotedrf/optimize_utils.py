@@ -596,11 +596,14 @@ def extract_at_step(datafile, instrument, extract_width, centroids, baseline_int
         raise ValueError(f'Unknown instrument: {instrument}')
 
 
-def find_stage3_spectrum_file(extract_method, outdir):
+def find_stage3_spectrum_file(extract_method, outdir, nrs_detector=None):
     """Return the first Stage 3 full-resolution spectrum file for the requested method.
     """
 
-    pattern = os.path.join(outdir, f'*_{extract_method}_spectra_fullres.fits')
+    if nrs_detector is not None:
+        pattern = os.path.join(outdir, f'*_{nrs_detector}_{extract_method}_spectra_fullres.fits')
+    else:
+        pattern = os.path.join(outdir, f'*_{extract_method}_spectra_fullres.fits')
     matches = sorted(glob.glob(pattern))
     if not matches:
         raise FileNotFoundError(f'No Stage 3 spectrum file found matching {pattern}')
