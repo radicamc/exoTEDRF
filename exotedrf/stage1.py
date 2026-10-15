@@ -118,6 +118,7 @@ class DQInitStep:
                 fancyprint('File {} already exists.'.format(expected_file))
                 fancyprint('Skipping Data Quality Initialization Step.')
                 res = expected_file
+                do_plot, show_plot = False, False
             # If no output files are detected, run the step.
             else:
                 step = calwebb_detector1.dq_init_step.DQInitStep()
@@ -209,7 +210,7 @@ class INLCorrStep:
         force_redo : bool
             If True, run step even if output files are detected.
         amplitude_file : str, None
-            Path to file containing Fourier series ampliudes for each period to correct. Should be
+            Path to file containing Fourier series amplitudes for each period to correct. Should be
             a numpy file.
         periods : array-like(float), None
             List of periods to correct.
@@ -245,6 +246,7 @@ class INLCorrStep:
                 fancyprint('File {} already exists.'.format(expected_file))
                 fancyprint('Skipping INL Correction Step.')
                 res = expected_file
+                do_plot, show_plot = False, False
             # If no output files are detected, run the step.
             else:
                 # Apply the INL correction.
@@ -856,6 +858,7 @@ class OneOverFStep:
         results = []
         processed_outliers = []
         first_time = True
+        reused_cached_results = False
         for i, segment in enumerate(self.datafiles):
             # If an output file for this segment already exists, skip the step.
             expected_file = self.output_dir + self.fileroots[i] + self.tag
@@ -863,6 +866,7 @@ class OneOverFStep:
                 fancyprint('File {} already exists.'.format(expected_file))
                 fancyprint('Skipping 1/f Correction Step.')
                 res = expected_file
+                reused_cached_results = True
                 # Do not do plots if skipping step.
                 do_plot, show_plot = False, False
             # If no output files are detected, run the step.
@@ -999,7 +1003,12 @@ class OneOverFStep:
             results.append(res)
 
         # Save 2D scaling determined by solving method.
-        if save_results is True and self.method == 'solve':
+        if self.method == 'solve' and reused_cached_results is True and len(mle_results) > 0:
+            fancyprint('Skipping MLE diagnostic save because cached and rerun segments were mixed. '
+                       'Use force_redo=True to regenerate complete solve outputs.',
+                       msg_type='WARNING')
+        if (save_results is True and self.method == 'solve' and len(mle_results) > 0 and
+                reused_cached_results is False):
             fancyprint('Saving MLE-determined light curves.')
 
             for o in range(len(mle_results[0].keys())):
@@ -1062,7 +1071,7 @@ class OneOverFStep:
                                        show_plot=show_plot, tframe=tframe)
 
             # Plot MLE results if solving method was used.
-            if self.method == 'solve':
+            if self.method == 'solve' and len(mle_results) > 0:
                 for o in range(len(mle_results[0].keys())):
                     order = o + 1
                     # Unpack the additive and multiplicative factors from the MLE.
@@ -1439,7 +1448,7 @@ class RampFitStep:
                                 maximum_cores=maximum_cores, **kwargs)[1]
                 # From jwst v1.9.0-1.11.0 ramp fitting algorithm was changed to make all pixels
                 # with DO_NOT_USE DQ flags be NaN after ramp fitting. These pixels are marked,
-                # ignored and interpolated anyways, so this does not change any actual
+                # ignored and interpolated anyway, so this does not change any actual
                 # functionality, but cosmetcically this annoys me, as now plots look terrible.
                 # Just griddata interpolate all NaNs so things look better. Note this does not
                 # supercede any interpolation done later in Stage 2.
@@ -1544,7 +1553,7 @@ class GainScaleStep:
 
 def eval_inl_fourier_counts(data, theta, periods):
     """Evaluate a Fourier series to calculate the INL correction for NIRISS data frames.
-    Based on the correction developed by Dholakia et al. (2026) PASP.
+    Based on the correction developed by Dholakia et al. (2026) PASP 138 094506.
 
     Parameters
     ----------
@@ -1652,7 +1661,7 @@ def flag_saturated_pixels(datafile, instrument, saturation_threshold=80, nrs_det
         Datamodel for a given observation segment.
     instrument : str
         JWST instrument identifier.
-    saturation_threshold : int, float, None
+    saturation_threshold : int, float
         Threshold in percent of full well to consider a pixel saturated. Defaults to 80% (~the same
         value as is used by the ETC).
     nrs_detector : str
@@ -1689,22 +1698,29 @@ def flag_saturated_pixels(datafile, instrument, saturation_threshold=80, nrs_det
 
     # Locate saturated pixels.
     inds = datafile.data >= saturation_adu
+    nints, ngroups, ydim, xdim = np.shape(datafile.data)
+
     fancyprint('{} saturated pixels identified.'.format(np.sum(inds)))
 
     # For saturated pixels, also flag neighbouring pixels to mitigate charge spillage.
     fancyprint('Expanding flagged region by {} pixel(s).'.format(flag_neighbours))
+    inds_expanded = np.copy(inds)
     ii = np.where(inds)
     for pix in range(len(ii[0])):
         i, g, y, x = ii[0][pix], ii[1][pix], ii[2][pix], ii[3][pix]
-        inds[i, g, (y - flag_neighbours):(y + flag_neighbours + 1),
-             (x - flag_neighbours):(x + flag_neighbours + 1)] = True
+        y0 = max(0, y - flag_neighbours)
+        y1 = min(ydim, y + flag_neighbours + 1)
+        x0 = max(0, x - flag_neighbours)
+        x1 = min(xdim, x + flag_neighbours + 1)
+        inds_expanded[i, g, y0:y1, x0:x1] = True
+    inds = inds_expanded
 
     # Add the saturation DQ flag.
-    datafile.groupdq += 2 * inds.astype(np.uint8)
+    datafile.groupdq = np.bitwise_or(datafile.groupdq, 2 * inds.astype(np.uint8))
 
     # Also check if any pixels hit the ADU floor (i.e., <0 counts).
     adu_floor = datafile.data < 0
-    datafile.groupdq += 64 * adu_floor.astype(np.uint8)  # Add the ADU floor DQ flag
+    datafile.groupdq = np.bitwise_or(datafile.groupdq, 64 * adu_floor.astype(np.uint8))
     fancyprint('{} ADU floor pixels identified.'.format(np.sum(adu_floor)))
 
     return datafile, inds
@@ -3052,14 +3068,14 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     miri_subtract_dark : bool
         If True, also perform the MIRI dark current subtraction after linearity correction.
     saturation_threshold : float
-        Threshold (in DN) for a pixel to be considered saturated.
+        Threshold (in percent of full well) for a pixel to be considered saturated.
     flag_neighbours : int
         Size of box, in pixels, to flag around a saturated pixel to mitigate charge spillage.
     f277w : str, None
         Path to a file containing a deepstack of the F277W exposure corresponding to these
         observations (SOSS only). Will be used to identify and mask badckground contaminants.
     inl_amplitude_file : str, None
-        Path to file containing Fourier series ampliudes for each INL period to correct. Should be
+        Path to file containing Fourier series amplitudes for each INL period to correct. Should be
         a numpy file.
     inl_periods : array-like(float), None
         List of INL periods to correct.
@@ -3109,7 +3125,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
             step = INLCorrStep(results, output_dir=outdir)
             results = step.run(save_results=save_results, force_redo=force_redo,
                                amplitude_file=inl_amplitude_file, periods=inl_periods,
-                               **step_kwargs)
+                               do_plot=do_plot, show_plot=show_plot, **step_kwargs)
         else:
             fancyprint('INLCorrStep not supported for {}.'.format(mode), msg_type='WARNING')
 

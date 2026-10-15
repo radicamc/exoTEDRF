@@ -229,7 +229,7 @@ def refine_soss_timestamps(mid_int_times, centroids, subarray='SUBSTRIP256', out
         for y in range(dimy - 1, -1, -1):
             time += tpix
             time_map[y, x] = time
-    # Assume default mid-integration time is the time at the frame center.
+    # Assume default mid-integration time is the time at the frame centre.
     time_map -= time_map[dimy // 2, dimx // 2]
 
     # Get time shift for each wavelength.

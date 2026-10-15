@@ -139,3 +139,14 @@ of the analysis. Stages 1 to 3 can be run at once via the run_DMS.py script as f
         python run_DMS.py run_DMS.yaml
 
 To use the light curve fitting capabilities (if installed), simply follow the same procedure with the fit_lightcurves.py and .yaml files.
+
+Optimizing a Reduction
+----------------------
+
+exoTEDRF also includes an optimizer script which can automatically tune many of the key reduction parameters (e.g., 1/f mask widths, outlier thresholds, extraction width) to minimize the scatter in the extracted light curves.
+The following will walk you through how to set it up.
+
+.. toctree::
+   :maxdepth: 2
+
+   optimizer

@@ -1350,9 +1350,9 @@ def plot_inl_correction(data_pre_corr, data_post_corr, npix_to_bin=1000, show_pl
 
     # Do first plot showing binned data and correction.
     if outfile is not None:
-        oo = outfile.split('.')
-        outfile1 = oo[0] + '_1.' + oo[1]
-        outfile2 = oo[0] + '_2.' + oo[1]
+        oo = outfile.split('.fits')
+        outfile1 = oo[0] + '_1.png'
+        outfile2 = oo[0] + '_2.png'
     else:
         outfile1, outfile2 = None, None
     make_inl_plot(dpre_bin, rpre_bin, dpost_bin, outfile=outfile1, show_plot=show_plot)

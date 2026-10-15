@@ -1,0 +1,181 @@
+# ========================= BEGIN OPTIMIZER CONFIG FILE =========================
+#
+# This is the configuration file for run_optimizer.py.
+#
+# NOTE: Active defaults are for NIRISS/SOSS.
+#
+#
+# ===== Key Parameters =====
+# Path to CRDS cache.
+crds_cache_path : './crds_cache/'
+# Relative path to root directory where raw data is stored.
+# All outputs will be written to a new directory in root_dir called pipeline_outputs_directory.
+root_dir : './'
+# Input data file directory within root_dir.
+input_dir : 'DMS_uncal/'
+# Input file tag, should be uncal.
+input_filetag : 'uncal'
+# Instrument mode used; e.g., 'NIRISS/SOSS', 'NIRSpec/G395H', 'MIRI/LRS'.
+observing_mode : 'NIRISS/SOSS'
+# Type of filter or detector used. For SOSS, either 'CLEAR' or 'F277W'. For NIRSpec, either 'NRS1' or 'NRS2'.
+filter_detector : 'CLEAR'
+
+
+# ===== Stage 1 Input Files & Parameters =====
+# == List of Stage 1 Steps to Run or Skip ==
+DQInitStep : 'run'
+INLCorrStep : 'run'        # SOSS only
+EmiCorrStep : 'skip'       # MIRI only
+SuperBiasStep : 'run'      # SOSS/NIRSpec only
+RefPixStep : 'run'         # SOSS only
+DarkCurrentStep : 'skip'   # SOSS/NIRSpec only
+OneOverFStep_grp : 'run'   # SOSS/NIRSpec only (OPTIMIZABLE)
+LinearityStep : 'run'
+JumpStep : 'run'           # (OPTIMIZABLE)
+RampFitStep : 'run'
+GainScaleStep : 'run'
+
+# == Input Files and Non-Optimizable Parameters ==
+# Custom map of hot pixel locations (optional).
+hot_pixel_map : None
+# (SOSS only) For integral nonlinearity, list of periods (in ADU) to remove (optional).
+inl_periods : None
+# (SOSS only) Path to numpy file containing Fourier Series amplitudes for each INL period (optional).
+# Will default to the Dholakia et al. (2026) values.
+inl_amplitude_file : None
+# Saturation threshold in percent of full well (optional).
+saturation_threshold : 80
+# (NIRSpec only) Superbias calculation method. Options are 'crds', 'custom', or 'custom-rescale'.
+superbias_method : 'crds'
+# (SOSS only) Background model for NIRISS/SOSS. Default model available here: https://github.com/radicamc/exoTEDRF/tree/main/files
+soss_background_file : 'model_background256.npy'
+# 1/f correction method. For SOSS, options are 'scale-achromatic', 'scale-achromatic-window', 'scale-chromatic', or
+# 'solve'. For NIRSpec, options are 'median', or 'slope'.
+oof_method : 'scale-achromatic'
+# (SOSS only) Path to a processed (superbias and background subtracted) F277W exposure data frame for masking of
+# background contaminants (optional).
+f277w : None
+# (SOSS only) For 1/f correction; estimate of 1D or 2D timeseries for order 1 (optional).
+soss_timeseries : None
+# (SOSS only) For 1/f correction; estimate of 2D timeseries for order 2. Only necessary if oof_method is
+# 'scale-chromatic'.
+soss_timeseries_o2 : None
+# For 1/f correction; outlier pixel maps (optional).
+outlier_maps : None
+# (MIRI only) For linearity correction, number of groups to drop at the start of an integration to mitigate the RSCD
+# effect.
+miri_drop_groups : 12
+# For jump detection; whether to flag outliers up-the-ramp (jwst default method).
+flag_up_ramp : False
+# For jump detection; whether to also flag outliers in the time domain (recommended method).
+flag_in_time : True
+# DMS Stage 1 kwargs. Format: {'step_name': {'kwd': value}}.
+stage1_kwargs : {}
+
+# == Optimization Parameters ==
+# (SOSS only) For 1/f correction; width, in pixels, of inner trace mask.
+optimize_soss_inner_mask_width : True
+soss_inner_mask_width : [36, 38, 40, 42, 44]  # Default: 40
+# (SOSS only) For 1/f correction; width, in pixels, of outer trace mask.
+optimize_soss_outer_mask_width : True
+soss_outer_mask_width : [66, 68, 70, 72, 74]  # Default: 70
+# (NIRSpec only) For 1/f correction; width, in pixels, of trace mask.
+optimize_nirspec_mask_width : False
+nirspec_mask_width : 16  # Sweep option: [10, 12, 14, 16, 18, 20]
+# For time domain jump detection; sigma threshold for a pixel to be flagged as an outlier.
+optimize_time_jump_threshold : True
+time_jump_threshold : [5, 6, 7, 8, 9, 10]
+# For time domain jump detection; number of neighbouring frames to compare.
+optimize_time_window : True
+time_window : [3, 5, 7, 9, 11]
+
+
+# ===== Stage 2 Input Files & Parameters =====
+# == List of Stage 2 Steps to Run or Skip ==
+AssignWCSStep : 'run'
+FlatFieldStep : 'run'      # SOSS/MIRI only
+BackgroundStep : 'run'     # SOSS/MIRI only (OPTIMIZABLE)
+OneOverFStep_int : 'skip'  # SOSS/NIRSpec only
+BadPixStep : 'run'         # (OPTIMIZABLE)
+PCAReconstructStep : 'run'
+
+# == Input Files and Non-Optimizable Parameters ==
+# (MIRI only) Method to use for background subtraction; either 'median' or 'slope'.
+miri_background_method : 'median'
+# Number of principle components to extract. Only necessary if running PCAReconstructStep.
+pca_components : 10
+# PCA components to remove during the TSO reconstruction (optional).
+remove_components : None
+# (SOSS only) If True, generate an estimate of the white light curve.
+generate_lc : True
+# DMS Stage 2 kwargs. Format should be: {'step_name': {'kwd': value}}.
+stage2_kwargs : {}
+
+# == Optimization Parameters ==
+# (MIRI only) For background subtraction; width (in pixels) to mask around the trace.
+optimize_miri_trace_width : False
+miri_trace_width : 20  # Sweep option: [14, 16, 18, 20, 22]
+# (MIRI only) For background subtraction; width (in pixels) of the background region to use on either side of the trace.
+optimize_miri_background_width : False
+miri_background_width : 14  # Sweep option: [10, 11, 12, 13, 14]
+# For outlier detection; sigma threshold for a pixel to be flagged as an outlier, spatially.
+optimize_space_outlier_threshold : True
+space_outlier_threshold : [5, 6, 7, 8, 9, 10, 11]
+# For outlier detection; size of surrounding box to compare to, spatially
+optimize_box_size : True
+box_size : [3, 4, 5, 6, 7, 8]
+# For outlier detection; sigma threshold for a pixel to be flagged as an outlier, temporally.
+optimize_time_outlier_threshold : True
+time_outlier_threshold : [5, 6, 7, 8, 9, 10, 11]
+# For outlier detection; number of surrounding frames to compare to, temporally
+optimize_window_size : True
+window_size : [3, 5, 7, 9, 11]
+
+
+# ===== Stage 3 Input Files & Parameters =====
+# == Input Files and Non-Optimizable Parameters ==
+# Extraction method. For SOSS, options are 'box' or 'atoca'. For all other instruments options are 'box' or 'optimal'.
+extract_method : 'box'  # (OPTIMIZABLE)
+# (SOSS only) Box width to use for order 2. Passing None will use the same aperture width as for order 1 (optional).
+extract_width_soss2 : None
+# (SOSS only) Specprofile reference file for ATOCA (optional).
+soss_specprofile : None
+# File with trace centroids for box and optimal extraction (optional).
+# This will be calculated during spectral extraction. Anything passed here will take precedence.
+centroids : None
+# Median stack of the observations. Necessary for box and optimal extractions (optional).
+# This will be calculated in Stage 2 during the PCAReconstructStep. Anything passed here will take precedence.
+deepframe : None
+# Stellar effective temperature in K for wavelength calibration (optional).
+st_teff : None
+# Stellar log surface gravity for wavelength calibration (optional).
+st_logg: None
+# Stellar metallicity as [Fe/H] for wavelength calibration (optional).
+st_met : None
+# Planet letter designation.
+planet_letter : 'b'
+# DMS Stage 3 kwargs. Format: {'step_name': {'kwd': value}}.
+stage3_kwargs : {}
+
+# == Optimization Parameters ==
+# Full width to extract around the trace centre.
+optimize_extract_width : True
+extract_width : [24, 26, 28, 30, 32, 34, 36]  # NIRSpec sweep: [4,5,6,7,8,9,10,11,12], MIRI sweep: [5,6,7,8,9,10]
+
+
+# ===== Other General Parameters =====
+# Name tag for output file directory.
+output_tag : ''
+# Suffix to give to this optimization run (optional).
+run_name : ''
+# Integrations of ingress and/or egress.
+baseline_ints : [50, -50]
+# If True, make diagnostic plots.
+do_plots : True
+# For optimization; white light curve weight. Must be <= 1.
+w1 : 0.0
+# For optimization; spectral light curve weight. Must be <= 1.
+w2 : 1.0
+# For optimization; wavelength range to optimize over. If None, use instrument defaults.
+wave_range : None
+# ========================= END OPTIMIZER CONFIG FILE =========================

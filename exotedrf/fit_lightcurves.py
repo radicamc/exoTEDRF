@@ -10,7 +10,7 @@ Script to fit simple transit and eclipse light curves with exoUPRF.
 
 from astropy.io import fits
 import copy
-from datetime import datetime
+from datetime import datetime, UTC
 import exouprf.light_curve_models as model
 from exouprf.plotting import make_lightcurve_plot
 import numpy as np
@@ -70,7 +70,7 @@ def fit_lightcurves(config):
     shutil.copy(config_file, copy_config)
     # Append time at which it was run.
     f = open(copy_config, 'a')
-    time = datetime.utcnow().isoformat(sep=' ', timespec='minutes')
+    time = datetime.now(UTC).isoformat(sep=' ', timespec='minutes')
     f.write('\nRun at {}.'.format(time))
     f.close()
 

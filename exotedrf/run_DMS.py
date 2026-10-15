@@ -37,12 +37,15 @@ from exotedrf.stage3 import run_stage3
 def save_config(config):
     """Save a copy of the DMS config file.
     """
+
     # Save a copy of the config file.
     if config['output_tag'] != '':
         output_tag = '_' + config['output_tag']
     else:
         output_tag = config['output_tag']
-    root_dir = 'pipeline_outputs_directory' + output_tag
+    root_dir = config['root_dir']
+    verify_path(root_dir)
+    root_dir += 'pipeline_outputs_directory' + output_tag
     verify_path(root_dir)
     root_dir += '/config_files'
     verify_path(root_dir)
@@ -56,8 +59,8 @@ def save_config(config):
     shutil.copy(config_file, copy_config)
     # Append time at which it was run.
     f = open(copy_config, 'a')
-    time = datetime.utcnow().isoformat(sep=' ', timespec='minutes')
-    f.write('\nRun at {}.'.format(time))
+    runtime = datetime.utcnow().isoformat(sep=' ', timespec='minutes')
+    f.write('\nRun at {}.'.format(runtime))
     f.close()
 
     return
@@ -66,6 +69,7 @@ def save_config(config):
 def unpack_files(config):
     """Unpack input files.
     """
+
     # Unpack all files in the input directory.
     input_files = unpack_input_dir(config['input_dir'], mode=config['observing_mode'],
                                    filetag=config['input_filetag'],
@@ -85,6 +89,7 @@ def unpack_files(config):
 def run_dms(config, input_files):
     """Run the DMS.
     """
+
     # ===== Run Stage 1 =====
     if 1 in config['run_stages']:
         # Determine which steps to run and which to skip.
@@ -126,7 +131,9 @@ def run_dms(config, input_files):
                                     saturation_threshold=config['saturation_threshold'],
                                     f277w=config['f277w'],
                                     inl_amplitude_file=config['inl_amplitudes_file'],
-                                    inl_periods=config['inl_periods'], **config['stage1_kwargs'])
+                                    inl_periods=config['inl_periods'],
+                                    root_dir=config['root_dir'],
+                                    **config['stage1_kwargs'])
     else:
         stage1_results = input_files
 
@@ -169,6 +176,7 @@ def run_dms(config, input_files):
                                     miri_trace_width=config['miri_trace_width'],
                                     miri_background_width=config['miri_background_width'],
                                     miri_background_method=config['miri_background_method'],
+                                    root_dir=config['root_dir'],
                                     **config['stage2_kwargs'])
         stage2_results, deepframe = stage2_results
     else:
@@ -198,6 +206,7 @@ def run_dms(config, input_files):
                                     output_tag=config['output_tag'],
                                     do_plot=config['do_plots'],
                                     deepframe=this_deepframe,
+                                    root_dir=config['root_dir'],
                                     **config['stage3_kwargs'])
 
     return

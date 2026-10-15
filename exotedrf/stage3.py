@@ -152,10 +152,12 @@ class Extract1DStep:
 
         Parameters
         ----------
-        extract_width : int
-            Full width of extraction aperture to use.
-        extract_width_soss2 : int, None
-            Full width of extraction aperture to use for SOSS order 2.
+        extract_width : int, tuple(float, float)
+            Full width of extraction aperture to use. A two-element tuple is interpreted as an
+            asymmetric `(lower_width, upper_width)` aperture for box extraction.
+        extract_width_soss2 : int, tuple(float, float), None
+            Full width of extraction aperture to use for SOSS order 2. A two-element tuple is
+            interpreted as an asymmetric `(lower_width, upper_width)` aperture for box extraction.
         soss_specprofile : str, None
             Path to specprofile file.
         centroids : str, None
@@ -312,7 +314,8 @@ class Extract1DStep:
                                                    show_plot=show_plot)
 
             # Save the final extraction parameters.
-            extract_params = {'extract_width': extract_width, 'method': self.extract_method}
+            extract_params = {'extract_width': _format_extract_width(extract_width),
+                              'method': self.extract_method}
             # Get timestamps and pupil wheel position.
             for i, datafile in enumerate(self.datafiles):
                 with utils.open_filetype(datafile) as file:
@@ -328,10 +331,12 @@ class Extract1DStep:
             # spectra.
             st_teff, st_logg, st_met = self.stellar_params
             if self.instrument == 'NIRISS':
+                subarray = utils.get_soss_subarray(self.datafiles[0])
                 spectra = format_soss_spectra(results, times, extract_params, self.pl_name,
                                               st_teff, st_logg, st_met, pwcpos=pwcpos,
                                               output_dir=self.output_dir, save_results=save_results,
-                                              use_pastasoss=use_pastasoss, clip_thresh=clip_thresh)
+                                              use_pastasoss=use_pastasoss, clip_thresh=clip_thresh,
+                                              subarray=subarray)
             elif self.instrument == 'NIRSPEC':
                 detector = utils.get_nrs_detector_name(self.datafiles[0])
                 grating = utils.get_nrs_grating(self.datafiles[0])
@@ -482,8 +487,9 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
         Input datamodels or paths to datamodels for each segment.
     centroids : dict
         Dictionary of centroid positions for all SOSS orders.
-    extract_width : int, str
-        Width of extraction box. Or 'optimize'.
+    extract_width : int, tuple(float, float), str
+        Width of extraction box. Or 'optimize'. A two-element tuple is interpreted as an
+        asymmetric `(lower_width, upper_width)` aperture.
     do_plot : bool
         If True, do the step diagnostic plot.
     show_plot : bool
@@ -510,28 +516,7 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
     """
 
     datafiles = np.atleast_1d(datafiles)
-    dqcube = None
-    # Get flux and errors to extract.
-    for i, file in enumerate(datafiles):
-        if isinstance(file, str):
-            data = fits.getdata(file)
-            err = fits.getdata(file, 2)
-            if dq_report is True:
-                dq = fits.getdata(file, 3)
-        else:
-            with utils.open_filetype(file) as datamodel:
-                data = datamodel.data
-                err = datamodel.err
-                if dq_report is True:
-                    dq = datamodel.dq
-        if i == 0:
-            cube = data
-            ecube = err
-            if dq_report is True:
-                dqcube = dq
-        else:
-            cube = np.concatenate([cube, data])
-            ecube = np.concatenate([ecube, err])
+    cube, ecube, dqcube = _load_box_extraction_cubes(datafiles)
 
     # Get centroid positions.
     x1, y1 = centroids['xpos'].values, centroids['ypos'].values
@@ -570,7 +555,7 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
     flux, ferr, dq_rep = do_box_extraction(cube.transpose(0, 2, 1), ecube.transpose(0, 2, 1), x1,
                                            width=extract_width, extract_start=int(np.min(y1)),
                                            extract_end=int(np.max(y1)), dq_report=dq_report,
-                                           dq_cube=dqcube.transpose(0, 2, 1))
+                                           dq_cube=None if dqcube is None else dqcube.transpose(0, 2, 1))
 
     # Get default 2D wavelength solution.
     wave = get_wave_miri(datafiles[0], centroids, cube.shape[0], cube.shape[1])
@@ -588,8 +573,9 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
         Input datamodels or paths to datamodels for each segment.
     centroids : dict
         Dictionary of centroid positions for all SOSS orders.
-    extract_width : int, str
-        Width of extraction box. Or 'optimize'.
+    extract_width : int, tuple(float, float), str
+        Width of extraction box. Or 'optimize'. A two-element tuple is interpreted as an
+        asymmetric `(lower_width, upper_width)` aperture.
     do_plot : bool
         If True, do the step diagnostic plot.
     show_plot : bool
@@ -619,28 +605,7 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
     det = utils.get_nrs_detector_name(datafiles[0])
     subarray = utils.get_soss_subarray(datafiles[0])
     grating = utils.get_nrs_grating(datafiles[0])
-    dqcube = None
-    # Get flux and errors to extract.
-    for i, file in enumerate(datafiles):
-        if isinstance(file, str):
-            data = fits.getdata(file)
-            err = fits.getdata(file, 2)
-            if dq_report is True:
-                dq = fits.getdata(file, 3)
-        else:
-            with utils.open_filetype(file) as datamodel:
-                data = datamodel.data
-                err = datamodel.err
-                if dq_report is True:
-                    dq = datamodel.dq
-        if i == 0:
-            cube = data
-            ecube = err
-            if dq_report is True:
-                dqcube = dq
-        else:
-            cube = np.concatenate([cube, data])
-            ecube = np.concatenate([ecube, err])
+    cube, ecube, dqcube = _load_box_extraction_cubes(datafiles)
 
     # Get centroid positions.
     x1, y1 = centroids['xpos'].values, centroids['ypos'].values
@@ -697,11 +662,13 @@ def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_pl
         Input datamodels or paths to datamodels for each segment.
     centroids : dict
         Dictionary of centroid positions for all SOSS orders.
-    soss_width : int, str
-        Width of extraction box for order 1. Or 'optimize'.
-    soss_width_o2 : int, str, None
+    soss_width : int, tuple(float, float), str
+        Width of extraction box for order 1. Or 'optimize'. A two-element tuple is interpreted as
+        an asymmetric `(lower_width, upper_width)` aperture.
+    soss_width_o2 : int, tuple(float, float), str, None
         Width of extraction box for order 2. Or 'optimize'. If None, will use the same aperture as
-        order 1.
+        order 1. A two-element tuple is interpreted as an asymmetric `(lower_width, upper_width)`
+        aperture.
     do_plot : bool
         If True, do the step diagnostic plot.
     show_plot : bool
@@ -736,28 +703,7 @@ def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_pl
     """
 
     datafiles = np.atleast_1d(datafiles)
-    dqcube = None
-    # Get flux and errors to extract.
-    for i, file in enumerate(datafiles):
-        if isinstance(file, str):
-            data = fits.getdata(file)
-            err = fits.getdata(file, 2)
-            if dq_report is True:
-                dq = fits.getdata(file, 3)
-        else:
-            with utils.open_filetype(file) as datamodel:
-                data = datamodel.data
-                err = datamodel.err
-                if dq_report is True:
-                    dq = datamodel.dq
-        if i == 0:
-            cube = data
-            ecube = err
-            if dq_report is True:
-                dqcube = dq
-        else:
-            cube = np.concatenate([cube, data])
-            ecube = np.concatenate([ecube, err])
+    cube, ecube, dqcube = _load_box_extraction_cubes(datafiles)
 
     # Get centroid positions.
     x1 = centroids['xpos'].values
@@ -817,7 +763,7 @@ def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_pl
 
 
 def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None, progress=True,
-                      dq_report=False, dq_cube=None):
+                      lower_width=None, upper_width=None, dq_report=False, dq_cube=None):
     """Do intrapixel aperture extraction.
 
     Parameters
@@ -828,14 +774,21 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None,
         Error cube.
     ypos : array-like(float)
         Detector Y-positions to extract.
-    width : int
-        Full-width of the extraction aperture to use.
+    width : int, tuple(float, float)
+        Full-width of the extraction aperture to use. A two-element tuple is interpreted as an
+        asymmetric `(lower_width, upper_width)` aperture.
     extract_start : int
         Detector X-position at which to start extraction.
     extract_end : int, None
         Detector X-position at which to end extraction.
     progress : bool
         if True, show extraction progress bar.
+    lower_width : float, None
+        Distance from the centroid to the lower aperture edge. If provided together with
+        `upper_width`, overrides the symmetric interpretation of `width`.
+    upper_width : float, None
+        Distance from the centroid to the upper aperture edge. If provided together with
+        `lower_width`, overrides the symmetric interpretation of `width`.
     dq_report : bool
         If True, return a report of relevant DQ flags in each aperture.
     dq_cube : array-like(int)
@@ -874,41 +827,33 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None,
 
     # Determine the upper and lower edges of the extraction region. Cut at detector edges if
     # necessary.
-    edge_up = np.min([ypos + width / 2, np.ones_like(ypos) * dimy], axis=0)
-    edge_low = np.max([ypos - width / 2, np.zeros_like(ypos)], axis=0)
+    edge_low, edge_up, _, _ = _get_extraction_edges(ypos, dimy, width,
+                                                    lower_width=lower_width,
+                                                    upper_width=upper_width)
 
-    # Loop over all integrations and sum flux within the extraction aperture.
-    for i in tqdm(range(nint), disable=not progress):
-        for x in range(extract_start, extract_end):
-            xx = x - extract_start
-            # First sum the whole pixel components within the aperture.
-            up_whole = np.floor(edge_up[xx]).astype(int)
-            low_whole = np.ceil(edge_low[xx]).astype(int)
-            this_flux = np.sum(cube[i, low_whole:up_whole, x])
-            this_err = np.sum(err[i, low_whole:up_whole, x]**2)
+    # Loop over all columns and sum flux within the extraction aperture.
+    for x in tqdm(range(extract_start, extract_end), disable=not progress):
+        xx = x - extract_start
+        rows, weights = _get_aperture_pixels(edge_low[xx], edge_up[xx], dimy)
+        if len(rows) == 0:
+            continue
 
-            # Populate the DQ report.
-            if i == 0 and dq_report is True:
-                if np.any(dnu_pix[low_whole:up_whole, x]):
-                    dq[x] += 1
-                if np.any(sat_pix[low_whole:up_whole, x]):
-                    dq[x] += 2
-                if np.any(hot_pix[low_whole:up_whole, x]):
-                    dq[x] += 4
-                if np.any(var_pix[low_whole:up_whole, x]):
-                    dq[x] += 8
+        # Populate the DQ report using the pixels wholly within the aperture.
+        if dq_report is True:
+            whole = rows[weights >= 1]
+            if np.any(dnu_pix[whole, x]):
+                dq[x] += 1
+            if np.any(sat_pix[whole, x]):
+                dq[x] += 2
+            if np.any(hot_pix[whole, x]):
+                dq[x] += 4
+            if np.any(var_pix[whole, x]):
+                dq[x] += 8
 
-            # Now incorporate the partial pixels at the upper and lower edges.
-            if edge_up[xx] >= (dimy-1) or edge_low[xx] == 0:
-                f[i, x] = this_flux
-                ferr[i, x] = np.sqrt(this_err)
-            else:
-                up_part = edge_up[xx] % 1
-                low_part = 1 - edge_low[xx] % 1
-                this_flux += (up_part * cube[i, up_whole, x] + low_part * cube[i, low_whole-1, x])
-                this_err += (up_part * err[i, up_whole, x]**2 + low_part * err[i, low_whole-1, x]**2)
-                f[i, x] = this_flux
-                ferr[i, x] = np.sqrt(this_err)
+        weighted_cube = cube[:, rows, x] * weights[None, :]
+        weighted_err = err[:, rows, x] * weights[None, :]
+        f[:, x] = np.nansum(weighted_cube, axis=1)
+        ferr[:, x] = np.sqrt(np.nansum(weighted_err**2, axis=1))
 
     return f, ferr, dq
 
@@ -1061,7 +1006,7 @@ def do_optimal_extraction(cube, deepframe, ymin=0, ymax=None, xmin=0, xmax=None,
         var[i] = var_0
 
     # Get normalized spatial profile - Step 5.
-    prof = get_spatial_prof_opt(deepframe, ymin=ymin, ymax=ymax, xmin=xmin, xmax=xmax)
+    prof = _get_spatial_prof_opt(deepframe, ymin=ymin, ymax=ymax, xmin=xmin, xmax=xmax)
 
     # Revise variance estimate - Step 6.
     # Assuming 0 for background flux and 1 for gain.
@@ -1295,6 +1240,24 @@ def flux_calibrate_soss(spectrum_file, pwcpos, photom_path, spectrace_path, orde
     return None
 
 
+def _format_extract_width(width):
+    """Convert extraction width metadata into a FITS-header-safe value."""
+
+    if isinstance(width, str) or np.isscalar(width):
+        return width
+    if isinstance(width, dict):
+        if 'lower' in width and 'upper' in width:
+            return 'lower={}, upper={}'.format(width['lower'], width['upper'])
+        return str(width)
+
+    try:
+        lower_width, upper_width = width
+    except (TypeError, ValueError):
+        return str(width)
+
+    return 'lower={}, upper={}'.format(lower_width, upper_width)
+
+
 def format_miri_spectra(datafiles, times, extract_params, target_name, st_teff=None,
                         st_logg=None, st_met=None, output_dir='./', save_results=True,
                         clip_thresh=5):
@@ -1484,7 +1447,7 @@ def format_nirspec_spectra(datafiles, times, extract_params, target_name, detect
 
 def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=None, st_logg=None,
                         st_met=None, pwcpos=None, output_dir='./', save_results=True,
-                        use_pastasoss=False, clip_thresh=5):
+                        use_pastasoss=False, clip_thresh=5, subarray='SUBSTRIP256'):
     """Unpack the outputs of the 1D extraction and format them into lightcurves at the native
     detector resolution.
 
@@ -1515,6 +1478,8 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
         Note that this will only allow the extraction of order 2 from 0.6 - 0.85µm.
     clip_thresh : int
         Threshold for sigma clipping.
+    subarray : str
+        SOSS subarray identifier.
 
     Returns
     -------
@@ -1523,8 +1488,17 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     """
 
     fancyprint('Formatting extracted 1d spectra.')
-    # Box extract outputs will just be a tuple of arrays.
-    if isinstance(datafiles, tuple):
+    # Box and double-Gaussian extract outputs are local arrays.
+    if isinstance(datafiles, dict):
+        wave1d_o1 = datafiles['wave_o1']
+        flux_o1 = datafiles['flux_o1']
+        ferr_o1 = datafiles['ferr_o1']
+        wave1d_o2 = datafiles['wave_o2']
+        flux_o2 = datafiles['flux_o2']
+        ferr_o2 = datafiles['ferr_o2']
+        dq_rep_o1 = datafiles.get('dq_rep_o1', -1 * np.ones_like(wave1d_o1))
+        dq_rep_o2 = datafiles.get('dq_rep_o2', -1 * np.ones_like(wave1d_o2))
+    elif isinstance(datafiles, tuple):
         wave1d_o1 = datafiles[0]
         flux_o1 = datafiles[1]
         ferr_o1 = datafiles[2]
@@ -1536,8 +1510,7 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
 
     # Whereas ATOCA extract outputs are in the atoca extract1dstep format.
     else:
-        # Open the datafiles, and pack the wavelength, flux, and flux error information into data
-        # cubes.
+        # Open the datafiles, and pack the wavelength, flux, and flux error info into data cubes.
         datafiles = np.atleast_1d(datafiles)
         for i, file in enumerate(datafiles):
             segment = utils.unpack_atoca_spectra(file)
@@ -1570,7 +1543,7 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
         # Note that PASTASOSS only predicts positions and thus wavelengths for order 2 bluewards of
         # ~0.9µm. Therefore, the whole frame cannot be extracted for order 2. PASTASOSS also does
         # not take into account any TA inaccuracies resulting in the position of the target trace
-        # not being in the center of the frame - which will effect the resulting wavelength
+        # not being in the centre of the frame - which will effect the resulting wavelength
         # solution.
         # fancyprint('Using PASTASOSS to predict wavelength solution.')
         # wave1d_o1 = pastasoss.get_soss_traces(pwcpos=pwcpos, order='1', interp=True).wavelength
@@ -1583,8 +1556,7 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
         # ferr_o2 = ferr_o2[:, xpos_o2]
 
     # Cross-correlate with stellar model.
-    # If one or more of the stellar parameters are not provided, use the existing wavelength
-    # solution.
+    # If one or more of the stellar parameters are not provided, use default wavelength solution.
     if None in [st_teff, st_logg, st_met]:
         fancyprint('Stellar parameters not provided. Using default wavelength solution.',
                    msg_type='WARNING')
@@ -1620,9 +1592,12 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     dq_rep_o1 = dq_rep_o1[::-1]
     dq_rep_o2 = dq_rep_o2[::-1]
 
-    # Clip remaining 5-sigma outliers.
+    # # Clip remaining 5-sigma outliers.
     flux_o1_clip = utils.sigma_clip_lightcurves(flux_o1, thresh=clip_thresh, window=10)
-    flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2, thresh=clip_thresh, window=10)
+    if subarray == 'SUBSTRIP256':
+        flux_o2_clip = utils.sigma_clip_lightcurves(flux_o2, thresh=clip_thresh, window=10)
+    else:
+        flux_o2_clip = flux_o2
 
     # Pack the lightcurves into the output format.
     # Put 1D extraction parameters in the output file header.
@@ -1652,7 +1627,35 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
     return spectra
 
 
-def get_soss_estimate(atoca_spectra, output_dir):
+def _get_aperture_pixels(edge_low, edge_up, dimy):
+    """Return detector rows and fractional pixel overlaps for one aperture."""
+
+    row_start = max(int(np.floor(edge_low)), 0)
+    row_end = min(int(np.ceil(edge_up)), dimy)
+    rows = np.arange(row_start, row_end)
+    if len(rows) == 0:
+        return rows.astype(int), np.array([], dtype=float)
+
+    weights = np.minimum(rows + 1, edge_up) - np.maximum(rows, edge_low)
+    weights = np.clip(weights, 0, 1)
+    ii = np.where(weights > 0)[0]
+
+    return rows[ii].astype(int), weights[ii]
+
+
+def _get_extraction_edges(ypos, dimy, width, lower_width=None, upper_width=None):
+    """Determine the lower and upper edges of an extraction aperture."""
+
+    lower_half, upper_half = _parse_extraction_width(width, lower_width=lower_width,
+                                                     upper_width=upper_width)
+    ypos = np.asarray(ypos, dtype=float)
+    edge_up = np.min([ypos + upper_half, np.ones_like(ypos, dtype=float) * dimy], axis=0)
+    edge_low = np.max([ypos - lower_half, np.zeros_like(ypos, dtype=float)], axis=0)
+
+    return edge_low, edge_up, lower_half, upper_half
+
+
+def _get_soss_estimate(atoca_spectra, output_dir):
     """Convert the AtocaSpectra output of ATOCA into the format expected for a soss_estimate.
 
     Parameters
@@ -1681,7 +1684,7 @@ def get_soss_estimate(atoca_spectra, output_dir):
     return estimate_filename
 
 
-def get_spatial_prof_opt(deepframe, ymin=0, ymax=None, xmin=0, xmax=None):
+def _get_spatial_prof_opt(deepframe, ymin=0, ymax=None, xmin=0, xmax=None):
     """Create a normalized spatial profile from a deep stack for optimal extraction.
 
     Parameters
@@ -1835,6 +1838,42 @@ def get_wave_soss(datafile, outdir):
     wave_o2 = np.mean(fits.getdata(wavemap, 2)[20:-20, 20:-20], axis=0)
 
     return wave_o1, wave_o2
+
+
+def _load_box_extraction_cubes(datafiles):
+    """Load science/error/DQ cubes for box extraction.
+    """
+
+    datafiles = np.atleast_1d(datafiles)
+    for i, file in enumerate(datafiles):
+        if isinstance(file, str):
+            data = fits.getdata(file)
+            err = fits.getdata(file, 2)
+            try:
+                dq = fits.getdata(file, 3)
+            except (IndexError, KeyError, OSError):
+                dq = None
+        else:
+            with utils.open_filetype(file) as datamodel:
+                data = datamodel.data
+                err = datamodel.err
+                dq = getattr(datamodel, 'dq', None)
+                if dq is None:
+                    dq = getattr(datamodel, 'groupdq', None)
+
+        if i == 0:
+            cube = data
+            ecube = err
+            dqcube = dq
+        else:
+            cube = np.concatenate([cube, data])
+            ecube = np.concatenate([ecube, err])
+            if dqcube is not None and dq is not None:
+                dqcube = np.concatenate([dqcube, dq])
+            else:
+                dqcube = None
+
+    return cube, ecube, dqcube
 
 
 def optimal_extract_miri(datafiles, deepframe, centroids, extract_width=None, max_iter=25,
@@ -2001,6 +2040,40 @@ def optimal_extract_nirspec(datafiles, deepframe, centroids, extract_width=None,
     return wave, flux, ferr, dq_rep
 
 
+def _parse_extraction_width(width, lower_width=None, upper_width=None):
+    """Normalize symmetric and asymmetric aperture definitions into half-widths."""
+
+    if isinstance(width, str):
+        raise ValueError('String widths are not supported by the low-level extraction helpers.')
+
+    if lower_width is not None or upper_width is not None:
+        if lower_width is None or upper_width is None:
+            raise ValueError('Both lower_width and upper_width must be provided.')
+        lower_half = float(lower_width)
+        upper_half = float(upper_width)
+    elif isinstance(width, dict):
+        if 'lower' not in width or 'upper' not in width:
+            raise ValueError('Width dictionaries must contain "lower" and "upper" keys.')
+        lower_half = float(width['lower'])
+        upper_half = float(width['upper'])
+    elif np.isscalar(width):
+        lower_half = float(width) / 2
+        upper_half = float(width) / 2
+    else:
+        try:
+            lower_half, upper_half = width
+        except (TypeError, ValueError):
+            raise ValueError('width must be a scalar full width or a two-element '
+                             '(lower_width, upper_width) pair.')
+        lower_half = float(lower_half)
+        upper_half = float(upper_half)
+
+    if lower_half <= 0 or upper_half <= 0:
+        raise ValueError('Extraction widths must be strictly positive.')
+
+    return lower_half, upper_half
+
+
 def trace_spectrum(datafiles, deepframe, output_dir='./', save_results=True, fileroot_noseg='',
                    do_plot=False, show_plot=False, allow_miri_slope=False, extract_width=None,
                    extract_width_soss2=None):
@@ -2024,10 +2097,12 @@ def trace_spectrum(datafiles, deepframe, output_dir='./', save_results=True, fil
         If True, show the step diagnostic plot instead of/in addition to saving it to file.
     allow_miri_slope : bool
         If True, allow the MIRI centroids to be sloped.
-    extract_width : int, None
-        Extraction full width.
-    extract_width_soss2 : int, None
-        Extraction full width for SOSS order 2.
+    extract_width : int, tuple(float, float), None
+        Extraction full width. A two-element tuple is interpreted as an asymmetric
+        `(lower_width, upper_width)` aperture for box extraction.
+    extract_width_soss2 : int, tuple(float, float), None
+        Extraction full width for SOSS order 2. A two-element tuple is interpreted as an
+        asymmetric `(lower_width, upper_width)` aperture for box extraction.
 
     Returns
     -------
@@ -2196,15 +2271,18 @@ def run_stage3(results, save_results=True, root_dir='./', force_redo=False, extr
     force_redo : bool
         If True, redo steps even if outputs files are already present.
     extract_method : str
-        Either 'box', 'optimal', or 'atoca'. Runs the applicable 1D extraction routine.
+        Either 'box', 'optimal', or 'atoca'.
     soss_specprofile : str, None
         Specprofile reference file; only neceessary for ATOCA extractions.
     centroids : str, None
         Path to file containing trace positions for each order.
-    extract_width : int, str
-        Width around the trace centroids, in pixels, for the 1D extraction.
-    extract_width_soss2 : int, str, None
-        Width of extraction box for order 2. If None, will use the same aperture as order 1.
+    extract_width : int, tuple(float, float), str
+        Width around the trace centroids, in pixels, for the 1D extraction. A two-element tuple is
+        interpreted as an asymmetric `(lower_width, upper_width)` aperture for box extraction.
+    extract_width_soss2 : int, tuple(float, float), str, None
+        Width of extraction box for order 2. If None, will use the same aperture as order 1. A
+        two-element tuple is interpreted as an asymmetric `(lower_width, upper_width)` aperture for
+        box extraction.
     st_teff : float, None
         Stellar effective temperature.
     st_logg : float, None
