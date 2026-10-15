@@ -83,7 +83,7 @@ Make sure that any instrument-specific parameters that don't apply to your obser
 
 .. note::
     For NIRSpec and MIRI, the quick extraction used in Phase 1 does not yet have access to a wavelength solution, so the Phase 1 cost is calculated over the full spectrum, and ``wave_range`` only comes into play when optimizing the extraction width in Phase 2.
-    If no ``wave_range`` is provided, the optimizer will default to a high signal-to-noise region for each instrument (1--2µm for NIRISS, 3--3.5µm for NRS1, 4--4.5µm for NRS2, and 5--10µm for MIRI).
+    If no ``wave_range`` is provided, the optimizer will use instrument defaults.
 
 
 Outputs
@@ -93,19 +93,10 @@ All optimizer outputs are saved to the Optimizer_Files subdirectory of the pipel
 
     - ``Cost_Summary_<name_tag>.txt``: A table of every trial, with the parameter values used, the runtime, and the resulting cost.
     - ``Cost_Summary_<name_tag>.png``: A summary plot of the cost for each sweep (normalized within each sweep), with the best value highlighted, along with a table of the winning parameters.
-    - ``LightCurve_Scatter_<name_tag>.txt`` and ``LightCurve_Scatter_Plot_<name_tag>.png``: The scatter as a function of wavelength for each trial. These are useful to check that the improvement is not driven by just a handful of wavelength channels.
+    - ``LightCurve_Scatter_Plot_<name_tag>.png``: The scatter as a function of wavelength for each trial. These are useful to check that the improvement is not driven by just a handful of wavelength channels.
 
 The final, optimized Stage 1 to 3 products are saved to the usual Stage1, Stage2, and Stage3 directories, just as with run_DMS.py, and the winning parameters are printed at the end of the run.
 These can then be copied into run_DMS.yaml if you'd like to reproduce, or further tweak, the reduction later on.
 
 .. note::
     The optimizer will happily return the best value on your grid, even if that is one of the edges! If the winning value for a parameter is the first or last value you tried, it's worth extending the grid and running again.
-
-
-Shortcuts
----------
-
-Sometimes you might only want to rerun part of the optimization. There are a couple of options at the bottom of run_optimize.yaml for this:
-
-    - ``optimize_extract_width_only``: Skip straight to Stage 3 using existing Stage 2 outputs, and only optimize the extraction width.
-    - ``from_pca_only``: Restart from existing ``BadPixStep`` outputs, rerun the PCA reconstruction (e.g., with a new set of ``remove_components``), and then continue on into Stage 3.
