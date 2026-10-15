@@ -40,11 +40,11 @@ class DQInitStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
-        hot_pixel_map : str, np.ndarray(float)
+        hot_pixel_map : str, numpy.ndarray[float]
             Path to a custom hot pixel map, or the map itself.
         """
 
@@ -101,12 +101,12 @@ class DQInitStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
@@ -128,12 +128,12 @@ class DQInitStep:
                 # ==== Additional Calibrations ====
                 # For MIRI, set first and last group to DO_NOT_USE.
                 if self.instrument == 'MIRI':
-                    if flag_first_miri_frame is True:
+                    if flag_first_miri_frame:
                         fancyprint('Flagging first MIRI frame.')
                         dnu = utils.get_dq_flag_metrics(res.groupdq[:, 0], ['DO_NOT_USE'])
                         ii = np.where(dnu != 1)
                         res.groupdq[:, 0][ii] += 1
-                    if flag_last_miri_frame is True:
+                    if flag_last_miri_frame:
                         fancyprint('Flagging last MIRI frame.')
                         dnu = utils.get_dq_flag_metrics(res.groupdq[:, -1], ['DO_NOT_USE'])
                         ii = np.where(dnu != 1)
@@ -152,7 +152,7 @@ class DQInitStep:
                 res.save(expected_file)
 
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
                         res.close()
@@ -182,7 +182,7 @@ class INLCorrStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -223,7 +223,7 @@ class INLCorrStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -234,7 +234,7 @@ class INLCorrStep:
             return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
@@ -275,7 +275,7 @@ class EmiCorrStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -306,7 +306,7 @@ class EmiCorrStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -317,7 +317,7 @@ class EmiCorrStep:
             return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
@@ -335,7 +335,7 @@ class EmiCorrStep:
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 skip=False, **kwargs)
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
                         res.close()
@@ -359,7 +359,7 @@ class SuperBiasStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -415,7 +415,7 @@ class SuperBiasStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -426,7 +426,7 @@ class SuperBiasStep:
             return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         # If not using the crds reference file, make the custom superbias now.
@@ -434,7 +434,7 @@ class SuperBiasStep:
             fancyprint('Generating a custom superbias frame from 0th group.')
             superbias = utils.make_custom_superbias(self.datafiles)
             # Save superbias frame.
-            if save_results is True:
+            if save_results:
                 filename = self.fileroot_noseg + 'superbias.npy'
                 np.save(self.output_dir + filename, superbias)
 
@@ -478,7 +478,7 @@ class SuperBiasStep:
                             scale_factors = np.concatenate([scale_factors, scale_factor])
 
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     if isinstance(res, str):
                         current_name = res
                     else:
@@ -494,7 +494,7 @@ class SuperBiasStep:
 
         # Do step plot if requested.
         if do_plot is True:
-            if save_results is True:
+            if save_results:
                 plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
                 if self.instrument == 'NIRSPEC':
@@ -520,7 +520,7 @@ class RefPixStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -551,7 +551,7 @@ class RefPixStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -562,7 +562,7 @@ class RefPixStep:
             return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
@@ -580,7 +580,7 @@ class RefPixStep:
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 **kwargs)
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
                         res.close()
@@ -603,7 +603,7 @@ class DarkCurrentStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -634,7 +634,7 @@ class DarkCurrentStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -645,7 +645,7 @@ class DarkCurrentStep:
             return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
@@ -663,7 +663,7 @@ class DarkCurrentStep:
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 **kwargs)
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
                         res.close()
@@ -688,7 +688,7 @@ class OneOverFStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         baseline_ints : array-like(int), None
             Integration number(s) to use as ingress and/or egress.
@@ -697,14 +697,14 @@ class OneOverFStep:
         method : str
             Correction method. SOSS options are "scale-chromatic", "scale-achromatic",
             "scale-achromatic-window", or "solve". NIRSpec options are "median" or "slope".
-        soss_timeseries : np.ndarray(float), str, None
+        soss_timeseries : numpy.ndarray[float], str, None
             Path to a file containing light curve(s) for order 1, or the light curve(s) themselves.
-        soss_timeseries_o2 : np.ndarray(float), str, None
+        soss_timeseries_o2 : numpy.ndarray[float], str, None
             Path to a file containing light curves for order 2, or the light curves themselves.
-        pixel_masks : str, np.ndarray(float), None
+        pixel_masks : str, numpy.ndarray[float], None
             List of paths to map of pixels to mask or the mask itself. Can be 2D (dimy, dimx) or
             3D (nint, dimy, dimx).
-        soss_background : np.ndarray(float), str, None
+        soss_background : numpy.ndarray[float], str, None
             Model of background flux.
         centroids : str, dict, None
             Path to file containing trace positions for each order or the centroids dictionary
@@ -838,7 +838,7 @@ class OneOverFStep:
 
         Returns
         -------
-        results : list(datamodel), list(str)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -849,7 +849,7 @@ class OneOverFStep:
             return self.datafiles
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         fancyprint('OneOverFStep instance created.')
@@ -1033,7 +1033,7 @@ class OneOverFStep:
 
         # Do step plots if requested.
         if do_plot is True:
-            if save_results is True:
+            if save_results:
                 plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
                 plot_file3 = self.output_dir + self.tag.replace('.fits', '_o1_3.png')
@@ -1123,7 +1123,7 @@ class LinearityStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -1164,12 +1164,12 @@ class LinearityStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         results = []
@@ -1223,7 +1223,7 @@ class LinearityStep:
                         res.save(self.output_dir + res.meta.filename)
 
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
                         res.close()
@@ -1236,7 +1236,7 @@ class LinearityStep:
 
         # Do step plot if requested.
         if do_plot is True:
-            if save_results is True:
+            if save_results:
                 plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
                 if self.instrument == 'NIRSPEC':
@@ -1262,7 +1262,7 @@ class JumpStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -1309,7 +1309,7 @@ class JumpStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -1351,7 +1351,7 @@ class JumpStep:
                                            fileroot=self.fileroots[i], save_results=save_results,
                                            output_dir=self.output_dir)
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     if isinstance(res, str):
                         current_name = res
                     else:
@@ -1367,7 +1367,7 @@ class JumpStep:
 
         # Do step plot if requested.
         if do_plot is True:
-            if save_results is True:
+            if save_results:
                 plot_file = self.output_dir + self.tag.replace('.fits', '.png')
                 if self.instrument == 'NIRSPEC':
                     det = utils.get_nrs_detector_name(self.datafiles[0])
@@ -1390,7 +1390,7 @@ class RampFitStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -1423,7 +1423,7 @@ class RampFitStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -1458,7 +1458,7 @@ class RampFitStep:
                 for j in range(nint):
                     ii = np.where(np.isfinite(res.data[j]))
                     res.data[j] = griddata(ii, res.data[j][ii], (py, px), method='nearest')
-                if save_results is True:
+                if save_results:
                     res.save(self.output_dir + res.meta.filename)
 
                     # Remove rate file because we don't need it and I don't like having extra files.
@@ -1490,7 +1490,7 @@ class GainScaleStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -1518,7 +1518,7 @@ class GainScaleStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -1537,7 +1537,7 @@ class GainScaleStep:
                 res = step.call(segment, output_dir=self.output_dir,
                                 save_results=save_results, **kwargs)
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
                         res.close()
@@ -1557,16 +1557,16 @@ def eval_inl_fourier_counts(data, theta, periods):
 
     Parameters
     ----------
-    data : array-like(float)
+    data : numpy.ndarray[float]
         Input data frame.
-    theta : array-like(float)
+    theta : numpy.ndarray[float]
         INL Fourier series coefficients corresponding to each period.
-    periods : array-like(float)
+    periods : numpy.ndarray[float]
         INL Fourier series periods to remove.
 
     Returns
     -------
-    corr : np.ndarray(float)
+    corr : numpy.ndarray[float]
         INL correction values.
     """
 
@@ -1591,20 +1591,20 @@ def flag_hot_pixels(result, deepframe=None, box_size=10, thresh=15, hot_pix=None
     ----------
     result : jwst.datamodel
         Input datamodel.
-    deepframe : array-like(float), None
+    deepframe : numpy.ndarray[float], None
         Deep stack of the time series.
     box_size : int
         Size of box around each pixel to consider.
     thresh : int
         Sigma threshold above which a pixel will be flagged.
-    hot_pix : array-like(bool), None
+    hot_pix : numpy.ndarray[bool], None
         Map of pixels to flag.
 
     Returns
     -------
     result : jwst.datamodel
         Input datamodel with newly flagged pixels added to pixeldq extension.
-    hot_pix : np.ndarray(bool)
+    hot_pix : numpy.ndarray[bool]
         Map of new flagged pixels.
     """
 
@@ -1673,7 +1673,7 @@ def flag_saturated_pixels(datafile, instrument, saturation_threshold=80, nrs_det
     -------
     datafile : jwst.datamodel
         Input datamodel with saturation flags applied.
-    inds : np.ndarray(float)
+    inds : numpy.ndarray[float]
         Locations of saturated pixels.
     """
 
@@ -1738,7 +1738,7 @@ def inlcorrstep(datafile, amplitude_file=None, periods=None, save_results=True, 
     amplitude_file : str, None
         Path to file containing Fourier series ampliudes for each period to correct. Should be a
         numpy file.
-    periods : array-like(float), None
+    periods : numpy.ndarray[float], None
         List of periods to correct.
     output_dir : str, None
         Directory to which to save results. Only necessary if saving results.
@@ -1793,7 +1793,7 @@ def inlcorrstep(datafile, amplitude_file=None, periods=None, save_results=True, 
     cube_corr = cube / (1 + inl_correction)
 
     # Save results is requested
-    if save_results is True:
+    if save_results:
         thisfile = fits.open(datafile)
         thisfile[1].data = cube_corr
         # Save corrected data.
@@ -1835,14 +1835,14 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
 
     Returns
     -------
-    datafile : RampModel
+    datafile : jwst.RampModel
         Data file corrected for cosmic ray hits.
     """
 
     fancyprint('Starting time-domain jump detection step.')
 
     # If saving results, ensure output directory and fileroots are provided.
-    if save_results is True:
+    if save_results:
         assert output_dir is not None
         assert fileroot is not None
         # Output directory formatting.
@@ -1912,7 +1912,7 @@ def jumpstep_in_time(datafile, window=5, thresh=10, fileroot=None, save_results=
     fancyprint('{} jumps flagged'.format(count))
     fancyprint('and {} interpolated'.format(interp))
 
-    if save_results is True:
+    if save_results:
         if not isinstance(datafile, fits.hdu.hdulist.HDUList):
             datafile.close()
             datafile = fits.open(output_dir + filename)
@@ -1937,7 +1937,7 @@ def make_order0_mask_from_f277w(f277w, thresh_std=1, thresh_size=10, save_result
 
     Parameters
     ----------
-    f277w : array-like(float)
+    f277w : numpy.ndarray[float]
         An F277W filter exposure, superbias and background subtracted.
     thresh_std : int
         Threshold above which a group of pixels will be flagged.
@@ -1956,7 +1956,7 @@ def make_order0_mask_from_f277w(f277w, thresh_std=1, thresh_size=10, save_result
 
     Returns
     -------
-    mask : ndarray(int)
+    mask : numpy.ndarray[int]
         Frame with locations of order 0 contaminants.
     """
 
@@ -2013,14 +2013,14 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
 
     Parameters
     ----------
-    datafile : str, RampModel, CubeModel
+    datafile : str, jwst.RampModel, jwst.CubeModel
         Path to data files, or datamodel itself for a segment of the TSO. Should be 4D ramps,
         but 3D rate files are also accepted.
     output_dir : str, None
         Directory to which to save results. Only necessary if saving results.
     save_results : bool
         If True, save results to disk.
-    pixel_mask : array-like[float], None
+    pixel_mask : numpy.ndarray[float], None
         Maps of pixels to mask. Should be 3D (nints, dimy, dimx).
     fileroot : str, None
         Root name for output files. Only necessary if saving results.
@@ -2036,16 +2036,16 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
 
     Returns
     -------
-    result : str, CubeModel
+    result : str, jwst.CubeModel
         RampModel for the segment, corrected for 1/f noise.
-    outliers : ndarray(int)
+    outliers : numpy.ndarray[int]
         Map of masked pixels.
     """
 
     fancyprint('Starting 1/f correction step using the {} method.'.format(method))
 
     # If saving results, ensure output directory and fileroots are provided.
-    if save_results is True:
+    if save_results:
         assert output_dir is not None
         assert fileroot is not None
         # Output directory formatting.
@@ -2217,7 +2217,7 @@ def oneoverfstep_nirspec(datafile, output_dir=None, save_results=True, pixel_mas
         cube_corr[i] -= dc
 
     # Save 1/f corrected data.
-    if save_results is True:
+    if save_results:
         thisfile = fits.open(datafile)
         thisfile[1].data = cube_corr
         # Save corrected data.
@@ -2246,10 +2246,10 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
 
     Parameters
     ----------
-    datafile : str, RampModel, CubeModel
+    datafile : str, jwst.RampModel, jwst.CubeModel
         Datamodel for a segment of the TSO, or a path to one. Should be 4D ramps, but 3D rate
         files are also accepted.
-    deepstack : array-like[float]
+    deepstack : numpy.ndarray[float]
         Median stack of the baseline integrations.
     inner_mask_width : int
         Width around the trace to mask. For windowed methods, defines the inner window edge.
@@ -2257,17 +2257,17 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
         For windowed methods, the outer edge of the window.
     even_odd_rows : bool
         If True, calculate 1/f noise seperately for even and odd numbered rows.
-    background : array-like[float], None
+    background : numpy.ndarray[float], None
         Model of background flux.
-    timeseries : array-like[float], None
+    timeseries : numpy.ndarray[float], None
         Estimate of normalized light curve(s).
-    timeseries_o2 : array-like[float], None
+    timeseries_o2 : numpy.ndarray[float], None
         Estimate of normalized light curve(s) for order 2. Only necessary if method is chromatic.
     output_dir : str, None
         Directory to which to save results. Only necessary if saving results.
     save_results : bool
         If True, save results to disk.
-    pixel_mask : str, array-like[float], None
+    pixel_mask : str, numpy.ndarray[float], None
         Map of pixels to mask for each data segment. Should be 2D (dimy, dimx) or 3D
         (nint dimy, dimx).
     contaminant_mask : array-like[str], None
@@ -2284,16 +2284,16 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
 
     Returns
     -------
-    results : CubeModel, RampModel, str
+    results : jwst.CubeModel, jwst.RampModel, str
         RampModel for the segment, corrected for 1/f noise.
-    outliers : ndarray(int)
+    outliers : array-like[int]
         Map of masked pixels.
     """
 
     fancyprint('Starting 1/f correction step using the scale-{} method.'.format(method))
 
     # If saving results, ensure output directory and fileroots are provided.
-    if save_results is True:
+    if save_results:
         assert output_dir is not None
         assert fileroot is not None
         # Output directory formatting.
@@ -2514,7 +2514,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
             sub *= outlier[i, :, :]
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', category=RuntimeWarning)
-                if even_odd_rows is True:
+                if even_odd_rows:
                     # Calculate 1/f scaling seperately for even and odd rows.
                     dc = np.zeros_like(sub)
                     # For group-level corrections.
@@ -2557,7 +2557,7 @@ def oneoverfstep_scale(datafile, deepstack, inner_mask_width=40, outer_mask_widt
         cube += background
 
     # Save 1/f corrected data.
-    if save_results is True:
+    if save_results:
         thisfile = fits.open(datafile)
         thisfile[1].data = cube
         # Save corrected data.
@@ -2583,22 +2583,22 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
 
     Parameters
     ----------
-    datafile : str, RampModel, CubeModel
+    datafile : str, jwst.RampModel, jwst.CubeModel
         Datamodel for a segment of the TSO, or path to one. Should be 4D ramp, but 3D rate files
         are also accepted.
-    deepstack : array-like[float]
+    deepstack : numpy.ndarray[float]
         Median stack of the baseline integrations.
     trace_width : int
         Defines the width around the trace to consider for MLE solving.
-    background : array-like[float], None
+    background : numpy.ndarray[float], None
         Model of background flux.
     output_dir : str, None
         Directory to which to save results. Only necessary if saving results.
     save_results : bool
         If True, save results to disk.
-    pixel_mask : array-like[float], None
+    pixel_mask : numpy.ndarray[float], None
         Maps of pixels to mask. Can be 3D (nints, dimy, dimx), or 2D (dimy, dimx).
-    contaminant_mask : array-like[str], None
+    contaminant_mask : numpy.ndarray[str], None
         Map of additional contaminated pixels to mask. Should be 2D (dimy, dimx)
     fileroot : str, None
         Root name for output files. Only necessary if saving results.
@@ -2607,18 +2607,18 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
 
     Returns
     -------
-    corrected_rampmodel : str, CubeModel
+    corrected_rampmodel : str, jwst.CubeModel
         RampModel for the segment, corrected for 1/f noise.
     calc_vals : dict
         Dictionary of calculated light curve scaling and 1/f noise values.
-    outliers : ndarray(int)
+    outliers : numpy.ndarray[float]
         Map of masked pixels.
     """
 
     fancyprint('Starting 1/f correction step using the solve method.')
 
     # If saving results, ensure output directory and fileroots are provided.
-    if save_results is True:
+    if save_results:
         assert output_dir is not None
         assert fileroot is not None
         # Output directory formatting.
@@ -2803,7 +2803,7 @@ def oneoverfstep_solve(datafile, deepstack, trace_width=70, background=None, out
         cube += background
 
     # Save 1/f corrected data.
-    if save_results is True:
+    if save_results:
         thisfile = fits.open(datafile)
         thisfile[1].data = cube
         # Save corrected data.
@@ -2830,9 +2830,9 @@ def subtract_custom_superbias(datafile, superbias, method='constant', centroids=
 
     Parameters
     ----------
-    datafile : str, CubeModel
+    datafile : str, jwst.CubeModel
         Path to data files, or datamodel itself for a segment of the TSO.
-    superbias : ndarray(float)
+    superbias : numpy.ndarray[float]
         Superbias frame.
     method : str
         Superbias subtraction method. Either 'constant' or 'rescale'.
@@ -2852,16 +2852,16 @@ def subtract_custom_superbias(datafile, superbias, method='constant', centroids=
 
     Returns
     -------
-    result : RampModel, str
+    result : jwst.RampModel, str
         RampModel for the segment, corrected for the superbias.
-    scale_factors : ndarray(float), None
+    scale_factors : numpy.ndarray[float], None
         Time series of superbias scale factors for each integration.
     """
 
     fancyprint('Starting superbias subraction step using the custom-{} method.'.format(method))
 
     # If saving results, ensure output directory and fileroots are provided.
-    if save_results is True:
+    if save_results:
         assert output_dir is not None
         assert fileroot is not None
         # Output directory formatting.
@@ -2939,7 +2939,7 @@ def subtract_custom_superbias(datafile, superbias, method='constant', centroids=
         cube_corr = (cube - scale_factors[:, None, None, None] * superbias[None, None, :, :])
 
     # Save superbias corrected data.
-    if save_results is True:
+    if save_results:
         thisfile = fits.open(datafile)
         thisfile[1].data = cube_corr
         # Save corrected data.
@@ -3006,27 +3006,27 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
 
     Parameters
     ----------
-    results : array-like(str)
+    results : numpy.ndarray[str], list[str]
         List of paths to input uncalibrated datafiles for all segments in an exposure.
     mode : str
         Instrument mode which produced the data being analyzed.
-    soss_background_model : str, array-like(float), None
+    soss_background_model : str, numpy.ndarray[float], None
         SOSS background model or path to a file containing it.
-    baseline_ints : array-like(int)
+    baseline_ints : numpy.ndarray[int], list[int]
         Integration numbers for transit ingress and egress.
     oof_method : str
         1/f correction method. Options are "scale-chromatic", "scale-achromatic",
         "scale-achromatic-window", or "solve".
     superbias_method : str
         NIRSpec superbias correction method. Options are "crds", "custom", and "custom-rescale".
-    soss_timeseries : array-like(float), str, None
+    soss_timeseries : numpy.ndarray[float], str, None
         Estimate of the normalized light curve, either 1D or 2D, or path to a file containing it.
-    soss_timeseries_o2 : array-like(float), str, None
+    soss_timeseries_o2 : numpy.ndarray[float], str, None
         Estimate of the normalized light curve for order 2, either 1D or 2D, or path to a file
         containing it.
     save_results : bool
         If True, save results of each step to file.
-    pixel_masks : array-like(str), None
+    pixel_masks : numpy.ndarray[str], list[str], None
         For improved 1/f noise corecton. List of paths to outlier maps for each data segment. Can
         be 3D (nints, dimy, dimx), or 2D (dimy, dimx) files.
     force_redo : bool
@@ -3046,7 +3046,7 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
         Directory from which all relative paths are defined.
     output_tag : str
         Name tag to append to pipeline outputs directory.
-    skip_steps : list(str), None
+    skip_steps : list[str], None
         Step names to skip (if any).
     do_plot : bool
         If True, make step diagnostic plots.
@@ -3077,12 +3077,12 @@ def run_stage1(results, mode, soss_background_model=None, baseline_ints=None,
     inl_amplitude_file : str, None
         Path to file containing Fourier series amplitudes for each INL period to correct. Should be
         a numpy file.
-    inl_periods : array-like(float), None
+    inl_periods : numpy.ndarray[float], None
         List of INL periods to correct.
 
     Returns
     -------
-    results : list[RampModel]
+    results : list[jwst.RampModel]
         Datafiles for each segment processed through Stage 1.
     """
 

@@ -93,7 +93,7 @@ def make_background_row_plot(before, after, background_model, row_start=230, row
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -109,7 +109,7 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=Tru
     fig, ax = plt.subplots(figsize=(8, 5), facecolor='white')
     plt.imshow(deep, aspect='auto', origin='lower', vmin=0, vmax=np.nanpercentile(deep, 85))
 
-    if miri_scale is True:
+    if miri_scale:
         xx, yy = 3, 21
     else:
         xx, yy = 21, 3
@@ -154,7 +154,7 @@ def make_badpix_plot(deep, hotpix, nanpix, otherpix, outfile=None, show_plot=Tru
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -168,7 +168,7 @@ def make_centroiding_plot(deepframe, centroids, instrument, outfile=None, show_p
     dimy, dimx = np.shape(deepframe)
 
     plt.figure(figsize=(8, 3))
-    if miri_scale is True:
+    if miri_scale:
         plt.imshow(deepframe, aspect='auto', origin='lower', vmin=np.nanpercentile(deepframe, 10),
                    vmax=np.nanpercentile(deepframe, 99))
     else:
@@ -212,7 +212,7 @@ def make_centroiding_plot(deepframe, centroids, instrument, outfile=None, show_p
 
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -396,7 +396,7 @@ def make_inl_plot(data_pre, res_pre, data_post, outfile=None, show_plot=True):
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -423,7 +423,7 @@ def make_inl_plot2(data_pre, res_pre, data_post, res_post, outfile=None, show_pl
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -537,7 +537,7 @@ def make_jump_location_plot(results, outfile=None, show_plot=True):
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -652,7 +652,7 @@ def make_linearity_plot(results, old_results, outfile=None, show_plot=True):
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -742,7 +742,7 @@ def make_linearity_plot2(results, old_results, outfile=None, show_plot=True):
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -790,7 +790,7 @@ def make_oneoverf_chromatic_plot(m_e, m_o, b_e, b_o, ngroup, outfile=None, show_
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -979,7 +979,7 @@ def make_oneoverf_psd(results, old_results, deepstack, old_deepstack, timeseries
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -1004,7 +1004,7 @@ def make_order0_mask_plot(mask, f277w, outfile=None, show_plot=False):
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -1047,7 +1047,7 @@ def make_pca_plot(pcs, var, projections, show_plot=False, outfile=None):
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -1110,7 +1110,7 @@ def make_soss_width_plot(widths, scatter, min_width, outfile=None, show_plot=Tru
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -1133,7 +1133,7 @@ def make_superbias_scale_plot(scale_factors, outfile=None, show_plot=True):
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -1413,7 +1413,7 @@ def plot_saturated_pixels(pix_indices, outfile=None, show_plot=True):
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
         fancyprint('Plot saved to {}'.format(outfile))
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()
@@ -1462,7 +1462,7 @@ def nine_panel_plot(data, text=None, outfile=None, show_plot=True, **kwargs):
 
     if outfile is not None:
         plt.savefig(outfile, bbox_inches='tight')
-    if show_plot is False:
+    if not show_plot:
         plt.close()
     else:
         plt.show()

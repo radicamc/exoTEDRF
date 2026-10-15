@@ -590,7 +590,7 @@ def run_uporf(priors, time, flux, out_folder, gp_regressors, linear_regressors, 
         except KeyboardInterrupt as err:
             raise err
         except Exception as err:
-            if debug is False:
+            if not debug:
                 fancyprint('Exception encountered.', msg_type='WARNING')
                 fancyprint('Skipping bin.', msg_type='WARNING')
                 res = None
@@ -648,7 +648,7 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, fi
 
     # Pack the quantities into a dictionary.
     dd = {'wave': wave, 'wave_err': np.abs(wave_err), 'dppm': dppm, 'dppm_err': dppm_err}
-    if asymmetric is True:
+    if asymmetric:
         dd['dppm2'] = dppm2
         dd['dppm2_err'] = dppm2_err
     if observing_mode == 'NIRISS/SOSS':
@@ -677,7 +677,7 @@ def save_transmission_spectrum(wave, wave_err, dppm, dppm_err, order, outdir, fi
     else:
         f.write('# Column dppm: (Fp/F*) (ppm)\n')
         f.write('# Column dppm_err: Error in (Fp/F*) (ppm)\n')
-    if asymmetric is True:
+    if asymmetric:
         f.write('# Column dppm2: (Rp2/R*)^2 (ppm)\n')
         f.write('# Column dppm2_err: Error in (Rp2/R*)^2 (ppm)\n')
     if observing_mode == 'NIRISS/SOSS':

@@ -40,7 +40,7 @@ class AssignWCSStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -71,7 +71,7 @@ class AssignWCSStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -105,7 +105,7 @@ class AssignWCSStep:
                 res.meta.target.source_type = 'POINT'
 
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     current_name = self.output_dir + res.meta.filename
                     res.save(current_name)  # Save to file to save srctype change.
                     if expected_file != current_name:
@@ -129,7 +129,7 @@ class Extract2DStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -160,7 +160,7 @@ class Extract2DStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -185,7 +185,7 @@ class Extract2DStep:
                 res = step.call(segment, output_dir=self.output_dir,
                                 save_results=save_results, **kwargs)
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
                         res.close()
@@ -209,11 +209,11 @@ class BackgroundStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
-        baseline_ints : array-like(int)
+        baseline_ints : numpy.ndarray[int], list[int]
             Integration number(s) to use as ingress and/or egress -- SOSS only.
-        background_model : np.ndarray(float), str, None
+        background_model : numpy.ndarray[float], str, None
             Model of background flux -- SOSS only.
         miri_method : str
             Method to calculate MIRI background; either 'median' or 'slope'.
@@ -276,14 +276,14 @@ class BackgroundStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
-        bkg_model : np.ndarray(float)
+        bkg_model : numpy.ndarray[float]
             Background model, scaled to the flux level of each group median.
         """
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         fancyprint('BackgroundStep instance created.')
@@ -335,14 +335,13 @@ class BackgroundStep:
                     res = backgroundstep_miri(datafile=segment, trace_mask_width=miri_trace_width,
                                               background_width=miri_background_width,
                                               output_dir=self.output_dir, save_results=save_results,
-                                              fileroot=self.fileroots[i], method=self.miri_method,
-                                              **kwargs)
+                                              fileroot=self.fileroots[i], method=self.miri_method)
                     bkg_model = None
             results.append(res)
 
         # Do step plot if requested.
         if do_plot is True and self.instrument == 'NIRISS':
-            if save_results is True:
+            if save_results:
                 plot_file1 = self.output_dir + self.tag.replace('.fits', '_1.png')
                 plot_file2 = self.output_dir + self.tag.replace('.fits', '_2.png')
             else:
@@ -366,7 +365,7 @@ class FlatFieldStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -394,7 +393,7 @@ class FlatFieldStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -422,11 +421,11 @@ class FlatFieldStep:
                 for j in range(nint):
                     ii = np.where(np.isfinite(res.data[j]))
                     res.data[j] = griddata(ii, res.data[j][ii], (py, px), method='nearest')
-                if save_results is True:
+                if save_results:
                     res.save(self.output_dir + res.meta.filename)
 
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
                         res.close()
@@ -449,7 +448,7 @@ class PhotomStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
         output_dir : str
             Path to directory to which to save outputs.
@@ -480,7 +479,7 @@ class PhotomStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
@@ -504,7 +503,7 @@ class PhotomStep:
                 res = step.call(segment, output_dir=self.output_dir, save_results=save_results,
                                 **kwargs)
                 # Verify that filename is correct.
-                if save_results is True:
+                if save_results:
                     current_name = self.output_dir + res.meta.filename
                     if expected_file != current_name:
                         res.close()
@@ -527,9 +526,9 @@ class BadPixStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
-        baseline_ints : array-like(int)
+        baseline_ints : numpy.ndarray[int], list[int]
             Integration number(s) to use as ingress and/or egress.
         output_dir : str
             Path to directory to which to save outputs.
@@ -576,12 +575,12 @@ class BadPixStep:
 
         Returns
         -------
-        results : list(datamodel)
+        results : list[jwst.datamodel], list[str]
             Input data files processed through the step.
         """
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         fancyprint('BadPixStep instance created.')
@@ -597,7 +596,7 @@ class BadPixStep:
             # If an output file for this segment already exists, skip the step.
             expected_file = self.output_dir + self.fileroots[i] + self.tag
             can_skip = expected_file in all_files
-            if save_results is True:
+            if save_results:
                 can_skip = can_skip and expected_hotpix in all_files
             if can_skip and force_redo is False:
                 fancyprint('File {} already exists.'.format(expected_file))
@@ -644,9 +643,9 @@ class PCAReconstructStep:
 
         Parameters
         ----------
-        input_data : array-like(str), array-like(datamodel)
+        input_data : list[str], numpy.ndarray[str], list[jwst.datamodel] 
             List of paths to input data or the input data itself.
-        baseline_ints : array-like(int)
+        baseline_ints : numpy.ndarray[int], list[int]
             Integration number(s) to use as ingress and/or egress.
         generate_lc : bool
             If True, produce and save an estimate of the white light curve.
@@ -673,7 +672,7 @@ class PCAReconstructStep:
         ----------
         pca_components : int
             Number of PCA components to fit.
-        remove_components : list(int), None
+        remove_components : list[int], None
             Indices of PCA components to remove from the reconstruction.
         skip_pca : bool
             If True, only generate the deep stack and don't do the PCA. Might be necessary for very
@@ -689,14 +688,14 @@ class PCAReconstructStep:
 
         Returns
         -------
-        result : list(CubeModel), list(str)
+        result : list([wst.CubeModel], list[str]
             Input datamodels, after PCA reconstruction.
-        deepstack : np.ndarray(float)
+        deepstack : numpy.ndarray[float]
             Deep stack of the observations.
         """
 
         # Warn user that datamodels will be returned if not saving results.
-        if save_results is False:
+        if not save_results:
             fancyprint('Setting "save_results=False" can be memory intensive.', msg_type='WARNING')
 
         fancyprint('PCAReconstructStep instance created.')
@@ -714,7 +713,7 @@ class PCAReconstructStep:
                 break
             # If ouput is present add to return.
             else:
-                if save_results is True:
+                if save_results:
                     results.append(expected_file)
                     deepstack = expected_deep
                 else:
@@ -726,7 +725,7 @@ class PCAReconstructStep:
             return results, deepstack
 
         # Run the step.
-        if skip_pca is False:
+        if not skip_pca:
             fancyprint('The PCA can be memory intensive, especially for large datasets.',
                        msg_type='WARNING')
             fancyprint('If you run into memory issues, the PCA component of this step can be '
@@ -746,7 +745,7 @@ class PCAReconstructStep:
         fancyprint('Generating a deep stack for the TSO.')
         deepstack = utils.make_baseline_stack_general(self.datafiles, self.baseline_ints)
 
-        if save_results is True:
+        if save_results:
             # Save deep frame.
             hdu = fits.PrimaryHDU(deepstack)
             hdul = fits.HDUList([hdu])
@@ -812,7 +811,7 @@ def backgroundstep_miri(datafile, trace_mask_width=20, background_width=14, meth
         raise ValueError('Unknown method: {}.'.format(method))
 
     # Save interpolated data.
-    if save_results is True:
+    if save_results:
         # Open input file and subtract background from data
         thisfile = fits.open(datafile)
         thisfile[1].data = cube_corr
@@ -859,11 +858,11 @@ def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', 
 
     Parameters
     ----------
-    datafile : str, RampModel, CubeModel
+    datafile : str, jwst.RampModel, jwst.CubeModel
         Data segment for a SOSS exposure, or path to one.
-    background_model : array-like(float)
+    background_model : numpy.ndarray[float]
         Background model. Should be 2D (dimy, dimx)
-    deepstack : array-like[float]
+    deepstack : numpy.ndarray[float]
         Median stack of the baseline integrations.
     output_dir : str
         Directory to which to save outputs.
@@ -873,17 +872,17 @@ def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', 
         Root name for output files.
     fileroot_noseg : str
         Root name with no segment information.
-    scale1 : float, array-like(float), None
+    scale1 : float, numpy.ndarray[float], None
         Scaling value to apply to background model to match data. Will take precedence over
         calculated scaling value. If applied at group level, length of scaling array must equal
         ngroup.
-    background_coords1 : array-like(int), None
+    background_coords1 : numpy.ndarray[int], list[int], None
         Region of frame to use to estimate the background. Must be 1D: [x_low, x_up, y_low, y_up].
-    scale2 : float, array-like(float), None
+    scale2 : float, numpy.ndarray[int], None
         Scaling value to apply to background model to match post-step data. Will take precedence
         over calculated scaling value. If applied at group level, length of scaling array must
         equal ngroup.
-    background_coords2 : array-like(int), None
+    background_coords2 : numpy.ndarray[int], list[int], None
         Region of frame to use to estimate the post-step background. Must be 1D:
         [x_low, x_up, y_low, y_up].
     differential : bool
@@ -891,9 +890,9 @@ def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', 
 
     Returns
     -------
-    result : CubeModel
+    result : jwst.CubeModel
         Input data segment, corrected for the background.
-    model_scaled : np.ndarray(float)
+    model_scaled : numpy.ndarray[float]
         Background model, scaled to the flux level of each group median.
     """
 
@@ -999,7 +998,7 @@ def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', 
             scale_factor2 = scale_factor1
 
         # Apply scaling to background model.
-        if differential is True:
+        if differential:
             fancyprint('Using differential background scale factors: {0:.5f}, {1:.5f}, and shift: '
                        '{2:.5f}'.format(scale_factor1, scale_factor2, shifts[i]))
             # Locate background step.
@@ -1017,7 +1016,7 @@ def backgroundstep_soss(datafile, background_model, deepstack, output_dir='./', 
             model_scaled[i] = background_model * scale_factor1 - shifts[i]
 
     # Subtract the background from the input segment.
-    if save_results is True:
+    if save_results:
         # Open input file and subtract background from data
         thisfile = fits.open(datafile)
         thisfile[1].data -= model_scaled
@@ -1052,9 +1051,9 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
 
     Parameters
     ----------
-    datafile : RampModel, str
+    datafile : jwst.RampModel, str
         Datamodel for a segment of the TSO, or path to one.
-    deepframe : array-like(float)
+    deepframe : numpy.ndarray[float]
         Median stack of baseline integrations.
     space_thresh : int
         Sigma threshold for a deviant pixel to be flagged spatially.
@@ -1075,7 +1074,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
         If True, do the step diagnostic plot.
     show_plot : bool
         If True, show the step diagnostic plot instead of/in addition to saving it to file.
-    to_flag : array-like(int)
+    to_flag : numpy.ndarray[int]
         Map of pixels to interpolate.
     median_high_variance : bool
         If True, set residual high-variance pixels to the stack median. Should be avoided in
@@ -1083,9 +1082,9 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
 
     Returns
     -------
-    result : CubeModel, str
+    result : jwst.CubeModel, str
         Input datamodel, corrected for outlier pixels.
-    badpix : ndarray(int)
+    badpix : numpy.ndarray[int]
         Map of pixels in the deepframe to interpolate.
     """
 
@@ -1257,7 +1256,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
             fancyprint('{} remaining high-variance pixels detected.'.format(int(np.nansum(std_flags))))
             stack = bn.nanmedian(newdata, axis=0)
             newdq[:, std_flags.astype(bool)] += 2**32  # Add a DQ flag.
-            if median_high_variance is True:
+            if median_high_variance:
                 fancyprint('Doing pixel replacement...')
                 # Leave SATURATED pixels for Stage 3 to mask or rescue.
                 to_replace = std_flags.astype(bool) & ~saturated_any
@@ -1291,7 +1290,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
     newdq = np.bitwise_or(newdq, 2 * saturated.astype(np.uint64))
 
     # Save interpolated data.
-    if save_results is True:
+    if save_results:
         # Open input file and subtract background from data
         thisfile = fits.open(datafile)
         thisfile[1].data = newdata
@@ -1312,7 +1311,7 @@ def badpixstep(datafile, deepframe, space_thresh=15, time_thresh=10, box_size=5,
         result.dq = newdq
 
     if do_plot is True and to_flag is None:
-        if save_results is True:
+        if save_results:
             outfile = output_dir + 'badpixstep.png'
             # Get proper detector names for NIRSpec.
             instrument = utils.get_instrument_name(result)
@@ -1345,17 +1344,17 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
 
     Parameters
     ----------
-    datafiles : array-like(RampModel, str)
+    datafiles : numpy.ndarray[jwst.RampModel], numpy.ndarray[str], list[str]
         List of datamodels for a TSO, or paths to them.
     pca_components : int
         Number of PCA components to fit.
-    remove_components : list(int), None
+    remove_components : list[int], None
         Indices of PCA components to remove from the reconstruction.
     output_dir : str
         Directory to which to output results.
     save_results : bool
         If True, save results to file.
-    fileroots : array-like(str), None
+    fileroots : numpy.ndarray[str], None
         Root names for output files.
     fileroot_noseg : str
         File root names without segment information.
@@ -1365,12 +1364,12 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
         If True, show the step diagnostic plot instead of/in addition to saving it to file.
     generate_lc : bool
         If True, produce and save an estimate of the white light curve.
-    baseline_ints : array-like(int)
+    baseline_ints : numpy.ndarray[int], list[int]
         Integrations of ingress and egress. Only necessary if generate_lc=True.
 
     Returns
     -------
-    result : list(CubeModel, str)
+    result : list[jwst.CubeModel], list[str]
         Input datamodels, after PCA reconstruction.
     """
 
@@ -1393,7 +1392,7 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
 
     # Calculate the trace stability using PCA -- original pass without any components removed.
     fancyprint('Calculating TSO stability.')
-    if save_results is True:
+    if save_results:
         outfile = output_dir + 'stability_pca.png'
         # Get proper detector names for NIRSpec.
         if instrument == 'NIRSPEC':
@@ -1413,7 +1412,7 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
                                      do_plot=do_plot, show_plot=show_plot)
 
     # If a light curve estimate is to be saved for use in later steps, use the first component.
-    if generate_lc is True:
+    if generate_lc:
         fancyprint('Generating a white light curve estimate from the PCA outputs.')
         # Format the baseline frames.
         assert baseline_ints is not None
@@ -1470,7 +1469,7 @@ def pcareconstructionstep(datafiles, pca_components=10, remove_components=None, 
         results, current_int = [], 0
         fancyprint('Saving reconstructed data.')
         for n, file in enumerate(datafiles):
-            if save_results is True:
+            if save_results:
                 thisfile = fits.open(file)
                 nints = np.shape(thisfile[1].data)[0]
                 thisfile[1].data = newcube[current_int:(current_int + nints)]
@@ -1514,7 +1513,7 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_
 
     Parameters
     ----------
-    cube : array-like(float)
+    cube : numpy.ndarray[float]
         Cube of TSO data.
     n_components : int
         Maximum number of principle components to calcaulte.
@@ -1527,11 +1526,11 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_
 
     Returns
     -------
-    pcs : np.ndarray(float)
+    pcs : numpy.ndarray[float]
         Extracted principle components.
-    var : np.ndarray(float)
+    var : numpy.ndarray[float]
         Explained variance of each principle component.
-    reconstruction : np.adarray(float)
+    reconstruction : numpy.ndarray[float]
         Input cube reconstructed using n_components PCs.
     """
 
@@ -1556,7 +1555,7 @@ def soss_stability_pca(cube, n_components=10, outfile=None, do_plot=False, show_
     # Reproject PCs onto data.
     projection = pca.transform(cube2.transpose())
 
-    if do_plot is True:
+    if do_plot:
         # Do plot.
         projection_plot = np.reshape(projection, (dimy, dimx, n_components))
         plotting.make_pca_plot(pcs, var, projection_plot.transpose(2, 0, 1), outfile=outfile,
@@ -1600,13 +1599,13 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         Sigma threshold for pixel to be flagged as an outlier spatially.
     time_thresh : int
         Sigma threshold for pixel to be flagged as an outlier temporally.
-    remove_components : list(int), None
+    remove_components : list[int], None
         Numbers of PCA components to remove during the data reconstruction.
     pca_components : int
         Number of PCA components to calculate.
-    soss_timeseries : array-like(float), None
+    soss_timeseries : numpy.ndarray[float], None
         Normalized 1D or 2D light curve(s) for order 1, or path to a file containing it.
-    soss_timeseries_o2 : array-like(float), None
+    soss_timeseries_o2 : numpy.ndarray[float], None
         Normalized 2D light curves for order 2, or path to a file contanining them. Only necessary
         if oof_method is "scale-chromatic".
     oof_method : str
@@ -1616,7 +1615,7 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         Directory from which all relative paths are defined.
     output_tag : str
         Name tag to append to pipeline outputs directory.
-    skip_steps : list(str), None
+    skip_steps : list[str], None
         Step names to skip (if any).
     generate_lc : bool
         If True, produce an estimate of the white light curve.
@@ -1626,10 +1625,10 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
         Outer mask width, in pixels, around the trace centroids.
     nirspec_mask_width : int
         Full-width (in pixels) around the target trace to mask for NIRSpec.
-    pixel_masks: None, str, array-like(str)
+    pixel_masks: None, str, list[str]
         Paths to files containing existing pixel flags to which the order 0 mask should be added.
         Only necesssary if generate_order0_mask is True.
-    f277w : None, str, array-like(float)
+    f277w : None, str, numpy.ndarray[float]
         F277W filter exposure which has been superbias and background corrected.
         Only necessary if generate_order0_mask is True.
     do_plot : bool
@@ -1648,9 +1647,9 @@ def run_stage2(results, mode, soss_background_model=None, baseline_ints=None, sa
 
     Returns
     -------
-    results : list(CubeModel)
+    results : list[jwst.CubeModel], list[str]
         Datafiles for each segment processed through Stage 2.
-    deepframe : ndarray(float), str
+    deepframe : numpy.ndarray[float], str
         Deep stack of the observations.
     """
 

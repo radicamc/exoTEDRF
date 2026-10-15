@@ -10,7 +10,7 @@ Miscellaneous pipeline tools.
 
 from astropy.io import fits
 import bottleneck as bn
-from datetime import datetime
+from datetime import datetime, UTC
 import glob
 import numpy as np
 import os
@@ -358,7 +358,7 @@ def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_f
         # To calculate the centroids, regardless of the start and end positions specified, use the
         # pixels where the trace is actually bright.
         # Also need to flip the deep frame so that the trace is horizontal.
-        if allow_slope is True:
+        if allow_slope:
             poly_order = 1
         else:
             poly_order = 0
@@ -385,7 +385,7 @@ def get_centroids_miri(deepframe, ystart=0, yend=None, save_results=True, save_f
     else:
         xx1 = np.interp(yy1, y1, x1)
 
-    if save_results is True:
+    if save_results:
         centroids_dict = {'xpos': xx1, 'ypos': yy1}
         df = pd.DataFrame(data=centroids_dict)
         if save_filename[-1] != '_':
@@ -443,7 +443,7 @@ def get_centroids_nirspec(deepframe, xstart=0, xend=None, save_results=True,
     xx1 = np.linspace(xstart, xend-1, (xend-1)-xstart+1)
     yy1 = np.interp(xx1, x1[ii], y1[ii])
 
-    if save_results is True:
+    if save_results:
         centroids_dict = {'xpos': xx1, 'ypos': yy1}
         df = pd.DataFrame(data=centroids_dict)
         if save_filename[-1] != '_':
@@ -515,7 +515,7 @@ def get_centroids_soss(deepframe, tracetable, subarray, save_results=True, save_
         xx2, yy2 = xx1, np.ones_like(xx1) * np.nan
         xx3, yy3 = xx1, np.ones_like(xx1) * np.nan
 
-    if save_results is True:
+    if save_results:
         yyy2 = np.ones_like(xx1) * np.nan
         yyy2[:len(yy2)] = yy2
         yyy3 = np.ones_like(xx1) * np.nan
@@ -1292,7 +1292,7 @@ def make_baseline_stack_general(datafiles, baseline_ints):
 
 
 def make_custom_superbias(datafiles):
-    """Cunstruct a custom superbias frame by stacking all of the 0th group frames in a TSO.
+    """Cunstruct a custom superbias frame by stacking all the 0th group frames in a TSO.
 
     Parameters
     ----------
@@ -1371,7 +1371,7 @@ def make_soss_tracemask(xpix, ypix, mask_width, dimy, dimx, invert=False):
     for i, x in enumerate(xpix):
         mask[low[i]:up[i], int(x)] = 1
 
-    if invert is True:
+    if invert:
         mask = (~mask.astype(bool)).astype(int)
 
     return mask
@@ -1622,7 +1622,7 @@ def save_extracted_spectra(filename, data, names, units, header_dict=None, heade
         hdulist.append(fits.ImageHDU(d, header=hdr))
         param_dict[n] = d
 
-    if save_results is True:
+    if save_results:
         fancyprint('Spectra saved to {}'.format(filename))
         hdul = fits.HDUList(hdulist)
         hdul.writeto(filename, overwrite=True)
@@ -1686,7 +1686,7 @@ def save_ld_priors(wave, ld, order, target, m_h, teff, logg, outdir, ld_model_ty
     if observing_mode != 'MIRI/LRS':
         f.write('# SOSS Order/NRS Detector: {}\n'.format(order))
     f.write('# Author: {}\n'.format(os.environ.get('USER')))
-    f.write('# Date: {}\n'.format(datetime.utcnow().replace(microsecond=0).isoformat()))
+    f.write('# Date: {}\n'.format(datetime.now(UTC).isoformat(sep=' ', timespec='minutes')))
     f.write('# Stellar M/H: {}\n'.format(m_h))
     f.write('# Stellar log g: {}\n'.format(logg))
     f.write('# Stellar Teff: {}\n'.format(teff))
@@ -1762,7 +1762,7 @@ def sigma_clip_lightcurves(flux, thresh=10, window=10):
 
     # First find and interpolate remaining high variance channels.
     # Get scatter in each wavelength channel.
-    scatter = np.nanstd(flux, axis=0)#np.nanmedian(np.abs(0.5 * (flux[0:-2] + flux[2:]) - flux[1:-1]), axis=0)
+    scatter = np.nanstd(flux, axis=0)
     scatter = np.where(scatter == 0, np.inf, scatter)
     scatter_filt = median_filter(scatter, window)
     diff = scatter - scatter_filt
@@ -1912,7 +1912,7 @@ def unpack_input_dir(indir, mode, filter_detector, filetag=''):
         try:
             header = fits.getheader(file, 0)
         # Skip directories or non-fits files.
-        except(OSError, IsADirectoryError):
+        except (OSError, IsADirectoryError):
             continue
         # Keep files of the correct exposure with the correct tag.
         try:

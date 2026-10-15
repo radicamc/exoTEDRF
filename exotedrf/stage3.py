@@ -303,7 +303,7 @@ class Extract1DStep:
 
             # Do step plot if requested - only for atoca.
             if do_plot is True and self.extract_method == 'atoca':
-                if save_results is True:
+                if save_results:
                     plot_file = self.output_dir + self.tag.replace('.fits', '.png')
                 else:
                     plot_file = None
@@ -405,7 +405,7 @@ def specprofilestep(datafiles, empirical=True, output_dir='./'):
     # Initialize and run the APPLESOSS module with the median stack.
     spat_prof = applesoss.EmpiricalProfile(deepstack, tracetable=tracetable, wavemap=wavemap,
                                            pad=20)
-    if empirical is False:
+    if not empirical:
         # Get the date of the observations to use the calculated WFE models from that time.
         obs_date = fits.getheader(datafiles[0])['DATE-OBS']
         spat_prof.build_empirical_profile(verbose=0, empirical=False, wave_increment=0.1,
@@ -461,7 +461,7 @@ def atoca_extract_soss(datafiles, specprofile, fileroots, output_dir='./', save_
                         override_specprofile=specprofile, soss_estimate=None)
 
         # Verify that filename is correct.
-        if save_results is True:
+        if save_results:
             current_name = output_dir + res.meta.filename
             expected_file = output_dir + fileroots[i] + tag
             if expected_file != current_name:
@@ -541,8 +541,8 @@ def box_extract_miri(datafiles, centroids, extract_width, do_plot=False, show_pl
         fancyprint('Using width of {} pxiels.'.format(int(extract_width)))
 
         # Do diagnostic plot if requested.
-        if do_plot is True:
-            if save_results is True:
+        if do_plot:
+            if save_results:
                 outfile = output_dir + 'aperture_optimization.png'
             else:
                 outfile = None
@@ -630,8 +630,8 @@ def box_extract_nirspec(datafiles, centroids, extract_width, do_plot=False, show
         fancyprint('Using width of {} pxiels.'.format(int(extract_width)))
 
         # Do diagnostic plot if requested.
-        if do_plot is True:
-            if save_results is True:
+        if do_plot:
+            if save_results:
                 outfile = output_dir + 'aperture_optimization.png'
             else:
                 outfile = None
@@ -734,8 +734,8 @@ def box_extract_soss(datafiles, centroids, soss_width, soss_width_o2=None, do_pl
             fancyprint('Using width of {0} pxiels for order {1}.'.format(int(width), order))
 
             # Do diagnostic plot if requested.
-            if do_plot is True:
-                if save_results is True:
+            if do_plot:
+                if save_results:
                     outfile = output_dir + 'aperture_optimization_order{}.png'.format(order)
                 else:
                     outfile = None
@@ -813,7 +813,7 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None,
         extract_end = dimx
 
     # If making a DQ report for the extraction, unpack the relevant DQ flags.
-    if dq_report is True:
+    if dq_report:
         hot_pix = utils.get_dq_flag_metrics(dq_cube[10], ['HOT', 'WARM'])
         dnu_pix = utils.get_dq_flag_metrics(dq_cube[10], ['DO_NOT_USE'])
         sat_pix = utils.get_dq_flag_metrics(dq_cube[10], ['SATURATED'])
@@ -822,7 +822,7 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None,
     # Initialize output arrays.
     f, ferr = np.zeros((nint, dimx)), np.zeros((nint, dimx))
     dq = np.zeros(dimx)
-    if dq_report is False:
+    if not dq_report:
         dq = -1*np.ones(dimx)
 
     # Determine the upper and lower edges of the extraction region. Cut at detector edges if
@@ -839,7 +839,7 @@ def do_box_extraction(cube, err, ypos, width, extract_start=0, extract_end=None,
             continue
 
         # Populate the DQ report using the pixels wholly within the aperture.
-        if dq_report is True:
+        if dq_report:
             whole = rows[weights >= 1]
             if np.any(dnu_pix[whole, x]):
                 dq[x] += 1
@@ -1128,7 +1128,7 @@ def extract_optimal(prof, data, var, ymin=0, ymax=None, xmin=0, xmax=None, dq_re
             f_opt[:, x] = np.nansum(p * d / v, axis=1) / np.nansum(p ** 2 / v, axis=1)
             var_opt[:, x] = np.nansum(p, axis=1) / np.nansum(p ** 2 / v, axis=1)
 
-    if dq_report is True:
+    if dq_report:
         dq = np.zeros(dimx)
         # Unpack relevant DQ flags.
         hot_pix = utils.get_dq_flag_metrics(dq_cube[10], ['HOT', 'WARM'])
@@ -1535,7 +1535,7 @@ def format_soss_spectra(datafiles, times, extract_params, target_name, st_teff=N
         dq_rep_o2 = -1 * np.ones_like(wave1d_o2)
 
     # Refine wavelength solution.
-    if use_pastasoss is True:
+    if use_pastasoss:
         msg = 'PASTASOSS currently unvailable due to numpy dependency conflict with jwst v3.0.0.' \
               'Falling back on the default wavelength solution.'
         fancyprint(msg, msg_type='WARNING')
@@ -1917,16 +1917,16 @@ def optimal_extract_miri(datafiles, deepframe, centroids, extract_width=None, ma
     for i, file in enumerate(datafiles):
         if isinstance(file, str):
             data = fits.getdata(file)
-            if dq_report is True:
+            if dq_report:
                 dq = fits.getdata(file, 3)
         else:
             with utils.open_filetype(file) as datamodel:
                 data = datamodel.data
-                if dq_report is True:
+                if dq_report:
                     dq = datamodel.dq
         if i == 0:
             cube = data
-            if dq_report is True:
+            if dq_report:
                 dqcube = dq
         else:
             cube = np.concatenate([cube, data])
@@ -1997,16 +1997,16 @@ def optimal_extract_nirspec(datafiles, deepframe, centroids, extract_width=None,
     for i, file in enumerate(datafiles):
         if isinstance(file, str):
             data = fits.getdata(file)
-            if dq_report is True:
+            if dq_report:
                 dq = fits.getdata(file, 3)
         else:
             with utils.open_filetype(file) as datamodel:
                 data = datamodel.data
-                if dq_report is True:
+                if dq_report:
                     dq = datamodel.dq
         if i == 0:
             cube = data
-            if dq_report is True:
+            if dq_report:
                 dqcube = dq
         else:
             cube = np.concatenate([cube, data])
@@ -2141,8 +2141,8 @@ def trace_spectrum(datafiles, deepframe, output_dir='./', save_results=True, fil
                                              allow_slope=allow_miri_slope)
 
     # Do diagnostic plot if requested.
-    if do_plot is True:
-        if save_results is True:
+    if do_plot:
+        if save_results:
             if instrument == 'NIRSPEC':
                 outfile = output_dir + 'centroiding_{}.png'.format(det)
             else:
@@ -2157,7 +2157,7 @@ def trace_spectrum(datafiles, deepframe, output_dir='./', save_results=True, fil
                                        extract_width=extract_width,
                                        extract_width_soss2=extract_width_soss2)
 
-    if save_results is True:
+    if save_results:
         centroids = save_filename + 'centroids.csv'
 
     return centroids
