@@ -1958,8 +1958,4 @@ def verify_path(path):
         Path to directory.
     """
 
-    if os.path.exists(path):
-        pass
-    else:
-        # If directory doesn't exist, create it.
-        os.mkdir(path)
+    os.makedirs(path, exist_ok=True)
