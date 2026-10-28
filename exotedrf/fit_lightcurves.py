@@ -207,6 +207,12 @@ def fit_lightcurves(config):
         else:
             asymmetric = False
 
+        # If a transit, is T0 fixed or free?
+        if transit is True and priors['t0_p1']['distribution'] != 'fixed':
+            free_t0 = True
+        else:
+            free_t0 = False
+
         # Are parametric systematics models going to be used?
         use_parametric = False
         for param in config['params']:
@@ -375,6 +381,9 @@ def fit_lightcurves(config):
             if asymmetric is True:
                 pl_results['dppm2'] = []
                 pl_results['dppm2_err'] = []
+            if free_t0 is True:
+                pl_results['t0'] = []
+                pl_results['t0_err'] = []
             for i, wavebin in enumerate(fit_results.keys()):
                 # Make note if something went wrong with this bin.
                 skip = False
@@ -388,6 +397,9 @@ def fit_lightcurves(config):
                     if asymmetric is True:
                         pl_results['dppm2'].append(np.nan)
                         pl_results['dppm2_err'].append(np.nan)
+                    if free_t0 is True:
+                        pl_results['t0'].append(np.nan)
+                        pl_results['t0_err'].append(np.nan)
                 # If not skipped, append median and 1-sigma bounds.
                 else:
                     this_result = fit_results[wavebin].get_results_from_fit()
@@ -406,6 +418,13 @@ def fit_lightcurves(config):
                             pl_results['dppm2'].append((md**2) * 1e6)
                             err2_low = (md**2 - (md - lw)**2) * 1e6
                             err2_up = ((up + md)**2 - md**2) * 1e6
+                            pl_results['dppm2_err'].append(np.max([err2_up, err2_low]))
+                        # For free T0 fits.
+                        if free_t0 is True:
+                            up = this_result['t0_p1']['up_1sigma']
+                            lw = this_result['t0_p1']['low_1sigma']
+                            pl_results['t0'].append(this_result['t0_p1']['median'])  # Still in d
+                            pl_results['t0_err'].append(np.nanmax([up, lw], axis=0))
                     else:
                         md = this_result['fp_p{}_inst'.format(pl+1)]['median']
                         up = this_result['fp_p{}_inst'.format(pl+1)]['up_1sigma']
@@ -414,9 +433,6 @@ def fit_lightcurves(config):
                         err_low = (md**2 - (md - lw)**2) * 1e6
                         err_up = ((up + md)**2 - md**2) * 1e6
                     pl_results['dppm_err'].append(np.max([err_up, err_low]))
-                    # For asymmetric fits.
-                    if asymmetric is True:
-                        pl_results['dppm2_err'].append(np.max([err2_up, err2_low]))
 
                 # Summarize fits and make plots if necessary.
                 if skip is False and pl == 0:
@@ -533,6 +549,9 @@ def fit_lightcurves(config):
                 if asymmetric is True:
                     order_results = {'dppm': [], 'dppm_err': [], 'dppm2': [], 'dppm2_err': [],
                                      'wave': [], 'wave_err': []}
+                elif free_t0 is True:
+                    order_results = {'dppm': [], 'dppm_err': [], 't0': [], 't0_err': [],
+                                     'wave': [], 'wave_err': []}
                 else:
                     order_results = {'dppm': [], 'dppm_err': [], 'wave': [], 'wave_err': []}
                 results_dict['order {}'.format(order)]['p{}'.format(pl+1)] = order_results
@@ -558,6 +577,20 @@ def fit_lightcurves(config):
                                       results_dict['order 1'][pll]['dppm2_err']])
         else:
             depths2, errors2 = None, None
+        if free_t0 is True:
+            t0 = np.concatenate([results_dict['order 2'][pll]['t0'],
+                                 results_dict['order 1'][pll]['t0']])
+            t0_err = np.concatenate([results_dict['order 2'][pll]['t0_err'],
+                                     results_dict['order 1'][pll]['t0_err']])
+            # Report all relative mid-transit times in minutes.
+            if config['reference_t0'] is None:
+                ref_t0 = np.nanmedian(t0)
+            else:
+                ref_t0 = config['reference_t0']
+            t0 = (t0 - ref_t0)*24*60
+            t0_err = t0_err*24*60
+        else:
+            t0, t0_err = None, None
 
         # Get target/reduction metadata.
         infile_header = fits.getheader(config['infile'], 0)
@@ -577,6 +610,8 @@ def fit_lightcurves(config):
         # Include fixed parameter values.
         fit_metadata = '#\n# Fit Metadata\n'
         for param, dist, value in zip(config['params'], config['dists'], config['values']):
+            if param == 't0_p1' and free_t0 is True:
+                fit_metadata += '# {}: {}\n'.format(formatted_names[param], ref_t0)
             if dist == 'fixed':
                 try:
                     fit_metadata += '# {}: {}\n'.format(formatted_names[param], value)
@@ -605,7 +640,8 @@ def fit_lightcurves(config):
                                           fit_meta=fit_metadata,
                                           occultation_type=lc_model_types[pl],
                                           observing_mode=config['observing_mode'],
-                                          asymmetric=asymmetric, dppm2=depths2, dppm2_err=errors2)
+                                          asymmetric=asymmetric, dppm2=depths2, dppm2_err=errors2,
+                                          free_t0=free_t0, t0=t0, t0_err=t0_err)
         fancyprint('{0} spectrum saved to {1}'.format(spec_type, outdir + filename))
 
     # === Covariance Matrix ===

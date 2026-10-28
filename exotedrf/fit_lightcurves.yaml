@@ -26,6 +26,9 @@ orders : [1, 2]
 fit_suffix : ''
 # Integrations of ingress and egress.
 baseline_ints : [50, -50]
+# (Optional) If freely fitting the mid-transit time, report all values relative to this.
+# Will use the average fitted value if None is passed here.
+reference_t0 : None
 # Number of planets to include in fit.
 num_pl : 1
 # Type of light curve model: 'transit' or 'eclipse'.
