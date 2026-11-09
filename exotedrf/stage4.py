@@ -465,7 +465,7 @@ def gen_ld_coefs(wavebin_low, wavebin_up, m_h, logg, teff, ld_data_path, mode, l
         wr = [wl, wu]
         try:
             out = calls[ld_model_type](wr, mode)
-        except ValueError:
+        except (ValueError, RuntimeError):
             out = [np.nan, np.nan, np.nan, np.nan]
         u1s.append(out[0])
         if ld_model_type != 'linear':
